@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Planificado |
+| **Estado** | En curso |
 | **Tarea(s) ACTION_PLAN** | 0.1 (+ CI de TOOLING.md §8, tests de ADR 0002, input de ADR 0001) |
 | **Fuentes** | ACTION_PLAN.md Tarea 0.1 · PMV.md §2.1 (controles), §3.1, §4.2, §4.4, §11 · TOOLING.md §8 · ADR 0001-0004 |
 | **Depende de** | — |

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tools/run_tests.sh)",
+      "Bash(bash tools/run_tests.sh)"
+    ]
+  }
+}
