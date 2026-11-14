@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ControlConfigData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/control_config_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+joystick_dead_zone_ratio = 0.15
+joystick_run_ratio = 0.8
+joystick_walk_back_ratio = 0.7
+turn_speed_rad = 10.0

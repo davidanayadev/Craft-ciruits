@@ -1,0 +1,40 @@
+[gd_scene load_steps=7 format=3]
+
+[sub_resource type="PlaneMesh" id="ground_mesh"]
+size = Vector2(50, 50)
+
+[sub_resource type="BoxShape3D" id="obstacle_shape"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="BoxMesh" id="obstacle_mesh"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_material"]
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_material")
+
+[sub_resource type="Environment" id="environment"]
+background_mode = 2
+sky = SubResource("sky")
+
+[node name="DevZone" type="Node3D"]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("ground_mesh")
+
+[node name="Obstacle" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -5)
+
+[node name="ObstacleShape" type="CollisionShape3D" parent="Obstacle"]
+shape = SubResource("obstacle_shape")
+
+[node name="ObstacleMesh" type="MeshInstance3D" parent="Obstacle"]
+mesh = SubResource("obstacle_mesh")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707, 0.5417, -0.4546, 0, 0.643, 0.766, 0.707, -0.5417, 0.4546, 0, 10, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("environment")

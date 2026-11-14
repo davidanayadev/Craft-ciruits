@@ -27,8 +27,8 @@ después se apoya en esto; arreglarlo más tarde cuesta más.
 |---|---|---|
 | R-001-01 | THE repo SHALL contain a Godot 4.7.2 project named "CyberScrap" in `game/`. | ACTION_PLAN 0.1, ADR 0004 |
 | R-001-02 | THE project SHALL use the Compatibility renderer (OpenGL ES 3.0) on desktop and on mobile. | PMV §3.1, ADR 0001 |
-| R-001-03 | THE project SHALL run in portrait with a 1080x1920 base resolution and SHALL adapt to other aspect ratios without distorting the image. | ACTION_PLAN 0.1 |
-| R-001-04 | WHERE the game runs on PC, THE window SHALL open in portrait at a reduced size that fits a desktop screen. | ADR 0001 |
+| R-001-03 | THE project SHALL run in landscape with a 1920x1080 base resolution and SHALL adapt to other aspect ratios without distorting the image. | ACTION_PLAN 0.1 · enmienda 2026-11-14 |
+| R-001-04 | WHERE the game runs on PC, THE window SHALL open in landscape at a reduced size that fits a desktop screen. | ADR 0001 · enmienda 2026-11-14 |
 | R-001-05 | THE project SHALL follow the folder layout of PMV §4.2 plus `tests/unit`, `tests/integration` and `i18n`. | PMV §4.2, ADR 0004 |
 | R-001-06 | IF a script has an untyped declaration or an unsafe property/method access, THEN THE editor and the headless run SHALL report it as an error. | PMV §4.4, constitución P7 |
 | R-001-07 | THE project SHALL load Spanish and English translations, SHALL pick the device language when it is one of them and SHALL fall back to English otherwise. | PMV §4.4, §11 |

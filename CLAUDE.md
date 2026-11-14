@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Spec 001 (`specs/001-project-bootstrap/`, ACTION_PLAN.md Tarea 0.1) is done and merged: the Godot project exists
-in `game/` with its settings, folder tree, i18n, InputMap, GUT 9.7.1 (ADR
-`specs/decisions/0002-test-framework-gut.md`), export presets, CI workflow and an empty placeholder main scene
-(`game/scenes/main.tscn`), but no gameplay code yet. The next spec is 002.
+Spec 001 (project bootstrap) is done and merged. Spec 002 (isometric scene and robot movement, ACTION_PLAN
+Tareas 0.2-0.3) is done on `feat/002-iso-scene-player-movement`: `game/` has its settings, i18n, InputMap, GUT
+9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable F0 prototype
+(`game/scenes/main.tscn`: dev zone, isometric camera rig, `Robot` moved by keyboard or a floating touch
+joystick). There is no battery, combat or inventory yet. The next spec is 003.
 
 ## Commands
 
@@ -52,7 +53,7 @@ ADRs in `specs/decisions/`:
 **CyberScrap** is a mobile (Android first, iOS later) 3D isometric survival game in the style of
 *Last Day on Earth*. You play a modular robot whose arm, leg and core pieces change its stats,
 degrade, and break. Engine: **Godot 4.7.2, GDScript**, **Compatibility renderer (OpenGL ES 3.0)**,
-portrait 1080x1920. It is local-first: the MVP has no server. The MVP budget is €0, so it uses only
+landscape 1920x1080 (portrait until Nov 14, 2026). It is local-first: the MVP has no server. The MVP budget is €0, so it uses only
 free CC0/CC assets (Kenney, Quaternius, itch.io, Sketchfab, freesound).
 
 The repo directory is named `Craft-ciruits`, but the game and project are called "CyberScrap" (renamed from

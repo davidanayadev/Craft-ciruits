@@ -44,10 +44,13 @@ func test_r_001_02_compatibility_renderer() -> void:
 	)
 
 
-func test_r_001_03_portrait_1080x1920_expand() -> void:
-	assert_eq(_get_int("display/window/size/viewport_width"), 1080)
-	assert_eq(_get_int("display/window/size/viewport_height"), 1920)
-	assert_eq(_get_int("display/window/handheld/orientation"), DisplayServer.SCREEN_PORTRAIT)
+func test_r_001_03_landscape_1920x1080_expand() -> void:
+	# Landscape since 2026-11-14 (decision after the first F0 device test).
+	assert_eq(_get_int("display/window/size/viewport_width"), 1920)
+	assert_eq(_get_int("display/window/size/viewport_height"), 1080)
+	assert_eq(
+		_get_int("display/window/handheld/orientation"), DisplayServer.SCREEN_SENSOR_LANDSCAPE
+	)
 	assert_eq(_get_string("display/window/stretch/mode"), "canvas_items")
 	assert_eq(_get_string("display/window/stretch/aspect"), "expand")
 

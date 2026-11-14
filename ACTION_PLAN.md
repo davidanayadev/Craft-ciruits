@@ -22,7 +22,7 @@
 - [ ] Instalar Godot 4.7.2
 - [ ] Crear proyecto "CyberScrap" con configuración 3D
 - [ ] Configurar renderer Compatibility (OpenGL ES 3.0)
-- [ ] Configurar resolución móvil (1080x1920, aspect ratio 16:9)
+- [ ] Configurar resolución móvil (1920x1080 apaisada desde 2026-11-14, aspect ratio 16:9)
 - [ ] Crear estructura de carpetas según PMV.md §4.2
 - [ ] Inicializar repositorio Git (privado)
 - [ ] Crear README.md con instrucciones de setup
