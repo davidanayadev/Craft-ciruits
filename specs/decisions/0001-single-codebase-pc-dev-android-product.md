@@ -25,7 +25,7 @@ Cómo se aplica (detalle en spec 001 y 002):
 |---|---|
 | Input | El gameplay lee acciones de InputMap (`move_*`, `run`, `attack`, `interact`…). El joystick virtual y los botones táctiles alimentan las mismas acciones que el teclado |
 | UI táctil | Visible en dispositivos táctiles; en PC se puede forzar para probarla con el ratón |
-| Pantalla | Retrato 1080x1920 en ambas; en PC la ventana se reduce con un override de tamaño de ventana |
+| Pantalla | Apaisada 1920x1080 en ambas (retrato hasta la enmienda del 2026-11-14, spec 001); en PC la ventana se reduce con un override de tamaño de ventana |
 | Render | Compatibility (OpenGL ES 3.0) en ambas, para que el PC enseñe lo que verá el móvil |
 | Rendimiento | Solo vale la medición en Android real (constitución P12) |
 | Código específico | Solo en la capa de input/UI y en overrides de `project.godot`; nunca en gameplay (constitución P8) |

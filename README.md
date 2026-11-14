@@ -43,7 +43,7 @@ Open the editor:
 "$GODOT_BIN" --editor --path game
 ```
 
-Run the game on the desktop (a 540x960 portrait window):
+Run the game on the desktop (a 960x540 landscape window):
 
 ```bash
 "$GODOT_BIN" --path game

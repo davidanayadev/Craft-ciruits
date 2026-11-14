@@ -49,10 +49,10 @@ antes de escribirlas (T-001-04, resultado en §3): no se da ninguna por buena de
 | `application/run/main_scene` | `"res://scenes/main.tscn"` (el editor lo cambiará por su UID cuando guarde la escena) | R-001-04, R-001-11 |
 | `rendering/renderer/rendering_method` y `.mobile` | `"gl_compatibility"` | R-001-02 |
 | `rendering/textures/vram_compression/import_etc2_astc` | `true` (necesario para Android) **(verificado)** | R-001-11 |
-| `display/window/size/viewport_width` / `viewport_height` | `1080` / `1920` | R-001-03 |
-| `display/window/handheld/orientation` | `1` (retrato, `DisplayServer.SCREEN_PORTRAIT`) **(verificado)** | R-001-03 |
+| `display/window/size/viewport_width` / `viewport_height` | `1920` / `1080` (enmienda 2026-11-14; antes 1080/1920) | R-001-03 |
+| `display/window/handheld/orientation` | `4` (`DisplayServer.SCREEN_SENSOR_LANDSCAPE`, ambas rotaciones; enmienda 2026-11-14, antes `1` retrato) **(verificado)** | R-001-03 |
 | `display/window/stretch/mode` / `aspect` | `canvas_items` / `expand` | R-001-03, pregunta 2 |
-| `display/window/size/window_width_override` / `window_height_override` | `540` / `960` (solo afecta a ventana de escritorio) **(verificado)** | R-001-04 |
+| `display/window/size/window_width_override` / `window_height_override` | `960` / `540` (solo afecta a ventana de escritorio; enmienda 2026-11-14) **(verificado)** | R-001-04 |
 | `debug/gdscript/warnings/untyped_declaration` | `2` (error) **(verificado)** | R-001-06 |
 | `debug/gdscript/warnings/unsafe_property_access`, `unsafe_method_access`, `unsafe_call_argument` | `2` (error) **(verificado)** | R-001-06 |
 | `debug/gdscript/warnings/directory_rules` | `{ "res://addons": 0 }` (`0` = *Exclude*). Es el valor por defecto de 4.7: excluye `addons/` de los avisos, para que GUT no rompa la compilación **(verificado)** | R-001-06 |
@@ -107,6 +107,11 @@ sale con 0. Un script de producción sin test tampoco se cargaría nunca. `check
 `true` para clases `@abstract`). Descartado: buscar `SCRIPT ERROR` en la salida (depende del texto y no ve los
 scripts sin test).
 
+**Cambio aprobado (2026-11-14): orientación apaisada.** Tras la primera prueba del F0 en el móvil (spec 002,
+T-002-08) se decidió jugar en horizontal. `viewport` pasa a 1920x1080, los overrides de ventana a 960x540 y
+`handheld/orientation` a `4` (`SCREEN_SENSOR_LANDSCAPE`). El test pasa a llamarse
+`test_r_001_03_landscape_1920x1080_expand`.
+
 **Cambio aprobado (2026-11-14): escena principal provisional.** Sin `application/run/main_scene` el proyecto
 no arranca ("no main scene defined") y R-001-04 y R-001-11 no se pueden verificar. Se añade
 `game/scenes/main.tscn` con un único nodo raíz `Main` (`Node`, sin script), que es la raíz que describe
@@ -125,7 +130,7 @@ Ninguno: esta feature no tiene valores de gameplay.
 |---|---|
 | R-001-01 | Manual: el editor 4.7.2 abre `game/` sin errores; `test_project_settings.gd::test_r_001_01_project_name` |
 | R-001-02 | `test_project_settings.gd::test_r_001_02_compatibility_renderer` (lee el valor base y el override `.mobile`) |
-| R-001-03 | `test_project_settings.gd::test_r_001_03_portrait_1080x1920_expand` |
+| R-001-03 | `test_project_settings.gd::test_r_001_03_landscape_1920x1080_expand` |
 | R-001-04 | Manual: ejecutar en Windows, la ventana abre a 540x960 |
 | R-001-05 | Manual: revisión del árbol en el PR |
 | R-001-06 | `test_project_settings.gd::test_r_001_06_typing_warnings_are_errors` + manual: un script sin tipar provoca error de carga |
