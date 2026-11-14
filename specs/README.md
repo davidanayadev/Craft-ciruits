@@ -79,7 +79,7 @@ plan a *Planificado*.
 |---|---|---|---|
 | [001](001-project-bootstrap/spec.md) | Proyecto Godot y arnés de desarrollo | 0.1 (+ CI, tests, input) | Hecho |
 | [002](002-iso-scene-player-movement/spec.md) | Escena isométrica y movimiento del robot | 0.2, 0.3 | Hecho |
-| [003](003-battery/spec.md) | Batería: consumo, señales y HUD | 0.4 | Aprobado |
+| [003](003-battery/spec.md) | Batería: consumo, señales y HUD | 0.4 | Planificado |
 | — | Spike de navmesh (sin spec, desechable) | 0.5 | — |
 | 004 | Zona verde, `zone_id` y RNG con semilla | 1.1 | Por crear |
 | 005 | Inventario e `ItemData` | 1.2 | Por crear |

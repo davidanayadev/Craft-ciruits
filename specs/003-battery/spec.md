@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado |
+| **Estado** | Planificado |
 | **Tarea(s) ACTION_PLAN** | 0.4 |
 | **Fuentes** | ACTION_PLAN.md Tarea 0.4 · PMV.md §2.1 (batería, HUD), §4.5 gancho 7 · BALANCE.md §1.1, §4.2, §9.1 · CLAUDE.md "Battery is the player's health" |
 | **Depende de** | 001, 002 (estado de movimiento andar/correr), arquitectura aprobada (`architecture.md` §5, §7, §9.4, §10.2) |
