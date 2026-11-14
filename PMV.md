@@ -1,10 +1,10 @@
-# PMV — Scrap Circuit (Android/iOS)
+# PMV — CyberScrap (Android/iOS)
 
 > Documento de Producto Mínimo Viable. Godot 4.7+ / GDScript. Local-first.
 > **Estado: En diseño. Decisión: 3D isométrico estilo LDOE.**
 > **Objetivo PMV: €0 de inversión (solo assets gratuitos).**
-> **Nombre decidido: Scrap Circuit**
-> **Duración estimada: 12-15 semanas (3-4 meses)**
+> **Nombre decidido: CyberScrap** (antes Scrap Circuit; cambio nov 2026)
+> **Duración estimada: ~17 semanas (4 meses)** (ver §5.2 y ACTION_PLAN.md)
 
 **Referencias cruzadas**:
 - Para features futuras (post-PMV): ver **SPECS.md**
@@ -19,6 +19,8 @@
 
 Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot modular: farmeo de materiales, combate contra zombies y robots hostiles, personalización por piezas intercambiables (brazos/piernas/core) que alteran batería y rendimiento, y base con bancos de trabajo.
 
+**Visión post-PMV (nov 2026)**: eres un robot con consciencia, fruto fallido de un experimento de transferencia de consciencia humana a máquinas, en un mundo dividido entre una IA rebelde telepática, infectados con mente de colmena y humanos (SPECS.md §21, §28). Cada partida es un mundo generado por semilla (SPECS.md §26), con modo Normal y modo Hardcore opcional (SPECS.md §27). Modelo de negocio: demo gratis + desbloqueo único, sin anuncios (SPECS.md §23).
+
 ---
 
 ## 2. Alcance del PMV simplificado
@@ -28,30 +30,30 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 | Sistema | Detalle |
 |---|---|
 | **Personaje robot** | 3 ranuras: Brazos, Piernas, Core. Cada pieza altera batería + rendimiento. Degradación hasta rotura. |
-| **Batería** | Recurso principal. Llega a 0 = muerte. Se recarga en base (instantáneo) o con baterías portátiles (+20 puntos). Consumo pasivo: 0.1/s, movimiento: +0.05/s, correr: +0.15/s. |
-| **Movimiento** | Viaje entre zonas = instantáneo con animación. Dentro de zona = joystick virtual (andar/correr). |
+| **Batería** | Recurso principal. Llega a 0 = muerte. Se consume en todas partes, también dentro de la base. Se recarga al 100% al interactuar con una Estación de carga (instantáneo) o +20 puntos con baterías portátiles. Consumo pasivo: 0.1/s, movimiento: +0.05/s, correr: +0.15/s. |
+| **Movimiento** | Viaje entre zonas = instantáneo con animación. Dentro de zona = joystick virtual: empujado hasta el 80 % de su radio anda, más allá corre (umbral ajustable en opciones). En PC: WASD y Shift para correr. Sin piernas no se puede correr. Velocidades en BALANCE.md §4.2. |
 | **Zona de farmeo** | **1 zona** (verde). Recolecta: chatarra, cables, hierro. Spawns de zombies y robots. |
 | **Zombies (2 tipos)** | Lento, Rápido. No sueltan piezas. |
 | **Robots hostiles (1 tipo)** | Básico (daño físico). Suelta piezas al morir. |
-| **Sistema de daño por partes** | Robots hostiles destruyen piezas en orden: Brazos (pierdes ataque) → Piernas (movimiento muy lento) → Core (drena batería). |
+| **Sistema de daño por partes** | Cada golpe recibido (zombies y robots) degrada -5 la primera pieza equipada intacta, en orden: Brazos (al romperse pierdes ataque) → Piernas (movimiento muy lento) → Core (drena batería). Ver BALANCE.md §4.1. |
 | **Mecánica de muerte** | Al morir (batería = 0): pierdes TODO excepto el Core. Reapareces en la base. Ventana temporal para volver a la zona y recuperar piezas. |
-| **Base** | Safe zone, sin muros ni ataques dentro. Contiene: |
-| — Banco de reparaciones | Reparar o crear piezas básicas. |
-| — Generador eólico | Aumenta capacidad de batería (+20 máx) y velocidad de recarga. **Genera baterías portátiles con el tiempo** (1 batería cada 4h, máx 3 almacenadas). En v1.1 se añadirán bancos avanzados que requieren baterías portátiles (horno, ensamblador, reciclador). Ver SPECS.md §3. |
-| — Estación de carga | Guardado + batería al máximo. |
+| **Base** | Safe zone, sin muros ni ataques dentro. **Colocación libre en cuadrícula** dentro de los límites de la escena de la base: el jugador elige dónde va cada estructura que construye (estaciones, generador, cofres) y puede moverla después (decisión nov 2026; base en cualquier sitio del mundo en v1.1, SPECS.md §32). Contiene: |
+| — Banco de reparaciones | Incluido desde el inicio (lo único que trae la base). Reparar o crear piezas básicas; construir estaciones de carga, generador eólico y cofres. |
+| — Generador eólico | Aumenta capacidad de batería (+20 máx). **Genera baterías portátiles con el tiempo** (1 batería cada 4h, máx 3 almacenadas). En v1.1 se añadirán bancos avanzados que requieren baterías portátiles (horno, ensamblador, reciclador). Ver SPECS.md §3. |
+| — Estación de carga | **Crafteable** (receta barata, BALANCE.md §5.3), todas las que quieras, solo dentro de la base. La base empieza sin ninguna. Al interactuar: batería al 100% (instantáneo) + guardado. Al entrar en la base hay autoguardado, pero no recarga (decisión nov 2026: tensión desde el minuto 0). |
 | — Cofres | 5 slots inventario personaje. Hasta 5 cofres, 4 slots cada uno. |
-| **XP / Progresión** | El personaje gana XP mejorando slots de inventario (ver §6). |
+| **XP / Progresión** | El personaje gana XP al matar enemigos, mejorando slots de inventario (ver §6). |
 | **Piezas intercambiables** | **3 piezas básicas** (brazos, piernas, core). Cada una con ventaja/desventaja clara. |
-| **Persistencia** | Guardado local en dispositivo (JSON/encriptado). |
-| **Controles táctiles** | Joystick virtual (izquierda), Botón atacar grande (derecha), Botón agacharse/sigilo (debajo de atacar), Minimapa (arriba derecha), HUD batería + estado piezas (arriba izquierda), Botón consumibles (junto a atacar), Botón interactuar (bancos/objetos), Botón almacenamiento (abajo). |
-| **Guía básica** | 3-4 pasos iniciales (muévete, abre caja, ataca, vuelve a base). |
+| **Persistencia** | Guardado local en dispositivo (JSON/encriptado), separado en **Perfil** (global) y **Mundo** (por partida; en el PMV solo hay uno). Ver §4.5. |
+| **Controles táctiles** | Joystick virtual flotante (aparece donde tocas en la mitad izquierda de la pantalla), Botón atacar grande (derecha), Minimapa (arriba derecha), HUD batería + estado piezas (arriba izquierda), Botón consumibles (junto a atacar), Botón interactuar (bancos/objetos), Botón almacenamiento (abajo). |
+| **Guía básica** | 5 pasos iniciales (muévete, abre caja, ataca, vuelve a base, craftea tu primera estación de carga). |
 
 ### 2.2 Piezas básicas del PMV
 
 | Pieza | Ranura | Ventaja | Desventaja |
 |---|---|---|---|
 | Brazos básicos | Brazo | Daño 10, velocidad 1.0 golpe/s | Sin habilidades especiales |
-| Piernas básicas | Piernas | Velocidad 3.0 m/s | Sin habilidades especiales |
+| Piernas básicas | Piernas | Velocidad 3.0 m/s andando, 4.8 m/s corriendo | Sin habilidades especiales |
 | Core básico | Core | Batería máxima 100 | Sin habilidades especiales |
 
 **Nota**: piezas avanzadas (minería, cuchillas, orugas, propulsores, overclockeado) en v1.1.
@@ -62,13 +64,19 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 - Más de 2 tipos de zombies (solo lento y rápido)
 - Más de 1 tipo de robot hostil (solo básico)
 - Más de 3 piezas básicas (brazos, piernas, core básicos)
-- Banco de armas (armas en v1.1)
+- Armas y banco de armas (v1.1). En el PMV el daño lo dan los brazos equipados.
 - Habilidad Overclock (ver SPECS.md §6.2, en v1.1)
-- Gasolina / sistema de viajes limitado (viajes ilimitados en PMV)
-- Multijugador / servidores
-- Muros o defensa de base
+- Mundos por semilla con varias zonas y creación de partidas (v1.1, SPECS.md §26). En el PMV hay un solo mundo y una sola zona, aunque el código ya usa los ganchos de §4.5
+- Modo Hardcore, salón de la fama y Respaldo de consciencia (v1.1, SPECS.md §27)
+- Gasolina y vehículos (v1.2, SPECS.md §19 y §7). Viajes ilimitados en el PMV
+- Facciones con contenido propio: humanos, colmena inteligente, IA telepática (v1.2, SPECS.md §28). En el PMV la facción solo existe como dato
+- Crafteo "uno mismo" y por nanobots, árbol de crafteo ampliado (v1.2+, SPECS.md §29)
+- Multijugador / servidores (cooperativo en red local en v2.0)
+- Muros o defensa de base (muros crafteables en v1.1, SPECS.md §32)
+- Sigilo/agacharse y salto (v1.1, SPECS.md §30-31). En la demo no hay botón de agacharse
+- Base en cualquier sitio del mundo (v1.1, SPECS.md §32). En el PMV la base es una escena fija con colocación libre dentro de sus límites
 - Eventos temporales
-- IAP (compras in-app)
+- Compras de cualquier tipo: el PMV se publica como **demo gratis sin compras**. El desbloqueo de pago llega en v1.1 (SPECS.md §23)
 - Cloud save
 - Leaderboards
 - Tienda in-game
@@ -76,15 +84,17 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 
 ### 2.4 Mecánica de muerte y recuperación
 
-**Al morir (batería = 0 en zona de farmeo)**:
+**Al morir (batería = 0, en la zona de farmeo o dentro de la base)**:
 
-1. **Pierdes**: todas las piezas equipadas (brazos, piernas), armas, materiales del inventario.
+1. **Pierdes**: todas las piezas equipadas (brazos, piernas) y los materiales del inventario. La XP no se pierde.
 2. **Conservas**: el Core (siempre), progresión de base, cofres almacenados.
-3. **Reaparición**: en la base, con animación de "Transferencia de Consciencia".
-4. **Ventana de recuperación**: tus piezas quedan dropeadas en la zona donde moriste. Tienes tiempo limitado para volver y recuperarlas.
+3. **Reaparición**: en la base, con la batería al 100% y animación de "Transferencia de Consciencia".
+4. **Ventana de recuperación**: tus piezas quedan dropeadas en la zona donde moriste (si fue en la base, en la base). Tienes tiempo limitado para volver y recuperarlas.
 5. **Safety net**: si no tienes NADA (sin piezas, sin materiales), la zona verde garantiza drops mínimos (chatarra básica, piezas medio rotas) para que puedas reconstruirte.
 
 **Diseño intencional**: la muerte duele pero no es permanente. El jugador siempre puede recuperarse.
+
+**Modo de juego**: todo lo anterior es el modo **Normal**, el principal. En v1.1 llega el modo **Hardcore**, opcional y solo individual: si mueres, pierdes el mundo, salvo que tengas un Respaldo de consciencia (SPECS.md §27). Por eso, desde el PMV, la reacción a la muerte la decide el ruleset del mundo (§4.5), aunque solo exista `NORMAL`.
 
 ### 2.5 Decisión tomada: 3D isométrico estilo LDOE
 
@@ -167,7 +177,7 @@ res://
 ├── scripts/
 │   ├── autoload/          # Singletons: GameManager, SaveManager, AudioManager
 │   ├── components/        # Componentes reutilizables: HealthComponent, BatteryComponent, InventoryComponent, DegradationComponent
-│   ├── data/              # Recursos: PieceData, EnemyData, MaterialData (.tres)
+│   ├── data/              # Recursos: PieceData, EnemyData, MaterialData, RecipeData, RulesetData, ChassisLevelData (.tres)
 │   ├── systems/           # Lógica pura: CraftingSystem, CombatSystem, DegradationSystem
 │   └── util/              # Helpers: MathUtils, EncryptionHelper
 ├── assets/
@@ -184,8 +194,8 @@ res://
 
 | Patrón | Uso |
 |---|---|
-| **Autoload (Singleton)** | GameManager (estado global), SaveManager (persistencia) |
-| **Componentes** | BatteryComponent, InventoryComponent, DegradationComponent — attachables a cualquier entidad |
+| **Autoload (Singleton)** | GameManager (estado global de la partida, no del jugador), SaveManager (persistencia) |
+| **Componentes** | BatteryComponent, InventoryComponent, DegradationComponent — attachables a cualquier entidad. El estado de cada jugador (batería, inventario) vive en sus componentes, no en autoloads (§4.5) |
 | **Recursos custom** | `PieceData extends Resource` — definir piezas en el editor, sin hardcodear |
 | **Señales** | Comunicación entre sistemas sin acoplamiento directo |
 | **Object Pool** | Enemigos, proyectiles, partículas de recolección |
@@ -201,6 +211,23 @@ res://
 - No usar `get_node()` con rutas hardcodeadas; usar `%UniqueNode` o referencias exportadas.
 - Señales para todo lo transversal; nunca llamadas directas entre sistemas no relacionados.
 
+### 4.5 Ganchos de arquitectura para el futuro (decisión nov 2026)
+
+Decisiones que cuestan poco en el PMV y semanas si se retrofitan después. Cubren el mundo por semilla, el Hardcore, el cooperativo, el crafteo por niveles y el modelo de pago (SPECS.md §23, §26-29). Se reparten entre tareas existentes de ACTION_PLAN.md (estimación total: ~2-4 días).
+
+| # | Gancho | Por qué | Tarea |
+|---|---|---|---|
+| 1 | **Dos niveles de guardado**: *Perfil* (UUID anónimo del jugador, derechos de compra, salón de la fama, cosméticos y planos desbloqueados; sobrevive a los mundos) y *Mundo* (un archivo por partida: semilla, ruleset, versión de esquema, jugador, base, cambios por zona) | Hardcore, salón de la fama y compras necesitan algo que sobreviva a un mundo | 2.3 |
+| 2 | **Identidad de zona**: todo se guarda como `(zone_id, posición local)`, con zonas alineadas a una cuadrícula | Varias zonas por mundo y, en el futuro, carga de zonas vecinas | 1.1, 1.5, 2.3 |
+| 3 | **Aleatoriedad con semilla**: la generación (colocación de cajas, spawns) usa `RandomNumberGenerator` con semilla derivada de `semilla del mundo + zone_id`, nunca `randf()` global | Mundo reproducible desde la semilla; imposible de arreglar después sin romper partidas | 1.1, 1.3 |
+| 4 | **Ruleset como dato** (`RulesetData`): la reacción a la muerte la decide el ruleset del mundo. En el PMV solo existe `NORMAL` | Hardcore sin reescribir la mecánica de muerte | 1.5 |
+| 5 | **Receta como dato** (`RecipeData` con `station`, `tier`, `requires`) | El árbol de crafteo se rellena con datos | 2.4 |
+| 6 | **Facción como dato**: campo `faction` en `EnemyData`; tabla de relaciones en el mundo | Facciones de v1.2 sin tocar enemigos existentes | 1.3 |
+| 7 | **Estado por jugador en componentes**: batería en `BatteryComponent` e inventario en `InventoryComponent`, ambos en la entidad del jugador; ningún autoload guarda estado de un jugador | Cooperativo en red local (v2.0) sin reescribir | 0.4, 1.2 |
+| 8 | **Tienda detrás de una clase base** (`IStore` + `LocalStore` que siempre devuelve "demo") y derechos (`entitlements`) en el Perfil | Desbloqueo de pago en v1.1 sin tocar el juego | 2.3 |
+
+`VehicleData` (propulsión `ELECTRIC` o `FUEL`) no se crea en el PMV: llega con los vehículos en v1.2.
+
 ---
 
 ## 5. Estimación de tiempos
@@ -215,7 +242,7 @@ Desarrollador solo, tiempo completo (40h/semana), con experiencia previa en Godo
 |---|---|---|
 | **F0 — Prototipo jugable** | 2 | Robot 3D se mueve, cámara isométrica, batería funciona, 1 zombie, 1 zona vacía. Validar feel 3D. |
 | **F1 — Core loop** | 3 | Farmeo completo: recolectar materiales, combatir, morir, volver a base. 2 tipos zombie + 1 robot. Sistema de daño por partes. |
-| **F2 — Base y crafteo** | 3 | 2 bancos funcionales (reparaciones + generador). Reparar/crear piezas básicas. Cofres (máx 5). Estación de carga/guardado. |
+| **F2 — Base y crafteo** | 3 | 2 bancos funcionales (reparaciones + generador). Reparar/crear piezas básicas. Cofres (máx 5). Estaciones de carga crafteables. |
 | **F3 — Piezas y personalización** | 2 | 3 piezas básicas con stats. Degradación. Equipar/desequipar. |
 | **F4 — UI/UX y pulido** | 3 | HUD completo, inventario, menús, feedback visual/sonoro, animaciones 3D. |
 | **F5 — QA y balance** | 2 | Playtesting, ajuste de dificultad, fix de bugs, optimización 3D móvil. |
@@ -223,6 +250,8 @@ Desarrollador solo, tiempo completo (40h/semana), con experiencia previa en Godo
 | **TOTAL** | **~17 semanas (4 meses)** | |
 
 **Nota**: PMV simplificado vs original: 17 semanas vs 25 semanas. Ahorro: 8 semanas.
+
+**Nota (nov 2026)**: los ganchos de §4.5, la tarea de subida de nivel (ACTION_PLAN Tarea 2.7) y el spike de navmesh (Tarea 0.5) suman ~34h (de 392h a 426h). La colocación libre en la base (Tarea 2.8) añade ~20h más: 446h. Caben en las 17 semanas, que ya tenían margen sobre las horas estimadas (estimación).
 
 ### 5.3 Factores de riesgo en el timeline
 
@@ -252,6 +281,10 @@ Desarrollador solo, tiempo completo (40h/semana), con experiencia previa en Godo
 | Matar zombie lento | 2 |
 | Matar zombie rápido | 3 |
 | Matar robot hostil básico | 10 |
+
+La XP se otorga directamente al matar; los "núcleos de datos" no son un item (ver BALANCE.md §2).
+
+La subida de nivel (umbral de XP → nuevo nivel → más slots de inventario) la implementa ACTION_PLAN.md Tarea 2.7, con los umbrales y slots en un `.tres` según BALANCE.md §6.
 
 > **Nota**: Para el sistema de progresión extendido (10 niveles con habilidades desbloqueables), ver SPECS.md §6 (v1.1+).
 
@@ -313,7 +346,7 @@ Si valoras tu tiempo como freelance GDScript dev ($30-80/h, referencia mercado 2
 | 3 | **Mercado móvil saturado** — sin marketing, nadie encontrará el juego. |
 | 4 | **Solo 20% de juegos indie recuperan inversión el primer año** — estadística dura. |
 | 5 | **Sin multijugador en PMV** — limita retención a largo plazo. |
-| 6 | **30% comisión tiendas** — sobre un juego de $2.99, recibes ~$2. Necesitas mucho volumen. |
+| 6 | **Comisión de tiendas** — ~10-15% para desarrolladores pequeños (datos de nov 2026, ver SPECS.md §23.2; antes se asumía 30%). Con un desbloqueo único y pocas conversiones (0,5-4% orientativo), necesitas mucho volumen. |
 
 ---
 
@@ -321,14 +354,20 @@ Si valoras tu tiempo como freelance GDScript dev ($30-80/h, referencia mercado 2
 
 > **Ver SPECS.md** para especificaciones completas de features futuras.
 
+> **Reorganizado en nov 2026.** Esta tabla es la fuente de verdad del roadmap; SPECS.md §25 la resume.
+
 | Fase | Contenido |
 |---|---|
-| **v1.1** | 2ª zona (roja), 2 zombies nuevos (eléctrico, ácido), 1 robot eléctrico, 3 piezas avanzadas, banco de armas, overclock, gasolina, tutorial completo, cofres expandidos (20). |
-| **v1.2** | Eventos temporales, misiones diarias, leaderboards, sistema de invitaciones (refer rewards), Google Play Games (logros). |
-| **v1.5** | Co-op asíncrono (ONLINE Fase 1: leaderboards globales, fantasmas, mercado, clanes), página web (política, FAQ), analíticas (ver TOOLING.md). |
-| **v2.0** | Co-op en tiempo real (ONLINE Fase 2: parejas, raids de jefe), cloud save, vehículos, companion robot. |
-| **v2.5** | Nanorobots, cabeza mejorable, historia con IA. |
+| **PMV (v1.0)** | Alcance de §2.1 + ganchos de §4.5. Se publica como **demo gratis sin compras**. |
+| **v1.1 — Mundos y versión completa** | Mundos por semilla y creación de partidas (SPECS §26), 2ª zona (roja) como tipo de zona, modo Hardcore + salón de la fama + Respaldo de consciencia (SPECS §27), **desbloqueo de pago** (SPECS §23), cosméticos básicos como recompensa del salón de la fama. Contenido ya previsto: 2 zombies nuevos (eléctrico, ácido), 1 robot eléctrico, 5 piezas avanzadas (SPECS §15), bancos avanzados (SPECS §3), banco de armas, overclock, tutorial completo, cofres expandidos (20), sigilo y agachado (SPECS §30), salto (SPECS §31), base libre en el mundo con muros, banco de reparaciones crafteable a mano y punto de aparición en tu estación de carga (SPECS §29, §32). |
+| **v1.2 — Movilidad y facciones** | Gasolina crafteable (SPECS §19), vehículos eléctricos y de gasolina para viajar por el mapa global (SPECS §7), crafteo "uno mismo" y árbol ampliado (SPECS §29), facciones: humanos hostiles/amistosos, colmena inteligente, IA telepática (SPECS §28). |
+| **v1.3** | Eventos temporales, misiones diarias, sistema de invitaciones (refer rewards), Google Play Games (logros, leaderboards de la tienda), tienda de cosméticos. |
+| **v1.5** | Co-op asíncrono (ONLINE Fase 1: leaderboards globales, fantasmas, mercado, clanes, semillas compartidas), página web (política, FAQ), analíticas (ver TOOLING.md). Suscripción online si hay coste de servidor. |
+| **v2.0** | Cooperativo en red local 4-6 jugadores, sin servidor y gratis tras el desbloqueo (ONLINE Fase 2). Co-op por internet y raids de jefe solo si escala. Cloud save, companion robot. |
+| **v2.5** | Vehículos conducibles en 3D, nanorobots, cabeza mejorable, historia con IA. |
 | **v3.0** | PvP masivo (ONLINE Fase 3, solo si factura). |
+
+**Por qué este reparto**: v1.1 es la primera versión de pago y necesita contenido que justifique el precio (mundos, Hardcore, segunda zona). Gasolina, vehículos y facciones van juntos en v1.2 porque dependen del mapa global y del árbol de crafteo. **Riesgo**: v1.1 sigue siendo pesada; si se alarga, mover banco de armas, overclock y tutorial completo a v1.2 (el paso 5-6 del tutorial depende del banco de armas).
 
 ---
 
@@ -339,24 +378,71 @@ Si valoras tu tiempo como freelance GDScript dev ($30-80/h, referencia mercado 2
 - [x] **2D cenital vs 3D isométrico** — ✅ Decidido: 3D isométrico estilo LDOE.
 - [x] **Arte propio o packs de assets** — ✅ Decidido: packs gratuitos (Kenney, itch.io, Sketchfab). €0.
 - [x] **Balance numérico (spreadsheet)** — ✅ Creado: BALANCE.md con valores iniciales.
-- [x] **Nombre del juego** — ✅ Decidido: **Scrap Circuit**. Disponible en Play Store.
+- [x] **Nombre del juego** — ✅ Decidido (nov 2026): **CyberScrap**, sustituye a Scrap Circuit. Paquete Android: `com.davidanaya.cyberscrap` (permanente una vez subido a Play Console).
+- [ ] **Disponibilidad de "CyberScrap"** — Hay al menos dos proyectos pequeños con ese nombre en itch.io (uno en desarrollo con Unity y uno de una game jam). Comprobar en Play Store y en un registro de marcas (p. ej. TMview) antes de publicar.
 
 ### Importantes (antes de publicar)
 
-- [ ] **Android primero o ambas plataformas** — Recomendado: Android primero, iOS 4-6 semanas después.
-- [ ] **Mac para iOS** — Si no tienes: MacStadium/cloud (~$50/mes) o descartar iOS en PMV.
-- [ ] **Audio** — Crear o comprar. Imprescindible: SFX combate, música zonas, UI feedback.
+- [x] **Android primero o ambas plataformas** — ✅ Decidido (nov 2026): Android primero; es el único producto del PMV (specs/decisions/0001).
+- [x] **Mac para iOS** — ✅ Decidido (nov 2026): sin iOS en el PMV. Se decide cuando haya ingresos.
+- [x] **Audio** — ✅ Decidido (nov 2026): packs gratuitos CC0 (freesound, OpenGameArt, itch.io), como en §11. Imprescindible: SFX combate, música zonas, UI feedback.
 - [ ] **Identidad visual final** — Moodboard con 3-5 referencias visuales concretas.
 
 ### Post-PMV
 
 > **Ver SPECS.md** para especificaciones completas de features futuras.
 
-- [ ] **Tienda e IAP** — Solo si el juego funciona.
-- [ ] **Multijugador / servidores** — Solo si escala.
-- [ ] **Legal / privacidad** — Política de privacidad, GDPR, COPPA.
-- [ ] **Google Play Games** — Cloud save, logros, leaderboards.
-- [ ] **Analíticas** — Firebase Analytics + Crashlytics.
+- [x] **Modelo de negocio** — ✅ Decidido (nov 2026): demo gratis + desbloqueo único en v1.1, cosméticos opcionales, suscripción online solo si hay coste de servidor, sin anuncios (SPECS.md §23).
+- [x] **Mundo** — ✅ Decidido: mapa de zonas generado por semilla, no mundo continuo (SPECS.md §26).
+- [x] **Modos** — ✅ Decidido: Normal principal; Hardcore opcional, solo individual y sin online (SPECS.md §27).
+- [x] **Gasolina** — ✅ Decidido: complemento de movilidad, solo crafteable, no se vende en el lanzamiento (SPECS.md §19).
+- [x] **Vehículos** — ✅ Decidido: eléctricos y de gasolina; primero aceleran el viaje por el mapa global, en 3D en el futuro (SPECS.md §7).
+- [x] **Multijugador local** — ✅ Decidido: cooperativo en red local 4-6, gratis tras el desbloqueo; el online por internet se cobra si cuesta (ONLINE.md Fase 2).
+- [x] **Cuenta** — ✅ Decidido: UUID anónimo hasta que haya online.
+- [x] **Multijugador / servidores por internet** — ✅ Decidido: solo si el juego escala (ONLINE.md Fase 2B y 3).
+- [x] **Legal / privacidad** — ✅ Decidido: generador gratuito de política de privacidad antes de publicar; asesor legal si hay ingresos significativos (TOOLING.md §9). GDPR y COPPA se revisan con esa política.
+- [x] **Google Play Games** — ✅ Decidido: v1.3 (TOOLING.md §5).
+- [x] **Analíticas** — ✅ Decidido: Firebase Analytics + Crashlytics en v1.5 (TOOLING.md §1-2).
+
+### Preguntas abiertas (nov 2026)
+
+Anotadas para no implementar nada sobre una suposición. Preguntar antes de implementar lo que dependa de ellas.
+
+Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea 2.7).
+- [x] **XP de §6.1**: ✅ Decidido (nov 2026): XP **acumulada** (50, 150, 300, 500 en total), no XP adicional por nivel.
+
+**Estación de carga crafteable** (todas decididas en nov 2026)
+- [x] **Morir dentro de la base**: ✅ mismas reglas que en zona (los items caen donde mueres, aquí fáciles de recuperar) y reapareces al 100% (§2.4).
+- [x] **Morir como recarga gratis**: ✅ se acepta. Antes de tener la primera estación no tienes nada que perder; es la red de seguridad de §2.4 punto 5.
+- [x] **Colocación**: ✅ la elige el jugador, en cuadrícula, dentro de los límites de la base (ACTION_PLAN Tarea 2.8).
+- [x] **Base llena**: ✅ si no queda sitio en la cuadrícula, el botón de construir se desactiva con un aviso antes de gastar materiales.
+- [x] **Banco de reparaciones**: ✅ fijo e incluido en la demo; no se mueve. En v1.1 se craftea a mano, sin límite de cantidad, para fundar bases donde quieras (SPECS.md §29, §32).
+- [x] **Guía básica (Tarea 5.4)**: ✅ se añade el paso "Craftea tu primera estación de carga", tras "Vuelve a la base".
+- [x] **Coste**: ✅ 4 chatarra como valor inicial (BALANCE.md §5.3). Tarea de playtesting (5.2): comprobar que la primera estación sale en los primeros minutos.
+
+**Decidir antes de empezar v1.1**
+- [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).
+- [x] **Viaje a pie entre zonas** en mundos por semilla: ✅ Decidido (nov 2026): cuesta batería según la distancia (valor en BALANCE.md §1.2 al diseñar v1.1). La gasolina y los vehículos lo abaratan después (SPECS §26).
+
+**Pueden esperar**
+- [x] **"Local"** en el cooperativo: ✅ Decidido (nov 2026): misma Wi-Fi o punto de acceso del móvil, las dos si es posible; sin internet.
+- [x] **Demo y cooperativo**: ✅ Decidido (nov 2026): un jugador con la demo **puede unirse** a la partida de alguien que pagó, pero **con tiempo limitado**, para que no pague uno y jueguen cuatro gratis (ONLINE.md Fase 2A).
+- [x] **Tiempo del jugador demo en cooperativo**: ✅ Decidido (nov 2026): **1 hora por día**.
+- [ ] **Rendimiento del anfitrión** en cooperativo de 6 con 20-30 enemigos en gama media: medir antes de prometer 6.
+- [ ] **Respaldo de consciencia**: receta, banco, dónde debe llevarse (equipado, inventario o base) y si su uso tiene penalización extra.
+- [ ] **Salón de la fama**: campos de la entrada y cómo se aplican los planos ganados a mundos nuevos.
+- [ ] **Corte exacto de la demo** y **precio** del desbloqueo (estimación: 3,99-4,99 €; decidir cerca de v1.1).
+- [x] **Pase de temporada cosmético**: ✅ Decidido (nov 2026): no. SPECS §25 promete contenido sin FOMO.
+- [x] **Recompensas de invitación** (SPECS §14): ✅ Decidido (nov 2026): solo cosméticas; sin plano exclusivo ni ventajas de juego.
+- [ ] **Gasolina**: materia prima, banco que la refina, si aparece como loot y qué piezas de movimiento la usan.
+- [ ] **Vehículos**: qué propulsión usa cada vehículo y sus costes en BALANCE.md.
+- [ ] **Nanobots**: ¿se adelanta el nivel de crafteo con nanobots (hoy v2.5)?
+- [ ] **Crafteo "uno mismo"**: coste (tiempo o batería) y qué recetas permite.
+- [ ] **Humanos**: ¿reputación por asentamiento o relación fijada por la semilla?
+- [ ] **Lore**: nombre del programa de transferencia de consciencia y origen de la infección.
+- [ ] **Overclock (v1.1)**: SPECS §6.2 dice que dura hasta desactivarlo o batería < 10%; §6.3 nivel 7 dice "15s en vez de 10s".
+- [ ] **Niveles 6-10 (v1.1)**: SPECS §6.3 no da umbrales de XP y el nivel 8 no tiene recompensa.
+- [ ] **Multiplataforma**: el desbloqueo es por tienda hasta que haya cuentas; unificar Android e iOS requiere servidor.
 
 ---
 
@@ -392,4 +478,4 @@ Si valoras tu tiempo como freelance GDScript dev ($30-80/h, referencia mercado 2
 
 ---
 
-*Documento actualizado: septiembre 2026. Revisar al inicio de cada fase.*
+*Documento actualizado: noviembre 2026. Revisar al inicio de cada fase.*

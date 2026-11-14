@@ -1,4 +1,4 @@
-# Online — Multijugador (Robots & Zombies)
+# Online — Multijugador (CyberScrap)
 
 > Documento de arquitectura multijugador. Implementación por fases, escalable sin rehacer el juego.
 
@@ -19,6 +19,13 @@
 
 **Decisión de arquitectura**: Godot como cliente permanente. Si el juego escala a Fase 3 (PvP masivo), el servidor se reescribe en tecnología profesional (Rust/Go) pero **el cliente Godot no se migra**. Solo se añade un backend más potente detrás.
 
+**Decisiones de nov 2026** (ver SPECS.md §23 y §27):
+- **El local es gratis tras pagar el desbloqueo**, incluido el cooperativo en red local de 4-6 jugadores sin servidor (Fase 2A).
+- **El online por internet se cobra** con una suscripción opcional solo cuando haya coste de servidor. Nunca bloquea el juego base. Si es posible, se usan capas gratuitas de servicios.
+- **Sin anuncios**: ninguna función online se financia con ads.
+- **El modo Hardcore es solo individual y sin online** por ahora.
+- Cada jugador es un robot consciente (la única clase jugable).
+
 ---
 
 ## Fase 1: Multijugador asíncrono (v1.5)
@@ -37,7 +44,8 @@
 | **Mercado asíncrono** | Subes piezas al mercado con un precio (en "créditos"). Otros las compran cuando están online. Transacción automática. | Firebase Firestore. Listado de ofertas. Compra = transferencia de créditos + pieza. |
 | **Mensajes en el mundo** | Dejas mensajes tipo "Dark Souls" en zonas peligrosas ("Cuidado: robot eléctrico aquí", "Buen loot en esta caja"). Otros los leen y pueden votar (+/-). | Firebase Firestore. Mensajes geolocalizados (coordenadas X,Y). Mostrar en HUD al pasar cerca. |
 | **Clanes con contribución** | Creas o te unes a un clan (máx 20 jugadores). Donas materiales al "tesoro del clan". Cuando se alcanza objetivo, todos reciben recompensa (pieza exclusiva, skin, etc.). | Firebase Firestore. Clan = documento con miembros + tesoro. Contribución = restar materiales del jugador, sumar al tesoro. |
-| **Créditos (moneda premium)** | Moneda del juego. Se obtiene: matando robots hostiles (1-5 créditos), viendo ads rewarded (+10 créditos), o comprando con dinero real (post-PMV, IAP). | Variable local + sync con servidor. |
+| **Créditos (moneda del mercado)** | Moneda ganada jugando, solo para el mercado asíncrono. Se obtiene matando robots hostiles (1-5 créditos). **No se compra con dinero real ni se gana con anuncios** (decisión nov 2026, SPECS.md §23). | Variable local + sync con servidor. |
+| **Semillas compartidas y reto diario/semanal** | Todos juegan la misma semilla de mundo (SPECS.md §26). Ranking del reto. La semilla del día se puede derivar de la fecha sin servidor; el ranking sí necesita servidor. | Firebase/Supabase para el ranking. Puntuaciones del Hardcore no verificables sin validación en servidor: marcarlas como "no verificado" o validarlas. |
 
 ### Arquitectura técnica
 
@@ -72,12 +80,34 @@ Cliente (Godot)                          Servidor (Firebase/Supabase)
 
 ---
 
-## Fase 2: Multijugador cooperativo (v2.0, si escala)
+## Fase 2: Multijugador cooperativo (v2.0)
 
 **Complejidad**: Media-Alta  
-**Infraestructura**: Godot High-Level Multiplayer + servidor relay (o dedicado)  
-**Tiempo de implementación**: 12-16 semanas post-Fase 1  
-**Coste mensual**: €50-200/mes
+**Infraestructura**: red local (2A) sin servidor; por internet (2B) con Godot High-Level Multiplayer + servidor relay (o dedicado)  
+**Tiempo de implementación**: 12-16 semanas post-Fase 1 (estimación anterior; revisar para 2A)  
+**Coste mensual**: €0 en red local; €50-200/mes por internet (relay)
+
+### 2A. Cooperativo en red local (decisión nov 2026)
+
+| Aspecto | Detalle |
+|---|---|
+| **Jugadores** | 4-6 simultáneos, cada uno con su robot consciente. |
+| **Red** | Misma Wi-Fi o punto de acceso del móvil, las dos si es posible (decisión nov 2026). Sin internet. |
+| **Jugadores con la demo** | Pueden unirse a la partida de alguien que pagó, **con tiempo limitado**, para que no pague uno y jueguen cuatro gratis (decisión nov 2026): **1 hora por día**. Requiere que el cliente conozca sus derechos (`IStore`, Perfil) y que el anfitrión aplique el límite |
+| **Anfitrión** | Un móvil hace de anfitrión autoritativo y además juega. Los demás se unen. |
+| **Coste** | Sin servidor. **Gratis una vez pagado el desbloqueo** (SPECS.md §23). Sin condición de escala: no depende del número de usuarios. |
+| **Semilla** | Los clientes regeneran cada zona desde la semilla y solo se sincronizan los cambios (cajas abiertas, enemigos, items). Reduce mucho el tráfico. |
+| **Modo** | Solo modo Normal. El Hardcore es solo individual. |
+| **Requisito de código** | Batería e inventario por jugador en componentes, nunca en autoloads (PMV.md §4.5, gancho 7). |
+| **Tecnología** | Godot High-Level Multiplayer con ENet en red local (por verificar en la documentación oficial antes de empezar). |
+
+**Riesgos y dudas**:
+- **Rendimiento del anfitrión** (estimación): un móvil de gama media que hace de anfitrión, jugador e IA de 20-30 enemigos con 6 jugadores puede ir justo. Medir antes de prometer 6.
+- Límite de 1 hora por día del jugador con la demo: sin servidor, el "día" sale del reloj del móvil y se puede trampear cambiándolo, igual que el generador eólico (specs/architecture.md §14). Se acepta hasta que haya servidor; entonces se usa su hora (`ITimeService`).
+
+### 2B. Cooperativo por internet (si escala)
+
+Jugar por internet tiene que atravesar routers (NAT) y necesita un servicio de apoyo (relay o servidor). Eso cuesta dinero, así que es la parte que se cobra con la suscripción online. Coste real por verificar cuando toque. El resto de esta sección (parejas, raids, intercambio) describe el co-op por internet.
 
 ### 2.1 Especificación del co-op en parejas (2 jugadores)
 
@@ -105,7 +135,7 @@ Cliente (Godot)                          Servidor (Firebase/Supabase)
 - ❌ Si solo 1 jugador tiene el juego, no puede jugar coop (barrera de entrada)
 
 **Recomendación**:
-- **NO en PMV**. Implementar en **v2.0** cuando el juego tenga base de usuarios.
+- **NO en PMV**. Cooperativo en red local (2A) en **v2.0** sin condición de usuarios; co-op por internet (2B) cuando el juego tenga base de usuarios.
 - Empezar con **co-op asíncrono** (Fase 1 de este documento): fantasmas, mercado, clanes.
 - Luego **co-op en tiempo real** (Fase 2 de este documento): 2 jugadores en misma zona.
 - **Mascota NPC** puede ser una alternativa más simple: un companion controlado por IA que ayuda pero no reemplaza a un jugador real.
@@ -233,7 +263,8 @@ Clientes (miles)                         Cluster de servidores
 | Fase | Versión | Cuándo implementar | Condición |
 |---|---|---|---|
 | **Fase 1 (asíncrono)** | **v1.5** | Post-PMV (mes 7-8) | Juego publicado, 100+ usuarios diarios |
-| **Fase 2 (co-op)** | **v2.0** | mes 12-15 | 1000+ usuarios diarios, jugadores piden co-op |
+| **Fase 2A (co-op red local)** | **v2.0** | mes 12-15 | Ninguna condición de usuarios (sin servidor, incluido en el desbloqueo) |
+| **Fase 2B (co-op internet)** | **v2.0+** | mes 12-15 o después | 1000+ usuarios diarios, jugadores piden co-op por internet |
 | **Fase 3 (PvP masivo)** | **v3.0** | mes 18-24 | 10,000+ usuarios diarios, juego factura >€5000/mes |
 
 **Nota**: si el juego no crece, **no implementes Fase 2 ni 3**. El multijugador asíncrono es suficiente para retener jugadores.
@@ -256,11 +287,19 @@ Para no "atarte las manos", desde el PMV debes:
 3. **Queue de acciones offline**: si el jugador está offline, las acciones se encolan y se ejecutan al reconectar.
 4. **No hardcodear IDs de jugador**: usar UUIDs generados localmente. Cuando implementes auth, migrar a IDs del servidor.
 5. **Event-driven architecture**: usar señales de Godot para todo. Así puedes añadir listeners de red sin tocar el código del juego.
+6. **Estado por jugador en componentes** (nov 2026): batería en `BatteryComponent` e inventario en `InventoryComponent`, en la entidad de cada jugador. Ningún autoload guarda estado de un jugador. Sin esto, el cooperativo obliga a reescribir.
+7. **Perfil y Mundo separados**: el Perfil (UUID, derechos, salón de la fama) es lo que se sincronizará con una cuenta; el Mundo es la partida.
+8. **Aleatoriedad con semilla y `zone_id`**: permite que los clientes regeneren zonas en vez de recibirlas por red, y las semillas compartidas.
+9. **Tienda detrás de una clase base** (`IStore`): igual que `IMarket`, la implementación local se cambia por la nativa (o RevenueCat) sin tocar el juego.
+
+El detalle de estos ganchos está en PMV.md §4.5.
 
 **Ejemplo de código preparado para escalar**:
 
+GDScript no tiene interfaces: el contrato es una clase base que las implementaciones extienden. Cada `class_name` debe ir en su propio archivo.
+
 ```gdscript
-# Interfaz (no se usa directamente, pero define el contrato)
+# i_market.gd: contrato (clase base, no se instancia directamente)
 class_name IMarket
 extends RefCounted
 
@@ -272,16 +311,20 @@ func buy_item(offer_id: String) -> void:
 
 func cancel_offer(offer_id: String) -> void:
     pass
+```
 
-# Implementación local (PMV, sin servidor)
+```gdscript
+# local_market.gd: implementación local (PMV, sin servidor)
 class_name LocalMarket
 extends IMarket
 
 func list_item(item_id: String, price: int) -> void:
     # Guardar en archivo local
     pass
+```
 
-# Implementación online (Fase 1, con Firebase)
+```gdscript
+# firebase_market.gd: implementación online (Fase 1, con Firebase)
 class_name FirebaseMarket
 extends IMarket
 
@@ -297,10 +340,13 @@ func list_item(item_id: String, price: int) -> void:
 | Fase | Infraestructura mensual | Tiempo de desarrollo | Coste total (1 año) |
 |---|---|---|---|
 | **Fase 1** | €0-25 (Firebase free tier) | 10-14 semanas | €0-300 |
-| **Fase 2** | €50-200 (servidor relay) | 12-16 semanas | €600-2400 |
+| **Fase 2A** (red local) | €0 (sin servidor) | por estimar | €0 |
+| **Fase 2B** (internet) | €50-200 (servidor relay) | 12-16 semanas | €600-2400 |
 | **Fase 3** | €500-2000 (dedicados + BD) | 20-30 semanas | €6000-24,000 |
 
 **Nota**: estos costes son solo de infraestructura. No incluyen tu tiempo de desarrollo.
+
+**Financiación (nov 2026)**: los costes de servidor se cubren con capas gratuitas mientras se pueda y, cuando no, con la suscripción online opcional (SPECS.md §23). Sin anuncios. Las capas gratuitas tienen límites y pausas (p. ej. Supabase pausa proyectos gratuitos tras una semana sin actividad, ver TOOLING.md §4): el juego debe seguir funcionando aunque el backend esté parado.
 
 ---
 
