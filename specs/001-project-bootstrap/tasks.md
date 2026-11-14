@@ -30,12 +30,14 @@
 - [x] **T-001-11** Crear `export_presets.cfg` (Android debug con paquete `com.davidanaya.cyberscrap`, Windows Desktop) sin
   credenciales. Cubre: R-001-11, R-001-12. Verifica: export debug de ambos; `git status` limpio de builds.
 - [x] **T-001-12 (usuario + Claude)** Instalar el APK debug en un Android real. Verifica: arranca en retrato.
-- [ ] **T-001-13** Crear `.github/workflows/ci.yml`. Cubre: R-001-10. Verifica: el PR muestra el check en verde.
+- [x] **T-001-13** Crear `.github/workflows/ci.yml`. Cubre: R-001-10. Verifica: el PR muestra el check en verde.
+  (Run del PR 1 y run posterior en `main`, ambos `success`, 2026-11-14.)
 - [x] **T-001-14** Escribir `README.md`, actualizar `CLAUDE.md` (comandos y estado) y `.claude/settings.json`.
   Cubre: R-001-13. Verifica: seguir el README desde cero.
 
 ## Cierre
 
-- [ ] Definición de hecho (constitución §4) revisada.
+- [x] Definición de hecho (constitución §4) revisada. Salvedad: «abre sin errores ni avisos en el editor» no lo
+  comprobó Claude (sin sesión del editor con interfaz); el PR 1 se fusionó con esa salvedad declarada.
 - [x] Preguntas abiertas del spec cerradas o trasladadas a `PMV.md §10`.
-- [ ] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
+- [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
