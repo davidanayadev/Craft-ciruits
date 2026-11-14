@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado |
+| **Estado** | Hecho |
 | **Tarea(s) ACTION_PLAN** | 0.2, 0.3 |
 | **Fuentes** | ACTION_PLAN.md Tareas 0.2-0.3 · PMV.md §2.1 (movimiento, controles), §3.2, §12 (cámara) · BALANCE.md §4.2 (piernas) · ADR 0001 |
 | **Depende de** | 001 |

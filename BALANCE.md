@@ -336,8 +336,9 @@ Si pieza.durabilidad <= 0 → Pieza rota; el siguiente golpe degrada la siguient
 | **Umbral para volver a andar** | 70 % del radio | Margen para no alternar andar/correr en el borde |
 | **Cámara: rotación Y** | 45° | PMV.md §12, ACTION_PLAN 0.2 |
 | **Cámara: inclinación X** | 35° | PMV.md §12 da 35-45°; ACTION_PLAN 0.2 fija 35° |
-| **Cámara: distancia** | Por definir | Se fija en el plan del spec 002 y se ajusta probando en el móvil |
-| **Velocidad de giro del robot** | Por definir | Ídem |
+| **Cámara: tamaño ortográfico** | 10.0 m | Metros visibles en vertical (plan 002: cámara ortográfica, *keep height*; 14.0 hasta pasar a apaisado el 2026-11-14). Ajustar en el móvil (T-002-08) |
+| **Cámara: distancia física** | 20.0 m | Solo afecta a near/far y sombras; con cámara ortográfica no cambia el encuadre |
+| **Velocidad de giro del robot** | 10.0 rad/s | Media vuelta en ~0.3 s (plan 002). Ajustar en el móvil (T-002-08) |
 | **Rango de la sensibilidad en Opciones** | Por definir | Se fija con la Tarea 4.2 |
 
 ---

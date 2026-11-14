@@ -1,0 +1,34 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scenes/entities/robot.gd" id="1_robot"]
+[ext_resource type="Script" path="res://scripts/components/player_input.gd" id="2_input"]
+[ext_resource type="Resource" path="res://resources/movement/basic_legs.tres" id="3_legs"]
+[ext_resource type="Resource" path="res://resources/config/controls.tres" id="4_controls"]
+
+[sub_resource type="CapsuleShape3D" id="capsule_shape"]
+
+[sub_resource type="CapsuleMesh" id="capsule_mesh"]
+
+[sub_resource type="BoxMesh" id="nose_mesh"]
+size = Vector3(0.3, 0.3, 0.4)
+
+[node name="Robot" type="CharacterBody3D"]
+script = ExtResource("1_robot")
+movement_stats = ExtResource("3_legs")
+control_config = ExtResource("4_controls")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("capsule_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("capsule_mesh")
+
+[node name="Nose" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -0.5)
+mesh = SubResource("nose_mesh")
+
+[node name="PlayerInput" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_input")

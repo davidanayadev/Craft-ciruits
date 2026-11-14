@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/debug_hud.gd" id="1_hud"]
+
+[node name="DebugHud" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="FpsLabel" type="Label" parent="."]
+unique_name_in_owner = true
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 34.0
+horizontal_alignment = 2
+
+[node name="Refresh" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.5
+autostart = true
+
+[connection signal="timeout" from="Refresh" to="." method="_on_refresh_timeout"]

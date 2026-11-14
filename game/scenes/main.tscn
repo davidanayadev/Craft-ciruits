@@ -1,3 +1,32 @@
-[gd_scene format=3]
+[gd_scene load_steps=7 format=3]
 
-[node name="Main" type="Node" unique_id=1293533219]
+[ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/dev/dev_zone.tscn" id="2_zone"]
+[ext_resource type="PackedScene" path="res://scenes/entities/robot.tscn" id="3_robot"]
+[ext_resource type="PackedScene" path="res://scenes/camera/camera_rig.tscn" id="4_camera"]
+[ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="5_touch"]
+[ext_resource type="PackedScene" path="res://scenes/ui/debug_hud.tscn" id="6_hud"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="ZoneSlot" type="Node3D" parent="World"]
+
+[node name="DevZone" parent="World/ZoneSlot" instance=ExtResource("2_zone")]
+
+[node name="Players" type="Node3D" parent="World"]
+
+[node name="Robot" parent="World/Players" instance=ExtResource("3_robot")]
+unique_name_in_owner = true
+
+[node name="CameraRig" parent="." instance=ExtResource("4_camera")]
+unique_name_in_owner = true
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TouchControls" parent="UI" instance=ExtResource("5_touch")]
+unique_name_in_owner = true
+
+[node name="DebugHud" parent="UI" instance=ExtResource("6_hud")]
