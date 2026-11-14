@@ -77,7 +77,7 @@ plan a *Planificado*.
 
 | ID | Feature | Tarea ACTION_PLAN | Estado |
 |---|---|---|---|
-| [001](001-project-bootstrap/spec.md) | Proyecto Godot y arnés de desarrollo | 0.1 (+ CI, tests, input) | Planificado |
+| [001](001-project-bootstrap/spec.md) | Proyecto Godot y arnés de desarrollo | 0.1 (+ CI, tests, input) | En curso |
 | [002](002-iso-scene-player-movement/spec.md) | Escena isométrica y movimiento del robot | 0.2, 0.3 | Aprobado |
 | [003](003-battery/spec.md) | Batería: consumo, señales y HUD | 0.4 | Aprobado |
 | — | Spike de navmesh (sin spec, desechable) | 0.5 | — |

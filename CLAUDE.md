@@ -4,13 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Design-only so far: the repo contains six Spanish-language design documents, the spec-driven workflow in
-`specs/`, and no code. There is no `project.godot`, no build or test tooling, and no CI yet. The first
-implementation step is spec 001 (`specs/001-project-bootstrap/`, planned), which covers ACTION_PLAN.md Tarea 0.1:
-start it with `/sdd-implement 001`. Its first task (install Godot 4.7.2 and set `GODOT_BIN`) is the user's.
+Spec 001 (`specs/001-project-bootstrap/`, ACTION_PLAN.md Tarea 0.1) is in progress: the Godot project exists in
+`game/` with its settings, folder tree, i18n, InputMap, GUT 9.7.1 (ADR
+`specs/decisions/0002-test-framework-gut.md`), export presets, CI workflow and an empty placeholder main scene
+(`game/scenes/main.tscn`), but no gameplay code yet. Check `specs/001-project-bootstrap/tasks.md` for what is still open. The next spec is 002.
 
-When the project is created, add its real commands here (editor launch, headless export, test runner,
-CI). The test framework is GUT 9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`).
+## Commands
+
+Run from the repo root. `GODOT_BIN` points to the Godot 4.7.2 executable; every Godot command uses
+`--path game`. `tools/*.sh` are Bash scripts (Git Bash on Windows).
+
+| Task | Command |
+|---|---|
+| Run every test (headless; imports first and fails if any script does not load) | `tools/run_tests.sh` |
+| Run the game on the desktop | `"$GODOT_BIN" --path game` |
+| Re-import assets | `"$GODOT_BIN" --headless --path game --import` |
+| Open the editor | `"$GODOT_BIN" --editor --path game` |
+| Export a debug build to `builds/` | `"$GODOT_BIN" --headless --path game --export-debug "Android"` (or `"Windows Desktop"`) |
+| CI | `.github/workflows/ci.yml`: runs `tools/run_tests.sh` on Linux for PRs and pushes to `main` |
+
+Things that are easy to get wrong:
+- `unsafe_call_argument` is an error, so a `Variant` (for example the result of `ProjectSettings.get_setting()`)
+  cannot go straight into a GUT assert: assign it to a typed variable first.
+- Tests live in `game/tests/unit/` and `game/tests/integration/`, one `test_<file>.gd` per class, with methods
+  named `test_r_nnn_xx_<case>`.
+- `project.godot` values fixed by a spec are guarded by `game/tests/unit/test_project_settings.gd` and
+  `test_input_map.gd`.
+- `game/addons/gut/` is third-party: never edit it; replace the whole folder to update.
 
 ## Spec-driven workflow
 
