@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Spec 001 (`specs/001-project-bootstrap/`, ACTION_PLAN.md Tarea 0.1) is in progress: the Godot project exists in
-`game/` with its settings, folder tree, i18n, InputMap, GUT 9.7.1 (ADR
+Spec 001 (`specs/001-project-bootstrap/`, ACTION_PLAN.md Tarea 0.1) is done and merged: the Godot project exists
+in `game/` with its settings, folder tree, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI workflow and an empty placeholder main scene
-(`game/scenes/main.tscn`), but no gameplay code yet. Check `specs/001-project-bootstrap/tasks.md` for what is still open. The next spec is 002.
+(`game/scenes/main.tscn`), but no gameplay code yet. The next spec is 002.
 
 ## Commands
 
