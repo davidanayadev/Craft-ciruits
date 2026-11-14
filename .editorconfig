@@ -1,0 +1,9 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+
+# The GDScript style guide indents with tabs, and Godot saves scenes and resources the same way.
+[*.{gd,tscn,tres}]
+indent_style = tab
