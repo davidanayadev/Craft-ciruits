@@ -139,8 +139,10 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
 - [ ] Crear UI de inventario (GridContainer + TextureRect):
   - [ ] Mostrar slots (5 en PMV)
   - [ ] Mostrar icono + cantidad
-- [ ] Conectar LootBox con el `InventoryComponent` del jugador que la abre (por señal)
-- [ ] Test: abrir cajas añade items al inventario
+- [ ] Pantalla de caja (decisión nov 2026, PMV.md §10): interactuar con una caja abre una pantalla con su contenido y el inventario del jugador, sin transferencia automática
+  - [ ] Tocar una pila la coge (lo que quepa); botón "Coger todo" coge todo lo que quepa
+  - [ ] Lo que no cabe se queda en la caja; al vaciarse, la pantalla se cierra y la caja se desactiva
+- [ ] Test: abrir una caja y coger todo añade los items al inventario
 
 **Entregable**: inventario funcional con UI. Items se acumulan correctamente.
 

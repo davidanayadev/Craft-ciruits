@@ -42,7 +42,7 @@
 
 | Parámetro | Valor | Notas |
 |---|---|---|
-| **Slots personaje** | 5 | Sin mejoras |
+| **Slots personaje** | 5 | A nivel 1 de chasis; crecen con el nivel (§6.1) |
 | **Slots por cofre** | 4 | Fijo en PMV |
 | **Cofres máximos en base** | 5 | Límite duro en PMV (20 en v1.1) |
 | **Slots totales (base)** | 5 + (5 × 4) = 25 | Personaje + cofres |
@@ -270,6 +270,7 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Caducidad de los items soltados** | Por tiempo de juego, que sigue contando con la app cerrada. Medido con la hora del dispositivo desde la muerte (`ITimeService`), con el tiempo negativo tratado como 0. **Duración: 5 minutos** (valor inicial, decisión nov 2026; ajustable en playtesting, PMV.md §10) |
 | **Items tirados del inventario** | Misma regla que los soltados al morir: siguen en la zona hasta que se recogen o caducan, con la misma duración (decisión nov 2026) |
 | **Cajas abiertas** | Se guardan mientras dura la visita: cerrar y abrir la app devuelve la misma visita con las mismas cajas abiertas |
+| **Loot que no cabe en el inventario** | Se queda en la caja durante la visita; se recoge al volver a interactuar, sin nueva tirada. Se pierde al empezar la visita siguiente (decisión nov 2026) |
 | **Caja vaciada** | Sigue en la zona como contenedor, con la capacidad de un cofre (§5.4), para dejar items del inventario. Lo depositado se pierde al empezar la visita siguiente: no es un almacén entre visitas (decisión nov 2026) |
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
 | **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
