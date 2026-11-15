@@ -1,0 +1,104 @@
+class_name BatteryComponent
+extends Node
+## Battery of one entity (spec 003): the robot's health. Holds its own state
+## (constitution P4), so two entities never share a battery.
+## It has no _physics_process and reads no input or zone: the owning entity
+## feeds it through tick(), so the drain rule is testable without a scene and
+## a future co-op host can drive it for any entity.
+
+signal battery_changed(current: float, maximum: float)
+## Emitted once when the charge drops below the low threshold; armed again
+## only after it rises above it.
+signal battery_low
+## Emitted once on each arrival at 0.
+signal battery_depleted
+
+@export var config: BatteryConfigData
+## Walking drain of the equipped legs; StatsComponent replaces it in spec 014.
+@export var legs: MovementStatsData
+
+var _current: float = 0.0
+var _maximum: float = 0.0
+var _low_warning_armed: bool = true
+
+
+func _ready() -> void:
+	if config == null or legs == null:
+		push_error("BatteryComponent '%s': config and legs must be assigned." % name)
+		return
+	_maximum = config.maximum
+	_current = _maximum
+
+
+func get_current() -> float:
+	return _current
+
+
+func get_maximum() -> float:
+	return _maximum
+
+
+func is_depleted() -> bool:
+	return _current <= 0.0
+
+
+## Points per second for a gait: the passive drain plus the movement drain.
+## The zone is not an input: the battery drains the same everywhere.
+func drain_per_second(gait: LocomotionSystem.Gait) -> float:
+	match gait:
+		LocomotionSystem.Gait.WALK:
+			return config.passive_drain + legs.walk_drain
+		LocomotionSystem.Gait.RUN:
+			return config.passive_drain + config.run_drain
+	return config.passive_drain
+
+
+## Drains for delta seconds at the rate of the given gait. Depends only on the
+## elapsed time, never on the frame rate.
+func tick(delta: float, gait: LocomotionSystem.Gait) -> void:
+	if is_depleted():
+		return
+	_set_current(_current - drain_per_second(gait) * delta)
+
+
+## Takes amount points (a hit, an attack). Taking more than is left is not an
+## error: it depletes the battery.
+func consume(amount: float) -> void:
+	if amount < 0.0:
+		push_error("BatteryComponent '%s': consume() got a negative amount (%f)." % [name, amount])
+		return
+	_set_current(_current - amount)
+
+
+## Gives amount points, capped at the maximum. Also works at 0.
+func add(amount: float) -> void:
+	if amount < 0.0:
+		push_error("BatteryComponent '%s': add() got a negative amount (%f)." % [name, amount])
+		return
+	_set_current(_current + amount)
+
+
+func recharge_full() -> void:
+	_set_current(_maximum)
+
+
+## Single write path, so every change is clamped and reported the same way:
+## battery_changed, then battery_low, then battery_depleted.
+func _set_current(value: float) -> void:
+	var clamped: float = clampf(value, 0.0, _maximum)
+	if clamped == _current:
+		return
+	_current = clamped
+	battery_changed.emit(_current, _maximum)
+	_update_low_warning()
+	if is_depleted():
+		battery_depleted.emit()
+
+
+func _update_low_warning() -> void:
+	var threshold: float = _maximum * config.low_threshold_ratio
+	if _current > threshold:
+		_low_warning_armed = true
+	elif _current < threshold and _low_warning_armed:
+		_low_warning_armed = false
+		battery_low.emit()

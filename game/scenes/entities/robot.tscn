@@ -1,9 +1,11 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/robot.gd" id="1_robot"]
 [ext_resource type="Script" path="res://scripts/components/player_input.gd" id="2_input"]
 [ext_resource type="Resource" path="res://resources/movement/basic_legs.tres" id="3_legs"]
 [ext_resource type="Resource" path="res://resources/config/controls.tres" id="4_controls"]
+[ext_resource type="Script" path="res://scripts/components/battery_component.gd" id="5_battery"]
+[ext_resource type="Resource" path="res://resources/battery/robot_battery.tres" id="6_battery_config"]
 
 [sub_resource type="CapsuleShape3D" id="capsule_shape"]
 
@@ -32,3 +34,9 @@ mesh = SubResource("nose_mesh")
 [node name="PlayerInput" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("2_input")
+
+[node name="BatteryComponent" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_battery")
+config = ExtResource("6_battery_config")
+legs = ExtResource("3_legs")
