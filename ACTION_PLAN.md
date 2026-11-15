@@ -198,6 +198,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
   - [ ] Crear escena `DroppedItem.tscn` (Area3D + MeshInstance)
   - [ ] Spawner: crear dropped items en posición de muerte
   - [ ] Caducidad: los items desaparecen tras 5 minutos (valor en BALANCE.md §7.2, configurable) contados desde la hora de la muerte con `ITimeService`, también con la app cerrada. Al cargar la partida se descartan los caducados; tiempo transcurrido negativo = 0 (PMV.md §10)
+- [ ] Tirar items del inventario (decisión nov 2026, PMV.md §10): desde la pantalla de inventario, el item cae como `DroppedItem` en la posición del robot y caduca con la misma regla (BALANCE.md §7.2)
 - [ ] Recuperación de items:
   - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
   - [ ] Interactuar con dropped items para recuperar
@@ -257,7 +258,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
     - [ ] Cabecera: `world_id`, nombre, `seed`, `ruleset`, `schema_version`
     - [ ] Datos del jugador: batería, inventario, piezas equipadas
     - [ ] Datos de base: bancos construidos, estaciones de carga, cofres, items en cofres
-    - [ ] Cambios por zona, indexados por `zone_id` (cajas abiertas de la visita en curso, items dropeados) y contador de visitas de la zona, que sube al salir (BALANCE.md §7.2)
+    - [ ] Cambios por zona, indexados por `zone_id` (cajas abiertas de la visita en curso con lo que queda dentro, items dropeados o tirados con su hora para la caducidad) y contador de visitas de la zona, que sube al salir (BALANCE.md §7.2)
     - [ ] Progresión: nivel de chasis, XP
     - [ ] Timestamp: última vez que se guardó
   - [ ] Encriptación: usar `EncryptionContext` de Godot (AES-256)
@@ -343,6 +344,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Coste: 3 chatarra + 1 hierro
   - [ ] Al construir: el jugador lo coloca en la cuadrícula de la base (modo colocación, Tarea 2.8)
   - [ ] Límite: máximo 5 cofres en base (PMV simplificado)
+- [ ] Cajas de loot vaciadas como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2)
 - [ ] Test: construir cofres, guardar items, recuperar items
 
 **Entregable**: cofres funcionales con UI de almacenamiento.
