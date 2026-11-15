@@ -151,7 +151,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
   - [ ] Rápido: HP 15, daño 4, velocidad 3.5
 - [ ] Spawner de zombies:
   - [ ] Crear escena `ZombieSpawner.tscn` (Node3D)
-  - [ ] Script: spawnear 5-8 zombies en posiciones elegidas con el RNG con semilla de la zona (Tarea 1.1) al cargar zona
+  - [ ] Script: spawnear 5-8 zombies en posiciones elegidas con el RNG con semilla de la zona (Tarea 1.1) al cargar zona. Reaparecen con el contador de visitas de la zona (BALANCE.md §7.2)
 - [ ] Test: zombies persiguen y atacan al jugador
 
 **Entregable**: 2 tipos de zombies funcionales con IA básica.
@@ -189,6 +189,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
   - [ ] Cuando `battery_current <= 0`:
     - [ ] Emitir señal `player_died`
     - [ ] Guardar posición de muerte como `(zone_id, posición local)`; también si muere dentro de la base, con las mismas reglas (PMV.md §2.4)
+    - [ ] Morir cuenta como salir de la zona: subir su contador de visitas, de modo que cajas y enemigos se repongan antes de la recuperación (BALANCE.md §7.2)
     - [ ] Guardar items del inventario (para drop)
     - [ ] Limpiar piezas equipadas (conservar solo core)
     - [ ] Transición a base, con la batería al 100% (BALANCE.md §1.1). Hasta la Fase 2 no hay estaciones de carga: reaparecer es la única recarga completa
@@ -198,7 +199,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
   - [ ] Spawner: crear dropped items en posición de muerte
   - [ ] Timer: items desaparecen después de X minutos (configurable)
 - [ ] Recuperación de items:
-  - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV)
+  - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
   - [ ] Interactuar con dropped items para recuperar
 - [ ] Test: al morir, jugador reaparece en base sin piezas y con la batería al 100%, items dropeados en zona
 
@@ -221,6 +222,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
   - [ ] Decoración: cajas, barriles, herramientas (modelos 3D)
 - [ ] Zonas de la base:
   - [ ] Zona de entrada (spawn point)
+  - [ ] Punto de salida a la zona: `InteractableComponent` con prompt propio (`PROMPT_TRAVEL`), que inicia el viaje (PMV.md §10). La zona tiene el suyo de vuelta
   - [ ] Banco de reparaciones en posición fija; no se mueve en la demo (PMV.md §10)
   - [ ] Área edificable: cuadrícula dentro de los límites de la base donde el jugador coloca estaciones, generador y cofres (Tarea 2.8). Empieza vacía
 - [ ] Test: jugador puede moverse por la base
@@ -255,7 +257,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
     - [ ] Cabecera: `world_id`, nombre, `seed`, `ruleset`, `schema_version`
     - [ ] Datos del jugador: batería, inventario, piezas equipadas
     - [ ] Datos de base: bancos construidos, estaciones de carga, cofres, items en cofres
-    - [ ] Cambios por zona, indexados por `zone_id` (cajas abiertas, items dropeados)
+    - [ ] Cambios por zona, indexados por `zone_id` (cajas abiertas de la visita en curso, items dropeados) y contador de visitas de la zona, que sube al salir (BALANCE.md §7.2)
     - [ ] Progresión: nivel de chasis, XP
     - [ ] Timestamp: última vez que se guardó
   - [ ] Encriptación: usar `EncryptionContext` de Godot (AES-256)
@@ -569,6 +571,7 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
   - [ ] ¿Coste de crafteo es justo?
   - [ ] ¿Degradación de piezas es muy rápida/lenta?
   - [ ] ¿La primera estación de carga (4 chatarra) sale en los primeros minutos? (PMV.md §10)
+  - [ ] ¿Entrar y salir de la zona en bucle sale gratis? Comprobar que los enemigos y el recorrido hasta las cajas hacen que cada visita cueste batería y riesgo, ya que cada visita repone cajas y enemigos (BALANCE.md §7.2, PMV.md §10)
 - [ ] Ajustar valores en BALANCE.md
 - [ ] Implementar cambios en código
 - [ ] Test: 5 sesiones con nuevo balance

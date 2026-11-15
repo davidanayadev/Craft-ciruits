@@ -88,7 +88,9 @@ interacción) se citan por su fuente; el spec no los fija.
 - `ZoneData`, `ZoneLoader`, viaje entre base y zona, pantalla de carga y `EventBus.zone_changed`: spec 009 (la
   base es la zona `(0, -1)`, architecture §14 pregunta 1). En la 004 la zona se instancia directamente en `ZoneSlot`.
 - Crear la semilla al crear un mundo y guardar qué cajas están abiertas (cambios por zona): spec 010.
-- Reposición de cajas abiertas: pendiente de una regla en BALANCE (pregunta 2).
+- Reposición de cajas abiertas por visita (contador de visitas por zona, número de visita en la semilla del
+  contenido): regla decidida en BALANCE §7.2, la aplica el spec 010. En la 004 no hay visitas: el contenido
+  sigue saliendo de `semilla + zone_id + índice de la caja`.
 - Animación pulida y sonido al abrir: ACTION_PLAN 4.3 y 4.4. Aquí basta con un cambio visible de estado.
 - Minimapa: ACTION_PLAN 4.1. Paso "abre una caja" de la guía: ACTION_PLAN 5.4.
 - Baterías portátiles en cajas (0 % en la caja básica, BALANCE §2.1) y `UIManager`: no hacen falta aquí.
@@ -108,7 +110,7 @@ el Android de gama media dentro de la zona.
 | # | Pregunta | Propuesta | ¿Bloquea? |
 |---|---|---|---|
 | 1 | ~~Semilla del mundo antes del guardado~~ | **Cerrada (nov 2026)**: semilla fija de desarrollo en un `.tres` de configuración que lee `GameManager`. La spec 010 la sustituye por la semilla creada al empezar un mundo. | — |
-| 2 | ~~¿Las cajas abiertas se reponen?~~ | **Cerrada para la 004 (nov 2026)**: una caja abierta sigue abierta hasta reiniciar la partida. La regla de reposición queda abierta en PMV §10 ("Cajas de loot"); va a BALANCE y la aplica la spec 010. | — |
+| 2 | ~~¿Las cajas abiertas se reponen?~~ | **Cerrada (nov 2026)**: en la 004 una caja abierta sigue abierta hasta reiniciar la partida. La regla definitiva es la reposición por visita (PMV §10, BALANCE §7.2): el contador de visitas sube al salir de la zona y el número de visita entra en la semilla del contenido. La aplica la spec 010. | — |
 | 3 | ~~Tamaño de la celda del mapa global~~ | **Cerrada (nov 2026)**: 80x80 m (BALANCE §7); la zona verde de 50x50 m va centrada en su celda. | — |
 | 4 | ~~¿Posiciones libres o marcadores?~~ | **Cerrada (nov 2026)**: marcadores colocados a mano en la escena (más de 7) y el RNG con semilla elige cuántas cajas y en cuáles. | — |
 | 5 | ~~Contenido con semilla y distribución de los rangos~~ | **Cerrada (nov 2026)**: RNG de `semilla + zone_id + índice de la caja`; cantidades enteras uniformes con ambos extremos incluidos (BALANCE §2.1). | — |

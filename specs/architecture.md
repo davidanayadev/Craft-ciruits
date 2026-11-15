@@ -203,7 +203,7 @@ extends Area3D
 
 signal interacted(interactor: Node3D)
 
-@export var prompt_key: StringName           # clave de traducción: "PROMPT_OPEN", "PROMPT_RECHARGE"…
+@export var prompt_key: StringName           # clave de traducción: "PROMPT_OPEN", "PROMPT_RECHARGE", "PROMPT_TRAVEL"…
 @export var enabled: bool = true
 
 func interact(interactor: Node3D) -> void    # emite interacted si enabled

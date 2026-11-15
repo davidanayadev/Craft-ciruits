@@ -31,7 +31,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 |---|---|
 | **Personaje robot** | 3 ranuras: Brazos, Piernas, Core. Cada pieza altera batería + rendimiento. Degradación hasta rotura. |
 | **Batería** | Recurso principal. Llega a 0 = muerte. Se consume en todas partes, también dentro de la base. Se recarga al 100% al interactuar con una Estación de carga (instantáneo) o +20 puntos con baterías portátiles. Consumo pasivo: 0.1/s, movimiento: +0.05/s, correr: +0.15/s. |
-| **Movimiento** | Viaje entre zonas = instantáneo con animación. Dentro de zona = joystick virtual: empujado hasta el 80 % de su radio anda, más allá corre (umbral ajustable en opciones). En PC: WASD y Shift para correr. Sin piernas no se puede correr. Velocidades en BALANCE.md §4.2. |
+| **Movimiento** | Viaje entre zonas = instantáneo con animación, y se inicia en un punto de salida físico de la zona o de la base (§10). Dentro de zona = joystick virtual: empujado hasta el 80 % de su radio anda, más allá corre (umbral ajustable en opciones). En PC: WASD y Shift para correr. Sin piernas no se puede correr. Velocidades en BALANCE.md §4.2. |
 | **Zona de farmeo** | **1 zona** (verde). Recolecta: chatarra, cables, hierro. Spawns de zombies y robots. |
 | **Zombies (2 tipos)** | Lento, Rápido. No sueltan piezas. |
 | **Robots hostiles (1 tipo)** | Básico (daño físico). Suelta piezas al morir. |
@@ -420,8 +420,11 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Guía básica (Tarea 5.4)**: ✅ se añade el paso "Craftea tu primera estación de carga", tras "Vuelve a la base".
 - [x] **Coste**: ✅ 4 chatarra como valor inicial (BALANCE.md §5.3). Tarea de playtesting (5.2): comprobar que la primera estación sale en los primeros minutos.
 
-**Cajas de loot (spec 004)**
-- [ ] **Reposición de cajas abiertas**: ¿se rellenan y cuándo (al volver a entrar, tras un tiempo, cada día)? BALANCE.md §8.1 cuenta "abrir 3 cajas" por sesión, pero ninguna regla lo regula. Mientras tanto, una caja abierta sigue abierta hasta reiniciar la partida (spec 004); la regla va a BALANCE.md y la aplica el guardado por zona (spec 010).
+**Cajas de loot y viaje entre zonas (specs 004, 006, 009, 010)**
+- [x] **Reposición de cajas abiertas**: ✅ Decidido (nov 2026): **por visita, nunca por tiempo** (no se usa el reloj real). Cada zona guarda en el mundo un contador de visitas que sube **al salir** de la zona, no al entrar ni al cargar la partida. Las cajas abiertas se guardan mientras dura la visita: cerrar y abrir la app devuelve la misma visita con las mismas cajas abiertas. El contenido de cada caja sale de semilla del mundo + `zone_id` + índice de la caja + número de visita, así que recargar no lo cambia; el número y la posición de las cajas siguen saliendo solo de la semilla y el `zone_id`. Los enemigos reaparecen con el mismo contador (spec 006). La regla está en BALANCE.md §7.2 y la aplica el guardado por zona (spec 010). Descartado: temporizador real (se salta cambiando la hora del móvil y no hay servidor que lo impida) y no reponer nunca (con una sola zona el jugador se queda sin materiales).
+- [x] **Coste del viaje en el PMV**: ✅ Decidido (nov 2026): se mantiene instantáneo, ilimitado y sin coste (§2.1, BALANCE.md §1.2). No se adelanta el coste de batería de v1.1.
+- [x] **Cómo se dispara el viaje**: ✅ Decidido (nov 2026): con un **punto de salida físico** en la zona (y otro en la base), no con un botón disponible en cualquier sitio. Es un `InteractableComponent` con su propio prompt (por ejemplo `PROMPT_TRAVEL`), que lo implementa el spec 009.
+- [x] **Morir en la zona y el contador de visitas**: ✅ Decidido (nov 2026): morir **cuenta como salir**, así que sube el contador de visitas de la zona. Al volver a recuperar las piezas (§2.4) las cajas están repuestas y los enemigos han reaparecido: es intencionado, para complicar la recuperación. Los items soltados por la muerte no se reponen ni desaparecen por la visita nueva (BALANCE.md §7.2). Los aplican el spec 008 (muerte) y el 010 (guardado).
 
 **Decidir antes de empezar v1.1**
 - [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).

@@ -32,7 +32,8 @@
 
 | Parámetro | Valor | Notas |
 |---|---|---|
-| **Sistema en PMV** | Viajes ilimitados | Sin coste |
+| **Sistema en PMV** | Viajes ilimitados | Sin coste. Instantáneo (decisión nov 2026): no se adelanta el coste de batería de v1.1 |
+| **Cómo se inicia el viaje (PMV)** | Punto de salida físico | Uno en la zona y otro en la base (decisión nov 2026). Cada visita a una zona repone sus cajas y enemigos (§7.2) |
 | **Zonas disponibles** | 1 (zona verde) | Zona roja en v1.1, como tipo de zona de los mundos por semilla (SPECS.md §26) |
 | **Viaje a pie entre zonas (v1.1)** | Coste de batería según la distancia | Decisión nov 2026. Valor por punto de distancia por definir al diseñar v1.1 |
 | **Gasolina (v1.2)** | Item crafteable, sin regeneración | Complemento de movilidad para vehículos y movimiento asistido, no un limitador de viajes (SPECS.md §19). Valores (stack, receta, consumo por distancia) por definir aquí |
@@ -66,7 +67,7 @@
 | **Caja básica (zona verde)** | 2-5 | 0-2 | 0-1 | 0% |
 | **Robot hostil básico** | 2-4 | 1-2 | 1-2 | 0% |
 
-> **Cómo se tira un rango** (decisión nov 2026, spec 004): cantidad entera uniforme entre ambos extremos, incluidos ("2-5" da 2, 3, 4 o 5 con la misma probabilidad). El contenido de cada caja sale del RNG con semilla de su zona (semilla del mundo + `zone_id` + índice de la caja), así que no depende del orden en que se abren. Un material que sale 0 no se entrega.
+> **Cómo se tira un rango** (decisión nov 2026, spec 004): cantidad entera uniforme entre ambos extremos, incluidos ("2-5" da 2, 3, 4 o 5 con la misma probabilidad). El contenido de cada caja sale del RNG con semilla de su zona (semilla del mundo + `zone_id` + índice de la caja + número de visita, §7.2), así que no depende del orden en que se abren ni cambia al recargar la partida. Un material que sale 0 no se entrega.
 
 ---
 
@@ -257,6 +258,23 @@
 | **Materiales principales** | Chatarra, cables (poco hierro) |
 | **Riesgo** | Bajo. Jugador sin piezas puede sobrevivir. |
 
+### 7.2 Reposición por visita (decisión nov 2026)
+
+Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj real no interviene (se saltaría cambiando la hora, y el PMV no tiene servidor).
+
+| Parámetro | Regla |
+|---|---|
+| **Contador de visitas** | Uno por zona, guardado en el mundo. Empieza en 0 |
+| **Cuándo sube** | Al **salir** de la zona, y también al **morir** en ella: la muerte cuenta como salir. No sube al entrar ni al cargar la partida |
+| **Items soltados al morir** | No dependen del contador: siguen en la zona hasta que se recuperan o caduquen (ACTION_PLAN Tarea 1.5) |
+| **Cajas abiertas** | Se guardan mientras dura la visita: cerrar y abrir la app devuelve la misma visita con las mismas cajas abiertas |
+| **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
+| **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
+| **Enemigos** | Reaparecen con el mismo contador de visitas (spec 006) |
+| **Quién lo aplica** | Guardado por zona (spec 010) |
+
+Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar batería y riesgo (ACTION_PLAN Tarea 5.2). Morir tampoco es una vía segura de recuperación: al volver a por las piezas, la zona ya está repuesta, con los enemigos de nuevo en pie (decisión nov 2026).
+
 ---
 
 ## 8. Economía (balance de recursos por sesión)
@@ -265,7 +283,7 @@
 
 | Acción | Resultado esperado |
 |---|---|
-| Viajar a zona verde | Sin coste (viajes ilimitados en PMV) |
+| Viajar a zona verde | Sin coste (viajes ilimitados en PMV), desde el punto de salida de la base |
 | Matar 5 zombies | +10-15 XP, +2-5 chatarra |
 | Abrir 3 cajas | +6-15 chatarra, +0-6 cables, +0-3 hierro |
 | Morir (50% probabilidad) | Pierdes piezas equipadas, materiales del inventario |
