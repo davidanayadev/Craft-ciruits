@@ -10,3 +10,8 @@ var quantity: int
 func _init(p_item: ItemData, p_quantity: int) -> void:
 	item = p_item
 	quantity = p_quantity
+
+
+## Same item, same quantity; never shares state with the original.
+func copy() -> ItemStack:
+	return ItemStack.new(item, quantity)

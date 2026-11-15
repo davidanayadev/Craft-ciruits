@@ -1,21 +1,26 @@
 class_name LootBox
 extends StaticBody3D
-## Loot box of a farm zone (spec 004). Interacting with it while closed rolls
-## its loot table once and announces the result; it does not know who receives
-## it (spec 005 connects the opener's inventory). Wiring and presentation
-## only: the roll is LootSystem's.
+## Loot box of a farm zone (spec 004). The first interaction rolls its loot
+## table once into its own InventoryComponent; every interaction while it
+## still holds items announces `opened`, and the box is disabled for the rest
+## of the visit once it is empty (spec 005). It knows neither the opener's
+## inventory nor the UI. Wiring and presentation only: the roll is LootSystem's.
 
+## Once, on the roll (R-004-23).
 signal loot_generated(stacks: Array[ItemStack], opener: Node3D)
+## Every interaction while the box still holds items, after the roll on the first one.
+signal opened(opener: Node3D)
 
 @export var loot_table: LootTableData
 
 var _loot_seed: int = 0
 var _is_set_up: bool = false
-var _opened: bool = false
+var _rolled: bool = false
 
 @onready var _interactable: InteractableComponent = %Interactable
 @onready var _closed_mesh: MeshInstance3D = %ClosedMesh
 @onready var _opened_mesh: MeshInstance3D = %OpenedMesh
+@onready var _contents: InventoryComponent = %Contents
 
 
 func _ready() -> void:
@@ -29,21 +34,47 @@ func setup(loot_seed: int) -> void:
 	_is_set_up = true
 
 
+func get_contents() -> InventoryComponent:
+	return _contents
+
+
+## Rolled at least once.
 func is_opened() -> bool:
-	return _opened
+	return _rolled
 
 
 func _on_interacted(interactor: Node3D) -> void:
-	if _opened:
-		return
-	if not _is_set_up:
-		push_error("LootBox '%s': opened before setup() gave it a loot seed." % name)
-		return
+	if not _rolled:
+		if not _is_set_up:
+			push_error("LootBox '%s': opened before setup() gave it a loot seed." % name)
+			return
+		_roll(interactor)
+	if not _contents.is_empty():
+		opened.emit(interactor)
+
+
+func _roll(interactor: Node3D) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = _loot_seed
 	var stacks: Array[ItemStack] = LootSystem.roll(loot_table, rng)
-	_opened = true
-	_interactable.enabled = false
+	_rolled = true
 	_closed_mesh.visible = false
 	_opened_mesh.visible = true
+	_fill_contents(stacks)
 	loot_generated.emit(stacks, interactor)
+
+
+## One slot per rolled stack: no loot entry rolls more than a slot holds.
+func _fill_contents(stacks: Array[ItemStack]) -> void:
+	_contents.set_slot_count(stacks.size())
+	if not _contents.add_stacks(stacks).ok:
+		push_error("LootBox '%s': its roll did not fit in its own contents." % name)
+	# Connected only now: the changes of the roll itself would arrive with the
+	# box still empty and disable it for good.
+	_contents.inventory_changed.connect(_on_contents_changed)
+	_on_contents_changed()
+
+
+func _on_contents_changed() -> void:
+	if _contents.is_empty():
+		_interactable.enabled = false

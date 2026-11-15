@@ -5,13 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3), 003
-(battery, ACTION_PLAN Tarea 0.4) and 004 (green zone, ACTION_PLAN Tarea 1.1) are done and merged: `game/`
-has its settings, i18n, InputMap, GUT 9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI,
-and a playable prototype (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric
-camera rig, `Robot` moved by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot
-boxes opened with the HUD "Interact" button or E, a battery `Hud` and a provisional game over screen that spec 008
-replaces). The `GameManager` and `DataRegistry` autoloads exist. Boxes only announce their loot
-(`loot_generated`): there is no inventory, combat or real death yet. The next spec is 005.
+(battery, ACTION_PLAN Tarea 0.4) and 004 (green zone, ACTION_PLAN Tarea 1.1) are done and merged. Spec 005
+(inventory, ACTION_PLAN Tarea 1.2) is implemented on `feat/005-inventory`; its device test (T-005-16) and its
+closing are pending. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
+`specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
+(`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric camera rig, `Robot` moved
+by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
+"Interact" button or E, a battery `Hud` and a provisional game over screen that spec 008 replaces). The robot owns
+an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). A box keeps its roll
+in its own `InventoryComponent` and opens the loot screen, where the player takes stacks; the storage button (Tab)
+opens the inventory screen. Both screens go through `UIManager` (a node under `UI`, not an autoload), which blocks
+the robot's input while one is open without pausing the game. The `GameManager` and `DataRegistry` autoloads
+exist. There is no combat, real death, saving, chests or crafting yet. The next spec is 006, once 005 is closed.
 
 ## Commands
 
@@ -50,6 +55,24 @@ ADRs in `specs/decisions/`:
   zone loaded at a time, interaction components, `ItemStack` inventory, stat modifiers, per-component JSON save,
   `EventBus` with a closed event list, `DataRegistry` catalog, `UIManager` screen stack, server readiness).
   Read it before planning any feature.
+
+## Subagents
+
+Delegate to save cost: cheap models for mechanical work, fresh eyes at review gates. Details and rationale:
+`.claude/SUBAGENTS.md`.
+
+| When | Use |
+|---|---|
+| After each task, before saying something is done, or when CI fails | `godot-runner` (instead of running `tools/run_tests.sh` in the main session) |
+| Test-first step of `/sdd-implement` for a task with several requirements | `gut-test-writer` (pass the spec and R/T ids) |
+| Before a plan passes its review gate | `architecture-guardian plan NNN` |
+| Definition of Done | `godot-runner`, `i18n-auditor` and `balance-auditor` in parallel, then `architecture-guardian` once |
+| A fix attempt failed, or the bug is intermittent or unclear | `deep-debugger` |
+| Wide search across many files | built-in `Explore` |
+
+Do not delegate tasks of 1–3 tool calls, commit messages or PRs (the main session knows why the code changed), or
+work another subagent already reported on. Run Opus agents (`architecture-guardian`, `deep-debugger`) only at the
+points above, not after every change.
 
 ## The game
 

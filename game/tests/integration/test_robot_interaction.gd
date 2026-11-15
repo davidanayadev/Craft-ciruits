@@ -1,7 +1,8 @@
 extends GutTest
 ## Robot + InteractorComponent + LootBox with real physics (spec 004): the
 ## interact action opens the box in range (R-004-14) and a robot with a
-## depleted battery does not interact (R-004-16). Input goes through the
+## depleted battery does not interact (R-004-16). A box stops being offered
+## once it is emptied, not when it is opened (R-005-21). Input goes through the
 ## InputMap action, the same path the game uses. The HUD button path is tested
 ## in test_main_scene.gd, where Main wires it.
 
@@ -72,10 +73,16 @@ func test_r_004_14_nothing_in_range_does_nothing() -> void:
 	assert_false(_box.is_opened(), "a box out of range stays closed")
 
 
-func test_r_004_24_opened_box_is_no_longer_offered() -> void:
+func test_r_005_21_emptied_box_is_no_longer_offered() -> void:
 	await _tap_interact()
 	await wait_physics_frames(SETTLE_FRAMES)
-	assert_null(_robot.interactor.get_target(), "the opened box is not a target any more")
+	assert_not_null(_robot.interactor.get_target(), "an opened box with loot is still a target")
+	var contents: InventoryComponent = _box.get_contents()
+	var every_slot: Array[int] = []
+	every_slot.assign(range(contents.get_slot_count()))
+	assert_true(_robot.inventory.take_from(contents, every_slot).ok, "the robot takes everything")
+	await wait_physics_frames(SETTLE_FRAMES)
+	assert_null(_robot.interactor.get_target(), "the emptied box is not a target any more")
 
 
 func test_r_004_16_depleted_robot_does_not_interact() -> void:
@@ -85,3 +92,13 @@ func test_r_004_16_depleted_robot_does_not_interact() -> void:
 	_robot.request_interact()
 	assert_false(_box.is_opened(), "a depleted robot opens nothing")
 	assert_signal_not_emitted(_box, "loot_generated")
+
+
+func test_r_005_27_blocked_input_does_not_interact() -> void:
+	_robot.player_input.set_input_blocked(true)
+	await _tap_interact()
+	_robot.request_interact()
+	assert_false(_box.is_opened(), "a robot with blocked input opens nothing")
+	_robot.player_input.set_input_blocked(false)
+	_robot.request_interact()
+	assert_true(_box.is_opened(), "unblocked, it interacts again")

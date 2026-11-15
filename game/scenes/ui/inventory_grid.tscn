@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/inventory_grid.gd" id="1_grid"]
+
+[node name="InventoryGrid" type="GridContainer"]
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 5
+script = ExtResource("1_grid")

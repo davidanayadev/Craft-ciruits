@@ -3,7 +3,8 @@ extends GutTest
 ## (R-004-18), DataCatalog and DataRegistry return items by id and report
 ## unknown ids (R-004-19), and the catalog has no repeated ids and lists every
 ## item file (R-004-20). Loot tables match BALANCE §2.1 and only use catalog
-## items (R-004-22), and none has a broken entry (R-004-26).
+## items (R-004-22), and none has a broken entry (R-004-26). Every loot entry
+## fits in one slot (R-005-17) and every item has an icon (R-005-31).
 ## The expected values mirror BALANCE.md §2 and §2.1; update both together.
 
 const ITEMS_DIR := "res://resources/items"
@@ -166,6 +167,32 @@ func test_r_004_22_loot_items_in_catalog() -> void:
 				catalog.items.has(entry.item),
 				"%s: '%s' is a catalog item" % [table.resource_path, entry.item.id]
 			)
+
+
+func test_r_005_17_loot_fits_one_slot_per_entry() -> void:
+	# A box gives its contents one slot per rolled stack, so no entry may roll
+	# more than one slot holds.
+	for table: LootTableData in _load_loot_tables():
+		for entry: LootEntryData in table.entries:
+			if entry == null or entry.item == null:
+				continue
+			assert_lte(
+				entry.max_quantity,
+				entry.item.stack_max,
+				"%s: '%s' fits in one slot" % [table.resource_path, entry.item.id]
+			)
+
+
+func test_r_005_31_every_item_has_icon() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	assert_gt(catalog.items.size(), 0, "the catalog has items")
+	for item: ItemData in catalog.items:
+		if item == null:
+			continue
+		assert_not_null(item.icon, "'%s' has an icon" % item.id)
 
 
 func test_r_004_26_all_loot_tables_valid() -> void:

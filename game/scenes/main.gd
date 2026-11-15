@@ -5,11 +5,16 @@ extends Node
 ## Until ZoneLoader exists (spec 009) the green zone sits in ZoneSlot from the
 ## start: Main generates it from the world seed and puts the robot on its
 ## spawn point (spec 004).
+## It also opens the screens (spec 005): the loot screen when the local robot
+## opens a box and the inventory on the storage button, and blocks the robot's
+## input while one is open. UIManager sits before Hud in UI, so the HUD is
+## drawn on top of the screens.
 
 @onready var _robot: Robot = %Robot
 @onready var _camera_rig: CameraRig = %CameraRig
 @onready var _touch_controls: TouchControls = %TouchControls
 @onready var _hud: Hud = %Hud
+@onready var _ui_manager: UIManager = %UIManager
 @onready var _world: Node3D = %World
 @onready var _zone: FarmZone = %GreenZone
 @onready var _game_over_screen: GameOverScreen = %GameOverScreen
@@ -22,6 +27,10 @@ func _ready() -> void:
 	_camera_rig.target = _robot
 	_hud.bind(_robot)
 	_hud.interact_pressed.connect(_robot.request_interact)
+	_hud.storage_pressed.connect(_on_storage_pressed)
+	_zone.box_opened.connect(_on_box_opened)
+	_ui_manager.modal_state_changed.connect(_robot.player_input.set_input_blocked)
+	_ui_manager.modal_state_changed.connect(_hud.set_modal_open)
 	_touch_controls.joystick.sample_changed.connect(_on_joystick_sample_changed)
 	_touch_controls.joystick.released.connect(_on_joystick_released)
 	_robot.battery.battery_depleted.connect(_on_battery_depleted)
@@ -36,6 +45,36 @@ func _on_joystick_released() -> void:
 	_robot.player_input.clear_joystick()
 
 
+## Opens the loot screen on the box and the opener's inventory (R-005-16).
+func _on_box_opened(box: LootBox, opener: Node3D) -> void:
+	var inventory: InventoryComponent = InventoryComponent.find_in(opener)
+	if inventory == null:
+		push_error(
+			"Main: '%s' opened the box '%s' but has no InventoryComponent." % [opener.name, box.name]
+		)
+		return
+	# Only the local player's screens: in co-op another robot opening a box
+	# must not open a screen on this client (architecture §9.5).
+	if opener != _robot:
+		return
+	_ui_manager.open(
+		LootScreen.SCREEN_ID,
+		{LootScreen.CONTEXT_SOURCE: box.get_contents(), LootScreen.CONTEXT_INVENTORY: inventory}
+	)
+
+
+## Storage closes whatever screen is on top, or opens the inventory (R-005-24).
+func _on_storage_pressed() -> void:
+	if _robot.battery.is_depleted():
+		return
+	if _ui_manager.is_modal_open():
+		_ui_manager.close_top()
+		return
+	_ui_manager.open(
+		InventoryScreen.SCREEN_ID, {InventoryScreen.CONTEXT_INVENTORY: _robot.inventory}
+	)
+
+
 ## Provisional game over (spec 003); spec 008 replaces it with the ruleset and
 ## the respawn. Disabling World freezes the robot and the zone without pausing
 ## the tree, so no global state survives the reload.
@@ -44,6 +83,7 @@ func _on_battery_depleted() -> void:
 	# and disabling World there removes its body from the physics space while
 	# it is still moving.
 	_freeze_world.call_deferred()
+	_ui_manager.close_all()
 	_game_over_screen.open()
 
 

@@ -4,17 +4,28 @@ extends GutTest
 ## battery only moves when the test says so.
 ## Interact button (R-004-13): shown with the prompt of the robot's interaction
 ## target, hidden without one, driven only by target_changed.
+## Spec 005: a storage button at the bottom centre (R-005-23) that, like the
+## open_storage action, emits storage_pressed (R-005-24); the interact button
+## hides while a screen is open (R-005-27); the "inventory full" message shows
+## on overflowed and hides when its timer ends (R-005-20); keys in ES and EN
+## (R-005-30).
 
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 ## ProgressBar snaps its value to its step.
 const BAR_TOLERANCE := 0.01
+const STORAGE_KEY := &"HUD_STORAGE"
+const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
+const INPUT_FRAMES := 2
 
 var _hud: Hud
 var _robot: Robot
 var _bar: ProgressBar
 var _label: Label
 var _interact_button: Button
+var _storage_button: Button
+var _message_label: Label
+var _message_timer: Timer
 
 
 func before_each() -> void:
@@ -26,6 +37,20 @@ func before_each() -> void:
 	_bar = _hud.get_node("%BatteryBar") as ProgressBar
 	_label = _hud.get_node("%BatteryLabel") as Label
 	_interact_button = _hud.get_node("%InteractButton") as Button
+	_storage_button = _hud.get_node("%StorageButton") as Button
+	_message_label = _hud.get_node("%MessageLabel") as Label
+	_message_timer = _hud.get_node("%MessageTimer") as Timer
+
+
+func after_each() -> void:
+	_send_open_storage(false)
+
+
+func _send_open_storage(pressed: bool) -> void:
+	var event: InputEventAction = InputEventAction.new()
+	event.action = &"open_storage"
+	event.pressed = pressed
+	Input.parse_input_event(event)
 
 
 func test_r_003_11_display_value_rounds_up() -> void:
@@ -116,3 +141,86 @@ func test_r_004_13_button_bottom_right_without_focus() -> void:
 	assert_lt(_interact_button.offset_bottom, 0.0, "inside the screen")
 	# Without focus, Space (attack) or Enter never press it by accident.
 	assert_eq(_interact_button.focus_mode, Control.FOCUS_NONE, "never takes keyboard focus")
+
+
+func test_r_005_23_storage_button_bottom_centre_without_focus() -> void:
+	assert_true(_storage_button.visible, "always shown")
+	assert_eq(_storage_button.anchor_left, 0.5, "anchored to the centre")
+	assert_eq(_storage_button.anchor_right, 0.5, "anchored to the centre")
+	assert_eq(_storage_button.anchor_top, 1.0, "anchored to the bottom edge")
+	assert_eq(_storage_button.anchor_bottom, 1.0, "anchored to the bottom edge")
+	assert_eq(_storage_button.offset_left, -_storage_button.offset_right, "centred on the screen")
+	assert_lt(_storage_button.offset_bottom, 0.0, "inside the screen")
+	# Without focus, Tab keeps reaching open_storage and Enter presses nothing.
+	assert_eq(_storage_button.focus_mode, Control.FOCUS_NONE, "never takes keyboard focus")
+
+
+func test_r_005_24_button_emits() -> void:
+	watch_signals(_hud)
+	_storage_button.pressed.emit()
+	assert_signal_emit_count(_hud, "storage_pressed", 1)
+
+
+func test_r_005_24_open_storage_action_emits() -> void:
+	watch_signals(_hud)
+	_send_open_storage(true)
+	await wait_process_frames(INPUT_FRAMES)
+	assert_signal_emit_count(_hud, "storage_pressed", 1, "the action is one press")
+
+
+func test_r_005_20_inventory_full_message() -> void:
+	_hud.bind(_robot)
+	assert_false(_message_label.visible, "no message at the start")
+	var scrap: ItemData = DataRegistry.get_item(&"scrap")
+	var capacity: int = scrap.stack_max * _robot.inventory.get_slot_count()
+	assert_false(_robot.inventory.add(&"scrap", capacity + 1).ok, "one more than fits")
+	assert_true(_message_label.visible, "the message shows when something does not fit")
+	assert_eq(
+		_message_label.text,
+		String(InventoryComponent.MSG_INVENTORY_FULL),
+		"the text is the translation key"
+	)
+	assert_ne(
+		_message_label.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "and it is translated"
+	)
+	assert_false(_message_timer.is_stopped(), "the message is on a timer")
+	assert_true(_message_timer.one_shot, "that runs once")
+	# No real time in tests: the timer's own signal hides the message.
+	_message_timer.timeout.emit()
+	assert_false(_message_label.visible, "the message hides when the timer ends")
+
+
+func test_r_005_20_no_message_when_everything_fits() -> void:
+	_hud.bind(_robot)
+	assert_true(_robot.inventory.add(&"scrap", 1).ok, "it fits")
+	assert_false(_message_label.visible, "no message")
+
+
+func test_r_005_27_interact_button_hidden_while_modal() -> void:
+	_hud.bind(_robot)
+	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_OPEN"))
+	assert_true(_interact_button.visible, "shown with a target and no screen open")
+	_hud.set_modal_open(true)
+	assert_false(_interact_button.visible, "hidden while a screen is open")
+	_robot.interactor.target_changed.emit(_new_target(&"GAME_OVER_RESTART"))
+	assert_false(_interact_button.visible, "a new target does not bring it back while open")
+	_hud.set_modal_open(false)
+	assert_true(_interact_button.visible, "shown again when the screen closes")
+	assert_eq(_interact_button.text, "GAME_OVER_RESTART", "with the current target's prompt")
+	_hud.set_modal_open(true)
+	_robot.interactor.target_changed.emit(null)
+	_hud.set_modal_open(false)
+	assert_false(_interact_button.visible, "no target, no button")
+
+
+func test_r_005_30_storage_button_key_translated() -> void:
+	assert_eq(_storage_button.text, String(STORAGE_KEY), "the button text is a translation key")
+	assert_ne(
+		_storage_button.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "and it is translated"
+	)
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
+		if translations.size() == 1:
+			var text: String = translations[0].get_message(STORAGE_KEY)
+			assert_ne(text, "", "'%s' has a text for %s" % [locale, STORAGE_KEY])

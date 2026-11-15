@@ -1,0 +1,48 @@
+class_name InventoryGrid
+extends GridContainer
+## Grid of cells bound to one InventoryComponent: one cell per slot, repainted
+## only on inventory_changed (R-005-25, R-005-26). It never changes the
+## inventory: it reports the pressed slot and the screen asks the owner.
+
+signal slot_pressed(index: int)
+
+const SLOT_SCENE := preload("res://scenes/ui/inventory_slot.tscn")
+
+## Whether occupied cells can be pressed.
+@export var interactive: bool = false
+
+var _inventory: InventoryComponent = null
+var _cells: Array[InventorySlotView] = []
+
+
+## Paints now and on every inventory_changed.
+func bind(inventory: InventoryComponent) -> void:
+	if _inventory != null:
+		_inventory.inventory_changed.disconnect(_refresh)
+	_inventory = inventory
+	_inventory.inventory_changed.connect(_refresh)
+	_refresh()
+
+
+func _refresh() -> void:
+	var slots: Array[ItemStack] = _inventory.get_slots()
+	_set_cell_count(slots.size())
+	for index: int in slots.size():
+		_cells[index].show_stack(slots[index])
+
+
+func _set_cell_count(count: int) -> void:
+	while _cells.size() > count:
+		var removed: InventorySlotView = _cells.pop_back()
+		removed.queue_free()
+	while _cells.size() < count:
+		var cell: InventorySlotView = SLOT_SCENE.instantiate() as InventorySlotView
+		add_child(cell)
+		cell.set_interactive(interactive)
+		cell.pressed.connect(_on_cell_pressed.bind(_cells.size()))
+		_cells.append(cell)
+
+
+func _on_cell_pressed(index: int) -> void:
+	if interactive:
+		slot_pressed.emit(index)

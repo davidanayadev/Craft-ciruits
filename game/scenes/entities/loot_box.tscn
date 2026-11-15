@@ -1,8 +1,9 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/loot_box.gd" id="1_box"]
 [ext_resource type="Script" path="res://scripts/components/interactable_component.gd" id="2_interactable"]
 [ext_resource type="Resource" path="res://resources/loot/basic_box.tres" id="3_loot"]
+[ext_resource type="Script" path="res://scripts/components/inventory_component.gd" id="4_inventory"]
 
 [sub_resource type="BoxShape3D" id="body_shape"]
 size = Vector3(1, 0.8, 1)
@@ -50,3 +51,7 @@ prompt_key = &"PROMPT_OPEN"
 
 [node name="InteractableShape" type="CollisionShape3D" parent="Interactable"]
 shape = SubResource("interactable_shape")
+
+[node name="Contents" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_inventory")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/farm_zone/farm_zone_green.tscn" id="2_zone"]
@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_hud.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_game_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/game_over_screen.tscn" id="8_game_over"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ui_manager.tscn" id="9_ui_manager"]
+[ext_resource type="Resource" path="res://resources/ui/screens.tres" id="10_screens"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -29,6 +31,10 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="UI" type="CanvasLayer" parent="."]
+
+[node name="UIManager" parent="UI" instance=ExtResource("9_ui_manager")]
+unique_name_in_owner = true
+catalog = ExtResource("10_screens")
 
 [node name="Hud" parent="UI" instance=ExtResource("7_game_hud")]
 unique_name_in_owner = true

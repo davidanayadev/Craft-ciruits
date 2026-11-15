@@ -2,7 +2,8 @@ extends GutTest
 ## Green farm zone (spec 004): ground tiles, decoration and colliders
 ## (R-004-01), inside one grid cell (R-004-03), boundaries that keep the robot
 ## in (R-004-04), and boxes placed on hand-made markers by the seeded RNG
-## (R-004-11, R-004-21). The zone is generated with seeds given here, never
+## (R-004-11, R-004-21), and the zone relays the opened signal of each box
+## (R-005-16). The zone is generated with seeds given here, never
 ## through GameManager.
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
@@ -252,3 +253,20 @@ func _open_and_describe(box: LootBox, opener: Node3D) -> String:
 	for stack: ItemStack in stacks:
 		parts.append("%s x%d" % [stack.item.id, stack.quantity])
 	return ", ".join(parts)
+
+
+func test_r_005_16_zone_relays_box_opened() -> void:
+	var zone: FarmZone = _generated_zone(SEED_A)
+	var opener: Node3D = Node3D.new()
+	add_child_autofree(opener)
+	watch_signals(zone)
+	var boxes: Array[LootBox] = zone.get_boxes()
+	assert_gt(boxes.size(), 0, "the zone has boxes")
+	for i: int in boxes.size():
+		(boxes[i].get_node("%Interactable") as InteractableComponent).interact(opener)
+		assert_signal_emit_count(zone, "box_opened", i + 1, "one box_opened per opened box")
+		var parameters: Array = get_signal_parameters(zone, "box_opened", i)
+		var box: LootBox = parameters[0]
+		var relayed_opener: Node3D = parameters[1]
+		assert_same(box, boxes[i], "box_opened says which box")
+		assert_same(relayed_opener, opener, "and who opened it")
