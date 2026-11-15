@@ -10,7 +10,8 @@ Create the spec for: $ARGUMENTS
 1. Read `specs/README.md` and `specs/constitution.md`. They define the workflow, EARS format, IDs and states.
    Do not restate them here or in the spec.
 2. Find the matching ACTION_PLAN.md task and every source it depends on (PMV.md, BALANCE.md, SPECS.md, ONLINE.md,
-   ADRs in `specs/decisions/`). Read them; do not work from memory.
+   ADRs in `specs/decisions/`). Read them; do not work from memory. If you need to find existing code the
+   feature touches across many files, delegate the search to the built-in `Explore` subagent.
 3. Pick the next free `NNN` from `specs/README.md §6` and copy `specs/_templates/spec.md` to
    `specs/NNN-slug/spec.md`. Do not create `plan.md` or `tasks.md`.
 4. Write requirements in EARS, one verifiable behaviour each, with a source per row. Cite numbers by their

@@ -94,6 +94,8 @@ Otras reglas de gasto:
 
 ## 5. Uso en el flujo SDD
 
+Las skills `/sdd-spec`, `/sdd-plan` y `/sdd-implement` ya invocan estos agentes en los puntos de la tabla.
+
 | Fase | Qué usar |
 |---|---|
 | `/sdd-spec` | Sesión principal (Opus). `Explore` si hay que localizar código existente |
