@@ -39,7 +39,7 @@
   - `%SpawnPoint` y 10 marcadores en `%BoxMarkers`.
 
   Cubre: R-004-01, R-004-03, R-004-04, R-004-11, R-004-21. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-09** Añadir `%Interactor` a `robot.tscn`, `is_interact_just_pressed()` a `player_input.gd` y
+- [x] **T-004-09** Añadir `%Interactor` a `robot.tscn`, `is_interact_just_pressed()` a `player_input.gd` y
   `request_interact()` a `robot.gd` (sin efecto con la batería agotada). Cubre: R-004-14 (vía teclado), R-004-16.
   Verifica: `tools/run_tests.sh`.
 - [ ] **T-004-10** Test primero: tests de R-004-13 en `test_hud.gd`. Añadir `%InteractButton` (abajo a la derecha,

@@ -1,6 +1,6 @@
 class_name PlayerInput
 extends Node
-## Single source of movement input (R-002-13): merges the InputMap keyboard
+## Single source of player input (R-002-13): merges the InputMap keyboard
 ## actions (PC) and the virtual joystick (touch). Gameplay reads this node and
 ## never touches events or keys directly.
 
@@ -18,6 +18,12 @@ func is_run_intent() -> bool:
 	if _joystick_sample != null and _joystick_sample.active:
 		return _joystick_sample.run_intent
 	return Input.is_action_pressed(&"run")
+
+
+## True only on the physics frame the interact action goes down. On touch the
+## HUD button asks the robot directly (R-004-14).
+func is_interact_just_pressed() -> bool:
+	return Input.is_action_just_pressed(&"interact")
 
 
 func set_joystick_sample(sample: JoystickLogic.Sample) -> void:
