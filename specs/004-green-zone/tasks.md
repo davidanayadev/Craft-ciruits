@@ -28,7 +28,7 @@
   `controls.tres`, nombrar la capa 3D 2 `interaction` en `project.godot` (con su test en
   `test_project_settings.gd`) y crear los dos componentes. Cubre: R-004-12, R-004-15, R-004-17. Verifica:
   `tools/run_tests.sh`.
-- [ ] **T-004-07** Añadir `PROMPT_OPEN` (ES + EN) a `strings.csv` y reimportar. Test primero: `test_loot_box.gd`.
+- [x] **T-004-07** Añadir `PROMPT_OPEN` (ES + EN) a `strings.csv` y reimportar. Test primero: `test_loot_box.gd`.
   Crear `loot_box.tscn` + `loot_box.gd`: colisión, mallas cerrada y abierta de primitivas, `%Interactable` con
   `PROMPT_OPEN`. Cubre: R-004-23..25. Verifica: `tools/run_tests.sh`.
 - [ ] **T-004-08** Test primero: `test_green_zone.gd` (rojo). Crear `farm_zone.gd` y `farm_zone_green.tscn`:

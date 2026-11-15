@@ -1,0 +1,52 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scenes/entities/loot_box.gd" id="1_box"]
+[ext_resource type="Script" path="res://scripts/components/interactable_component.gd" id="2_interactable"]
+[ext_resource type="Resource" path="res://resources/loot/basic_box.tres" id="3_loot"]
+
+[sub_resource type="BoxShape3D" id="body_shape"]
+size = Vector3(1, 0.8, 1)
+
+[sub_resource type="StandardMaterial3D" id="closed_material"]
+albedo_color = Color(0.55, 0.38, 0.18, 1)
+
+[sub_resource type="BoxMesh" id="closed_mesh"]
+material = SubResource("closed_material")
+size = Vector3(1, 0.8, 1)
+
+[sub_resource type="StandardMaterial3D" id="opened_material"]
+albedo_color = Color(0.25, 0.18, 0.1, 1)
+
+[sub_resource type="BoxMesh" id="opened_mesh"]
+material = SubResource("opened_material")
+size = Vector3(1, 0.35, 1)
+
+[sub_resource type="SphereShape3D" id="interactable_shape"]
+radius = 0.1
+
+[node name="LootBox" type="StaticBody3D"]
+script = ExtResource("1_box")
+loot_table = ExtResource("3_loot")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+shape = SubResource("body_shape")
+
+[node name="ClosedMesh" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+mesh = SubResource("closed_mesh")
+
+[node name="OpenedMesh" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.175, 0)
+visible = false
+mesh = SubResource("opened_mesh")
+
+[node name="Interactable" type="Area3D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_interactable")
+prompt_key = &"PROMPT_OPEN"
+
+[node name="InteractableShape" type="CollisionShape3D" parent="Interactable"]
+shape = SubResource("interactable_shape")
