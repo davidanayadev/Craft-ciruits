@@ -69,3 +69,35 @@ func test_r_002_07_turn_does_not_overshoot() -> void:
 func test_r_002_07_turn_takes_shortest_path() -> void:
 	var yaw: float = LocomotionSystem.rotate_toward_yaw(3.0, -3.0, 10.0, 0.016)
 	assert_almost_eq(yaw, -3.1232, 0.001, "crosses the -PI/PI seam instead of going around")
+
+
+func test_r_003_02_gait_idle_without_direction() -> void:
+	assert_eq(LocomotionSystem.gait(Vector3.ZERO, false, _legs), LocomotionSystem.Gait.IDLE)
+	assert_eq(
+		LocomotionSystem.gait(Vector3.ZERO, true, _legs),
+		LocomotionSystem.Gait.IDLE,
+		"run intent without a direction is still idle"
+	)
+
+
+func test_r_003_03_gait_walk_with_direction() -> void:
+	assert_eq(LocomotionSystem.gait(Vector3.FORWARD, false, _legs), LocomotionSystem.Gait.WALK)
+
+
+func test_r_003_03_gait_walk_on_soft_push() -> void:
+	var short_push: Vector3 = Vector3(0.2, 0.0, 0.0)
+	assert_eq(LocomotionSystem.gait(short_push, false, _legs), LocomotionSystem.Gait.WALK)
+
+
+func test_r_003_04_gait_run_with_intent_and_legs() -> void:
+	assert_eq(LocomotionSystem.gait(Vector3.FORWARD, true, _legs), LocomotionSystem.Gait.RUN)
+
+
+func test_r_003_04_gait_run_without_running_legs_is_walk() -> void:
+	var no_legs: MovementStatsData = MovementStatsData.new()
+	no_legs.can_run = false
+	assert_eq(
+		LocomotionSystem.gait(Vector3.FORWARD, true, no_legs),
+		LocomotionSystem.Gait.WALK,
+		"run intent without legs that can run stays a walk"
+	)

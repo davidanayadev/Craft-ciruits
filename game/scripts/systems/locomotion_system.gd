@@ -4,6 +4,8 @@ extends RefCounted
 ## gait and smooth yaw rotation. No Node, no Input, no scene: testable alone
 ## (constitution P3) and reusable by a future host/server (ONLINE.md).
 
+enum Gait { IDLE, WALK, RUN }
+
 
 static func world_direction(input_dir: Vector2, camera_yaw_rad: float) -> Vector3:
 	if input_dir == Vector2.ZERO:
@@ -12,14 +14,25 @@ static func world_direction(input_dir: Vector2, camera_yaw_rad: float) -> Vector
 	return flat.normalized()
 
 
+## Single owner of the "running needs intent and legs that can run" rule:
+## speed (here) and battery drain (BatteryComponent) both read it.
+static func gait(world_dir: Vector3, run_intent: bool, stats: MovementStatsData) -> Gait:
+	if world_dir == Vector3.ZERO:
+		return Gait.IDLE
+	if run_intent and stats.can_run:
+		return Gait.RUN
+	return Gait.WALK
+
+
 static func horizontal_velocity(
 	world_dir: Vector3, run_intent: bool, stats: MovementStatsData
 ) -> Vector3:
-	if world_dir == Vector3.ZERO:
-		return Vector3.ZERO
-	var running: bool = run_intent and stats.can_run
-	var speed: float = stats.run_speed if running else stats.walk_speed
-	return world_dir.normalized() * speed
+	match gait(world_dir, run_intent, stats):
+		Gait.RUN:
+			return world_dir.normalized() * stats.run_speed
+		Gait.WALK:
+			return world_dir.normalized() * stats.walk_speed
+	return Vector3.ZERO
 
 
 ## Yaw that makes a -Z-facing model look along world_dir.
