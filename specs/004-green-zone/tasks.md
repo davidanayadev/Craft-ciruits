@@ -7,9 +7,9 @@
   `feat/004-green-zone` desde `main`. La rama lleva la spec, el plan, las tareas, `specs/README.md` y los cambios de
   BALANCE.md y PMV.md del spec 004, en un commit `docs(green-zone): …`. Verifica: `git log main` contiene el commit
   de cierre del spec 003.
-- [ ] **T-004-01** Test primero: `test_seeded_rng.gd` (rojo). Crear `scripts/util/seeded_rng.gd` hasta verde y fijar
+- [x] **T-004-01** Test primero: `test_seeded_rng.gd` (rojo). Crear `scripts/util/seeded_rng.gd` hasta verde y fijar
   el valor conocido en `test_r_004_09_known_answer`. Cubre: R-004-09. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-02** Test primero: `test_no_global_rng.gd`, que recorre `res://scripts` y `res://scenes` con el patrón
+- [x] **T-004-02** Test primero: `test_no_global_rng.gd`, que recorre `res://scripts` y `res://scenes` con el patrón
   del plan §5.5. Hoy debe pasar en verde; comprobar que falla al añadir `randf()` en un script temporal y quitarlo.
   Cubre: R-004-10. Verifica: `tools/run_tests.sh`.
 - [ ] **T-004-03** Test primero: `test_data_catalog.gd` (items, catálogo, registro) y `test_project_settings.gd`

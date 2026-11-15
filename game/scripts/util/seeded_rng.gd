@@ -1,0 +1,49 @@
+class_name SeededRng
+extends RefCounted
+## Seeded randomness for world generation (spec 004, constitution P9).
+## Every RNG comes from the world seed and a zone_id, so a world is the same on
+## every load. Streams keep unrelated uses apart: adding a new use of
+## randomness to a zone does not move what an older stream already placed.
+##
+## The derivation is a contract with saved worlds: test_seeded_rng.gd pins it
+## with known answers. Changing it needs a save migration.
+
+const STREAM_BOX_PLACEMENT := &"box_placement"
+const STREAM_BOX_LOOT := &"box_loot"
+
+const _HEADER_SIZE := 20
+const _ZONE_X_OFFSET := 8
+const _ZONE_Y_OFFSET := 12
+const _INDEX_OFFSET := 16
+
+
+## SHA-256 over: world_seed (s64 LE) ‖ zone_id.x (s32 LE) ‖ zone_id.y (s32 LE)
+## ‖ index (s32 LE) ‖ stream (UTF-8). The seed is the first 8 bytes of the
+## digest as s64 LE. Standard hash and fixed byte layout, so a non-Godot
+## server can reproduce it.
+static func derive_seed(
+	world_seed: int, zone_id: Vector2i, stream: StringName, index: int = 0
+) -> int:
+	var bytes: PackedByteArray = PackedByteArray()
+	bytes.resize(_HEADER_SIZE)
+	bytes.encode_s64(0, world_seed)
+	bytes.encode_s32(_ZONE_X_OFFSET, zone_id.x)
+	bytes.encode_s32(_ZONE_Y_OFFSET, zone_id.y)
+	bytes.encode_s32(_INDEX_OFFSET, index)
+	bytes.append_array(String(stream).to_utf8_buffer())
+	var context: HashingContext = HashingContext.new()
+	var error: Error = context.start(HashingContext.HASH_SHA256)
+	if error == OK:
+		error = context.update(bytes)
+	if error != OK:
+		push_error("SeededRng: SHA-256 failed (%s)." % error_string(error))
+		return 0
+	return context.finish().decode_s64(0)
+
+
+static func create(
+	world_seed: int, zone_id: Vector2i, stream: StringName, index: int = 0
+) -> RandomNumberGenerator:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = derive_seed(world_seed, zone_id, stream, index)
+	return rng
