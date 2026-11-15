@@ -12,7 +12,7 @@
 - [x] **T-004-02** Test primero: `test_no_global_rng.gd`, que recorre `res://scripts` y `res://scenes` con el patrón
   del plan §5.5. Hoy debe pasar en verde; comprobar que falla al añadir `randf()` en un script temporal y quitarlo.
   Cubre: R-004-10. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-03** Test primero: `test_data_catalog.gd` (items, catálogo, registro) y `test_project_settings.gd`
+- [x] **T-004-03** Test primero: `test_data_catalog.gd` (items, catálogo, registro) y `test_project_settings.gd`
   (autoloads). Crear `item_data.gd`, `data_catalog.gd`, los tres `.tres` de items y `data_catalog.tres`; añadir
   `ITEM_SCRAP`, `ITEM_CABLES` e `ITEM_IRON` (ES + EN) a `strings.csv` y reimportar. Crear los autoloads
   `GameManager` (con `dev_world_config_data.gd` y `dev_world.tres`) y `DataRegistry`, y registrarlos en

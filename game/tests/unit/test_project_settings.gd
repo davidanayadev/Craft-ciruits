@@ -1,6 +1,6 @@
 extends GutTest
-## Guards the project settings fixed by spec 001 (R-001-14): changing one of
-## them from the editor must turn the suite red.
+## Guards the project settings fixed by spec 001 (R-001-14) and the autoloads
+## of spec 004: changing one of them from the editor must turn the suite red.
 
 const RENDERER_COMPATIBILITY: String = "gl_compatibility"
 ## Values of the "Ignore,Warn,Error" hint of every debug/gdscript/warnings/* setting.
@@ -92,6 +92,12 @@ func test_r_001_07_unsupported_locale_falls_back_to_english() -> void:
 	var text: String = tr(SAMPLE_KEY)
 	TranslationServer.set_locale(original_locale)
 	assert_ne(text, String(SAMPLE_KEY), "tr() returns a text, not the key")
+
+
+func test_r_004_08_19_autoloads_registered() -> void:
+	# "*" marks the autoload as enabled (a singleton node under /root).
+	assert_eq(_get_string("autoload/GameManager"), "*res://scripts/autoload/game_manager.gd")
+	assert_eq(_get_string("autoload/DataRegistry"), "*res://scripts/autoload/data_registry.gd")
 
 
 func _get_rule(rules: Dictionary, path: String) -> int:
