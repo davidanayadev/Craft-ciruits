@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-15, revisión con loot manual y pantalla de caja) |
+| **Estado** | Hecho (2026-11-15) |
 | **Tarea(s) ACTION_PLAN** | 1.2 (sin crear `ItemData` ni los `.tres` de chatarra, cables y hierro, hechos en la spec 004) |
 | **Fuentes** | ACTION_PLAN.md Tareas 1.2, 1.1 ("añadir a inventario"), 2.6 y 2.7 (contexto), 4.1 (botón almacenamiento) · PMV.md §2.1 (5 slots, botón almacenamiento), §4.5 gancho 7, §6, §10 · BALANCE.md §1.3, §2, §6.1, §7.2 · ONLINE.md "Preparación del código desde el PMV" punto 6 · architecture.md §3, §5, §6, §7, §8, §9.2, §9.3, §9.5, §12, §13 · Constitución P2, P3, P4, P5, P6, P8, P11, P13 |
 | **Depende de** | 001 (InputMap `open_storage`), 002 (controles táctiles), 003 (HUD, game over), 004 (`ItemData`, `ItemStack`, `DataRegistry`, `LootBox`) |
