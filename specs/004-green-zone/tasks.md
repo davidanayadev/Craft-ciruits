@@ -31,7 +31,7 @@
 - [x] **T-004-07** Añadir `PROMPT_OPEN` (ES + EN) a `strings.csv` y reimportar. Test primero: `test_loot_box.gd`.
   Crear `loot_box.tscn` + `loot_box.gd`: colisión, mallas cerrada y abierta de primitivas, `%Interactable` con
   `PROMPT_OPEN`. Cubre: R-004-23..25. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-08** Test primero: `test_green_zone.gd` (rojo). Crear `farm_zone.gd` y `farm_zone_green.tscn`:
+- [x] **T-004-08** Test primero: `test_green_zone.gd` (rojo). Crear `farm_zone.gd` y `farm_zone_green.tscn`:
   - sol y entorno movidos desde `DevZone`;
   - `MeshLibrary` provisional y GridMap rellenado con un script temporal en headless, fuera del repo;
   - decoración de primitivas con colisión;
