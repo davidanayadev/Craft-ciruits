@@ -20,7 +20,7 @@
 - [x] **T-004-04** Test primero: `test_loot_system.gd` y la parte de tablas de `test_data_catalog.gd`. Crear
   `item_stack.gd`, `loot_entry_data.gd`, `loot_table_data.gd`, `loot_system.gd` y `resources/loot/basic_box.tres`.
   Cubre: R-004-22, R-004-23 (tirada), R-004-26. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-05** Test primero: `test_zone_population.gd` y `test_zone_resources.gd`. Crear `zone_population.gd`,
+- [x] **T-004-05** Test primero: `test_zone_population.gd` y `test_zone_resources.gd`. Crear `zone_population.gd`,
   `zone_data.gd`, `world_grid_config_data.gd`, `green_zone.tres` y `world_grid.tres`. Cubre: R-004-02, R-004-03
   (datos), R-004-21 (regla y datos). Verifica: `tools/run_tests.sh`.
 - [ ] **T-004-06** Test primero: `test_interactable_component.gd` y `test_interactor_component.gd`, y el test de
