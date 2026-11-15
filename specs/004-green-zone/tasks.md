@@ -58,7 +58,7 @@
   - ≥ 30 FPS con el `DebugHud` y < 50K triángulos (monitor del editor en PC).
 
   Cubre: criterio de hecho, R-004-06, R-004-13. Verifica: checklist manual.
-- [ ] **T-004-13** Revisión final del diff:
+- [x] **T-004-13** Revisión final del diff:
   - sin literales de gameplay en scripts;
   - sin RNG global;
   - solo primitivas, ningún asset de terceros;
