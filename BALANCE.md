@@ -260,13 +260,14 @@
 
 ### 7.2 Reposición por visita (decisión nov 2026)
 
-Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj real no interviene (se saltaría cambiando la hora, y el PMV no tiene servidor).
+Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj real no interviene (se saltaría cambiando la hora, y el PMV no tiene servidor). La única excepción es la caducidad de los items soltados al morir (abajo), que solo quita una ventana al jugador.
 
 | Parámetro | Regla |
 |---|---|
 | **Contador de visitas** | Uno por zona, guardado en el mundo. Empieza en 0 |
 | **Cuándo sube** | Al **salir** de la zona, y también al **morir** en ella: la muerte cuenta como salir. No sube al entrar ni al cargar la partida |
-| **Items soltados al morir** | No dependen del contador: siguen en la zona hasta que se recuperan o caduquen (ACTION_PLAN Tarea 1.5) |
+| **Items soltados al morir** | No dependen del contador: siguen en la zona hasta que se recuperan o caducan (ACTION_PLAN Tarea 1.5) |
+| **Caducidad de los items soltados** | Por tiempo de juego, que sigue contando con la app cerrada. Medido con la hora del dispositivo desde la muerte (`ITimeService`), con el tiempo negativo tratado como 0. **Duración: 5 minutos** (valor inicial, decisión nov 2026; ajustable en playtesting, PMV.md §10) |
 | **Cajas abiertas** | Se guardan mientras dura la visita: cerrar y abrir la app devuelve la misma visita con las mismas cajas abiertas |
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
 | **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |

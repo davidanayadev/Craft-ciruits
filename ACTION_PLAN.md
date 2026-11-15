@@ -197,7 +197,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
 - [ ] Drop de items al morir:
   - [ ] Crear escena `DroppedItem.tscn` (Area3D + MeshInstance)
   - [ ] Spawner: crear dropped items en posición de muerte
-  - [ ] Timer: items desaparecen después de X minutos (configurable)
+  - [ ] Caducidad: los items desaparecen tras 5 minutos (valor en BALANCE.md §7.2, configurable) contados desde la hora de la muerte con `ITimeService`, también con la app cerrada. Al cargar la partida se descartan los caducados; tiempo transcurrido negativo = 0 (PMV.md §10)
 - [ ] Recuperación de items:
   - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
   - [ ] Interactuar con dropped items para recuperar
@@ -571,6 +571,7 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
   - [ ] ¿Coste de crafteo es justo?
   - [ ] ¿Degradación de piezas es muy rápida/lenta?
   - [ ] ¿La primera estación de carga (4 chatarra) sale en los primeros minutos? (PMV.md §10)
+  - [ ] ¿Bastan 5 minutos para volver a la zona y recuperar los items soltados, con enemigos y cajas repuestos? (BALANCE.md §7.2)
   - [ ] ¿Entrar y salir de la zona en bucle sale gratis? Comprobar que los enemigos y el recorrido hasta las cajas hacen que cada visita cueste batería y riesgo, ya que cada visita repone cajas y enemigos (BALANCE.md §7.2, PMV.md §10)
 - [ ] Ajustar valores en BALANCE.md
 - [ ] Implementar cambios en código
