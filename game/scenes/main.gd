@@ -2,19 +2,26 @@ extends Node
 ## Main scene boot (architecture §6): wires the persistent skeleton together
 ## (robot <-> camera rig; UI input joins in as the HUD grows). References go
 ## through unique names, never deep hardcoded paths (P6).
+## Until ZoneLoader exists (spec 009) the green zone sits in ZoneSlot from the
+## start: Main generates it from the world seed and puts the robot on its
+## spawn point (spec 004).
 
 @onready var _robot: Robot = %Robot
 @onready var _camera_rig: CameraRig = %CameraRig
 @onready var _touch_controls: TouchControls = %TouchControls
 @onready var _hud: Hud = %Hud
 @onready var _world: Node3D = %World
+@onready var _zone: FarmZone = %GreenZone
 @onready var _game_over_screen: GameOverScreen = %GameOverScreen
 
 
 func _ready() -> void:
+	_zone.generate(GameManager.get_world_seed())
+	_robot.global_position = _zone.get_spawn_position()
 	_robot.camera_rig = _camera_rig
 	_camera_rig.target = _robot
 	_hud.bind(_robot)
+	_hud.interact_pressed.connect(_robot.request_interact)
 	_touch_controls.joystick.sample_changed.connect(_on_joystick_sample_changed)
 	_touch_controls.joystick.released.connect(_on_joystick_released)
 	_robot.battery.battery_depleted.connect(_on_battery_depleted)

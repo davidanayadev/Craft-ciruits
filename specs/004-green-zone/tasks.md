@@ -45,7 +45,7 @@
 - [x] **T-004-10** Test primero: tests de R-004-13 en `test_hud.gd`. Añadir `%InteractButton` (abajo a la derecha,
   `focus_mode` sin foco, oculto) y `interact_pressed` a `hud.tscn` + `hud.gd`, con `bind()` conectado a
   `target_changed`. Cubre: R-004-13. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-11** Test primero: R-004-05 en `test_main_scene.gd` y `test_robot_interaction.gd`. En `main.tscn`,
+- [x] **T-004-11** Test primero: R-004-05 en `test_main_scene.gd` y `test_robot_interaction.gd`. En `main.tscn`,
   sustituir `DevZone` por la zona verde (`%GreenZone`). En `main.gd`, generar con `GameManager.get_world_seed()`,
   colocar al robot en el punto de aparición y conectar `interact_pressed` a `request_interact()`. Borrar
   `scenes/dev/dev_zone.tscn`. R-002-03 sigue en verde. Cubre: R-004-05, R-004-14, R-004-16. Verifica:
