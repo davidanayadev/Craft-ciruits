@@ -6,11 +6,13 @@ extends Node
 @onready var _robot: Robot = %Robot
 @onready var _camera_rig: CameraRig = %CameraRig
 @onready var _touch_controls: TouchControls = %TouchControls
+@onready var _hud: Hud = %Hud
 
 
 func _ready() -> void:
 	_robot.camera_rig = _camera_rig
 	_camera_rig.target = _robot
+	_hud.bind(_robot)
 	_touch_controls.joystick.sample_changed.connect(_on_joystick_sample_changed)
 	_touch_controls.joystick.released.connect(_on_joystick_released)
 
