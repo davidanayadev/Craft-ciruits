@@ -5,9 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3), 003
-(battery, ACTION_PLAN Tarea 0.4) and 004 (green zone, ACTION_PLAN Tarea 1.1) are done and merged. Spec 005
-(inventory, ACTION_PLAN Tarea 1.2) is implemented on `feat/005-inventory`; its device test (T-005-16) and its
-closing are pending. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
+(battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1) and 005 (inventory, ACTION_PLAN
+Tarea 1.2) are done and merged. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
@@ -16,7 +15,7 @@ an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `Inv
 in its own `InventoryComponent` and opens the loot screen, where the player takes stacks; the storage button (Tab)
 opens the inventory screen. Both screens go through `UIManager` (a node under `UI`, not an autoload), which blocks
 the robot's input while one is open without pausing the game. The `GameManager` and `DataRegistry` autoloads
-exist. There is no combat, real death, saving, chests or crafting yet. The next spec is 006, once 005 is closed.
+exist. There is no combat, real death, saving, chests or crafting yet. The next spec is 006.
 
 ## Commands
 

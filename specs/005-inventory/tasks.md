@@ -11,7 +11,7 @@
   - [x] `feat/005-inventory`, desde `docs/dropped-items-rules`: solo lo de la 005 (spec, plan, tareas,
     `specs/README.md`, la nota de R-004-24 en la spec 004 y las líneas de la 005 en BALANCE.md, PMV.md y
     ACTION_PLAN.md) en un commit `docs(inventory): …`.
-  - [ ] **(usuario)** Subir las tres ramas y fusionar los PR en orden: `chore/claude-subagents` →
+  - [x] **(usuario)** Subir las tres ramas y fusionar los PR en orden: `chore/claude-subagents` →
     `docs/dropped-items-rules` → `feat/005-inventory`, cada uno con la CI en verde y con commit de fusión (no
     squash), para que el PR siguiente solo enseñe sus commits.
 
@@ -86,7 +86,7 @@
 
   Cubre: R-005-16, R-005-19, R-005-20, R-005-22, R-005-24, R-005-27, R-005-29. Verifica: `godot-runner` y el
   juego en PC.
-- [ ] **T-005-16 (usuario + Claude)** Probar en PC y exportar un APK debug al Android real:
+- [x] **T-005-16 (usuario + Claude)** Probar en PC y exportar un APK debug al Android real:
   - interactuar con una caja abre su pantalla; tocar una pila la coge y "Coger todo" coge lo que cabe;
   - al vaciar la caja, la pantalla se cierra y la caja se desactiva;
   - con el inventario lleno sale "Inventario lleno", la caja se queda con el resto y se puede volver a abrir; tras
@@ -101,7 +101,7 @@
   - ≥ 30 FPS con el `DebugHud` y una pantalla abierta.
 
   Cubre: criterio de hecho, R-005-23, R-005-28, R-005-33. Verifica: checklist manual.
-- [ ] **T-005-17** Definición de hecho:
+- [x] **T-005-17** Definición de hecho:
   - `godot-runner`, `i18n-auditor` y `balance-auditor` en paralelo, luego `architecture-guardian` una vez;
   - revisar el diff: sin literales de gameplay, iconos en `CREDITS.md`, un cambio lógico por commit;
   - actualizar "Repository state" en `CLAUDE.md`.
@@ -110,5 +110,5 @@
 
 ## Cierre
 
-- [ ] Definición de hecho (constitución §4) revisada. La CI corre al subir la rama (PR).
-- [ ] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
+- [x] Definición de hecho (constitución §4) revisada. La CI corre al subir la rama (PR).
+- [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
