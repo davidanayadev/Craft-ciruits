@@ -2,6 +2,7 @@ class_name Robot
 extends CharacterBody3D
 ## Player robot (spec 002): reads PlayerInput, applies LocomotionSystem results
 ## and moves with real physics. Presentation and wiring only (P3).
+## It also feeds its gait to its BatteryComponent every physics frame (spec 003).
 
 @export var movement_stats: MovementStatsData
 @export var control_config: ControlConfigData
@@ -9,6 +10,7 @@ extends CharacterBody3D
 @export var camera_rig: Node3D
 
 @onready var player_input: PlayerInput = %PlayerInput
+@onready var battery: BatteryComponent = %BatteryComponent
 
 
 func _physics_process(delta: float) -> void:
@@ -16,9 +18,11 @@ func _physics_process(delta: float) -> void:
 	var world_dir: Vector3 = LocomotionSystem.world_direction(
 		player_input.get_direction(), camera_yaw
 	)
-	velocity = LocomotionSystem.horizontal_velocity(
-		world_dir, player_input.is_run_intent(), movement_stats
-	)
+	var run_intent: bool = player_input.is_run_intent()
+	velocity = LocomotionSystem.horizontal_velocity(world_dir, run_intent, movement_stats)
+	# The gait comes from the intent, not from the real displacement: pushing
+	# against a wall drains like walking (plan 003 §7).
+	battery.tick(delta, LocomotionSystem.gait(world_dir, run_intent, movement_stats))
 	if world_dir != Vector3.ZERO:
 		rotation.y = LocomotionSystem.rotate_toward_yaw(
 			rotation.y,

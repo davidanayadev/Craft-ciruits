@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Spec 001 (project bootstrap) is done and merged. Spec 002 (isometric scene and robot movement, ACTION_PLAN
-Tareas 0.2-0.3) is done on `feat/002-iso-scene-player-movement`: `game/` has its settings, i18n, InputMap, GUT
-9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable F0 prototype
-(`game/scenes/main.tscn`: dev zone, isometric camera rig, `Robot` moved by keyboard or a floating touch
-joystick). There is no battery, combat or inventory yet. The next spec is 003.
+Specs 001 (project bootstrap) and 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3) are done
+and merged. Spec 003 (battery, ACTION_PLAN Tarea 0.4) is done on `feat/003-battery`: `game/` has its settings,
+i18n, InputMap, GUT 9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable
+F0 prototype (`game/scenes/main.tscn`: dev zone, isometric camera rig, `Robot` moved by keyboard or a floating
+touch joystick, a `BatteryComponent` that drains by gait, a battery `Hud` and a provisional game over screen that
+spec 008 replaces). There is no combat, inventory or real death yet. The next spec is 004.
 
 ## Commands
 
