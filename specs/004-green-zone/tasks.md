@@ -42,7 +42,7 @@
 - [x] **T-004-09** Añadir `%Interactor` a `robot.tscn`, `is_interact_just_pressed()` a `player_input.gd` y
   `request_interact()` a `robot.gd` (sin efecto con la batería agotada). Cubre: R-004-14 (vía teclado), R-004-16.
   Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-10** Test primero: tests de R-004-13 en `test_hud.gd`. Añadir `%InteractButton` (abajo a la derecha,
+- [x] **T-004-10** Test primero: tests de R-004-13 en `test_hud.gd`. Añadir `%InteractButton` (abajo a la derecha,
   `focus_mode` sin foco, oculto) y `interact_pressed` a `hud.tscn` + `hud.gd`, con `bind()` conectado a
   `target_changed`. Cubre: R-004-13. Verifica: `tools/run_tests.sh`.
 - [ ] **T-004-11** Test primero: R-004-05 en `test_main_scene.gd` y `test_robot_interaction.gd`. En `main.tscn`,

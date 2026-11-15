@@ -2,6 +2,8 @@ extends GutTest
 ## Battery HUD (R-003-11): a bar and a whole number rounded up at the top left,
 ## driven only by battery_changed. The robot's physics is switched off so the
 ## battery only moves when the test says so.
+## Interact button (R-004-13): shown with the prompt of the robot's interaction
+## target, hidden without one, driven only by target_changed.
 
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -12,6 +14,7 @@ var _hud: Hud
 var _robot: Robot
 var _bar: ProgressBar
 var _label: Label
+var _interact_button: Button
 
 
 func before_each() -> void:
@@ -22,6 +25,7 @@ func before_each() -> void:
 	add_child_autofree(_hud)
 	_bar = _hud.get_node("%BatteryBar") as ProgressBar
 	_label = _hud.get_node("%BatteryLabel") as Label
+	_interact_button = _hud.get_node("%InteractButton") as Button
 
 
 func test_r_003_11_display_value_rounds_up() -> void:
@@ -63,3 +67,52 @@ func test_r_003_11_anchored_top_left_without_own_percentage() -> void:
 	assert_eq(_bar.anchor_right, 0.0, "bar does not stretch across the screen")
 	assert_eq(_bar.anchor_bottom, 0.0, "bar does not stretch down the screen")
 	assert_false(_bar.show_percentage, "the number comes from the label, not from the bar")
+
+
+func _new_target(prompt_key: StringName) -> InteractableComponent:
+	var target: InteractableComponent = InteractableComponent.new()
+	target.prompt_key = prompt_key
+	add_child_autofree(target)
+	return target
+
+
+func test_r_004_13_button_hidden_without_target() -> void:
+	assert_false(_interact_button.visible, "hidden before the HUD is bound")
+	_hud.bind(_robot)
+	assert_false(_interact_button.visible, "hidden while the robot has no target")
+
+
+func test_r_004_13_button_shows_target_prompt() -> void:
+	_hud.bind(_robot)
+	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_OPEN"))
+	assert_true(_interact_button.visible, "shown while the robot has a target")
+	assert_eq(_interact_button.text, "PROMPT_OPEN", "the text is the target's translation key")
+	_robot.interactor.target_changed.emit(_new_target(&"GAME_OVER_RESTART"))
+	assert_eq(_interact_button.text, "GAME_OVER_RESTART", "it follows a change of target")
+	_robot.interactor.target_changed.emit(null)
+	assert_false(_interact_button.visible, "hidden again without target")
+
+
+func test_r_004_13_button_text_is_translated() -> void:
+	assert_ne(
+		_interact_button.auto_translate_mode,
+		Node.AUTO_TRANSLATE_MODE_DISABLED,
+		"the button translates the key it is given"
+	)
+
+
+func test_r_004_13_button_emits_interact_pressed() -> void:
+	watch_signals(_hud)
+	_interact_button.pressed.emit()
+	assert_signal_emit_count(_hud, "interact_pressed", 1)
+
+
+func test_r_004_13_button_bottom_right_without_focus() -> void:
+	assert_eq(_interact_button.anchor_left, 1.0, "anchored to the right edge")
+	assert_eq(_interact_button.anchor_right, 1.0, "anchored to the right edge")
+	assert_eq(_interact_button.anchor_top, 1.0, "anchored to the bottom edge")
+	assert_eq(_interact_button.anchor_bottom, 1.0, "anchored to the bottom edge")
+	assert_lt(_interact_button.offset_right, 0.0, "inside the screen")
+	assert_lt(_interact_button.offset_bottom, 0.0, "inside the screen")
+	# Without focus, Space (attack) or Enter never press it by accident.
+	assert_eq(_interact_button.focus_mode, Control.FOCUS_NONE, "never takes keyboard focus")
