@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/robot.gd" id="1_robot"]
 [ext_resource type="Script" path="res://scripts/components/player_input.gd" id="2_input"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/components/battery_component.gd" id="5_battery"]
 [ext_resource type="Resource" path="res://resources/battery/robot_battery.tres" id="6_battery_config"]
 [ext_resource type="Script" path="res://scripts/components/interactor_component.gd" id="7_interactor"]
+[ext_resource type="Script" path="res://scripts/components/inventory_component.gd" id="8_inventory"]
+[ext_resource type="Resource" path="res://resources/progression/chassis_levels.tres" id="9_chassis"]
 
 [sub_resource type="CapsuleShape3D" id="capsule_shape"]
 
@@ -19,6 +21,7 @@ size = Vector3(0.3, 0.3, 0.4)
 script = ExtResource("1_robot")
 movement_stats = ExtResource("3_legs")
 control_config = ExtResource("4_controls")
+chassis_levels = ExtResource("9_chassis")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -46,3 +49,7 @@ legs = ExtResource("3_legs")
 unique_name_in_owner = true
 script = ExtResource("7_interactor")
 config = ExtResource("4_controls")
+
+[node name="InventoryComponent" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("8_inventory")

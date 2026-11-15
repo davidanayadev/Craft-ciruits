@@ -106,6 +106,13 @@ func test_r_004_12_interaction_physics_layer_named() -> void:
 	assert_eq(_get_string(setting), "interaction")
 
 
+func test_r_005_33_back_does_not_quit() -> void:
+	# With a screen open, back closes it (R-005-28); without one it must not
+	# close the game, so the engine's own "quit on back" stays off.
+	var quit_on_go_back: bool = ProjectSettings.get_setting("application/config/quit_on_go_back")
+	assert_false(quit_on_go_back, "the Android back action does not quit the game")
+
+
 func _get_rule(rules: Dictionary, path: String) -> int:
 	var decision: int = rules.get(path, DIRECTORY_RULE_INCLUDE)
 	return decision

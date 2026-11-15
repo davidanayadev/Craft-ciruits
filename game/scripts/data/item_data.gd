@@ -10,3 +10,5 @@ extends Resource
 @export var name_key: StringName
 ## Largest quantity one inventory slot holds.
 @export var stack_max: int = 0
+## Shown in inventory cells. Required: the catalog test rejects an item without one (R-005-31).
+@export var icon: Texture2D

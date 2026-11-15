@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ChassisLevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/chassis_level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+xp_required = Array[int]([0, 50, 150, 300, 500])
+inventory_slots = Array[int]([5, 7, 10, 15, 20])

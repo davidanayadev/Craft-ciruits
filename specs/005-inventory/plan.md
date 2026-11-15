@@ -184,8 +184,9 @@ static func failure(key: StringName) -> ActionResult
 ```gdscript
 class_name InventoryAddResult
 extends ActionResult
-## What was not added, one stack per offered stack, in the order offered. Empty when ok.
-## On a rejected request (ERR_INVALID_REQUEST) it is everything offered.
+## What was not added, one stack per offered stack that did not fit whole, in the order
+## offered. Empty when ok. A rejected add_stacks() (ERR_INVALID_REQUEST) returns everything
+## offered; a rejected add() or take_from() has no stacks to return.
 var leftovers: Array[ItemStack] = []
 
 static func added_all() -> InventoryAddResult
@@ -259,7 +260,7 @@ var catalog: DataCatalog
 # through it.
 
 func get_slot_count() -> int
-## Grows to count slots, keeping contents. count < current → failure ERR_INVALID_REQUEST.
+## Grows to count slots, keeping contents. count < current → push_error, failure ERR_INVALID_REQUEST.
 func set_slot_count(count: int) -> ActionResult
 ## Copies, slot order, null for empty: the caller can never change the inventory through them.
 func get_slots() -> Array[ItemStack]
@@ -274,12 +275,14 @@ func add_stacks(stacks: Array[ItemStack]) -> InventoryAddResult
 ## All or nothing: more than held → ERR_NOT_ENOUGH_ITEMS and no change.
 func remove(item_id: StringName, quantity: int) -> ActionResult
 ## amounts[i] leaves slot i; size must equal the slot count and each amount must be
-## within 0..that slot's quantity, otherwise ERR_INVALID_REQUEST and no change. One signal.
+## within 0..that slot's quantity, otherwise push_error, ERR_INVALID_REQUEST and no change. One signal.
 func remove_from_slots(amounts: Array[int]) -> ActionResult
 ## Moves the stacks in source's slot_indices into this inventory, in that order, as
-## much as fits; source loses exactly what entered (R-005-15). Source == self, or an
-## index out of range or repeated → ERR_INVALID_REQUEST and no change. Nothing fits →
-## MSG_INVENTORY_FULL, no change, overflowed on this inventory.
+## much as fits; source loses exactly what entered (R-005-15). No source, source == self,
+## an index out of range or repeated, or an item this catalog does not know → push_error,
+## ERR_INVALID_REQUEST and no change. Nothing fits → MSG_INVENTORY_FULL, no change,
+## overflowed on this inventory. The source emits inventory_changed first, with both
+## inventories already written.
 func take_from(source: InventoryComponent, slot_indices: Array[int]) -> InventoryAddResult
 
 ## First direct child of node that is an InventoryComponent; null when none.
@@ -336,7 +339,8 @@ func is_modal_open() -> bool
 
 ```gdscript
 class_name InventorySlotView
-extends Button                   # focus_mode NONE; disabled when not interactive
+extends Button                   # focus_mode NONE; disabled unless interactive and holding a stack
+func set_interactive(interactive: bool) -> void   # the grid passes its own `interactive`
 func show_stack(stack: ItemStack) -> void   # null → empty look
 
 class_name InventoryGrid
@@ -450,6 +454,38 @@ Tamaños de celda, márgenes y fuentes son maquetación en los `.tscn`, no balan
    joystick (que vive en otro `CanvasLayer`).
 
 Si alguna falla, se para y se ajusta el plan antes de seguir.
+
+**Resultado (T-005-01, 2026-11-15).** Comprobado con un script suelto en el binario 4.7.2 headless
+(`--path game -s`), la documentación estable y el código del motor. Las siete se cumplen:
+
+1. `application/config/quit_on_go_back` existe y vale `true` por defecto (binario). La documentación ("Handling
+   quit requests") dice que atrás en Android cierra la app solo si está marcado y que lanza
+   `NOTIFICATION_WM_GO_BACK_REQUEST`. En el código del motor (`scene_tree.cpp`, rama `master`), el ajuste solo
+   decide si se sale; la notificación se envía igual. El comportamiento real en el móvil queda para T-005-16.
+2. `Window::_event_callback` (`window.cpp`, rama `master`) reparte la notificación con
+   `_propagate_window_notification`, que la entrega a la ventana y a todos sus descendientes, salvo las
+   subventanas. En el binario, un nodo bajo un `CanvasLayer` la recibe con `propagate_notification`. Leído en
+   `master`, no en la etiqueta 4.7.2: se confirma en el móvil (T-005-16).
+3. Un `.tres` con `Dictionary[StringName, PackedScene]` se guarda (`Dictionary[StringName, PackedScene]({...})`),
+   se carga tipado y su escena se instancia.
+4. Un `Array[ItemStack]` admite `null`, con `resize()`, `append(null)` y asignación.
+5. Sin ningún `Control` con foco, Tab llega a `_unhandled_input` como `open_storage`, tanto con solo controles
+   `FOCUS_NONE` como en `main.tscn` tal cual está. **Ojo:** si hay un `Control` visible que admite foco, aunque
+   nadie lo tenga, Tab se lo da y **no** llega. Por eso todos los controles de las pantallas y del HUD van con
+   `focus_mode = NONE`, como ya dice §1.
+6. `Input.parse_input_event()` con un `InputEventAction` de `pause` llega a `_unhandled_input` dos frames después.
+7. Un `Control` a pantalla completa con `mouse_filter = STOP` recibe el `InputEventScreenTouch` (y el clic emulado)
+   en `_gui_input`, y no llega nada al `_unhandled_input` de un nodo de otro `CanvasLayer`. Con `IGNORE` sí llega.
+   En headless la ventana mide 64×64: las coordenadas del evento tienen que caer dentro.
+
+**Ajustes tras la revisión de arquitectura (T-005-17, 2026-11-15).** Sin cambio de comportamiento para el jugador:
+- Los rechazos de `set_slot_count`, `remove_from_slots` y `take_from` llevan `push_error` (constitución §2: son
+  errores de programación y varios llamadores no miran el resultado). `take_from` comprueba además que el origen
+  quitó lo que entró.
+- `take_from` solo valida los items de las ranuras pedidas.
+- `UIManager` emite `modal_state_changed(true)` antes de `setup()`: una pantalla que se cierra dentro de `setup()`
+  (la de una caja vacía) deja el estado en cerrado. Test: `test_r_005_27_screen_closing_in_setup_leaves_no_modal`.
+- `InventoryRules.space_for` queda sin uso en producción; está en el contrato para la UI de cofres (2.6).
 
 ## 6. Check de constitución
 

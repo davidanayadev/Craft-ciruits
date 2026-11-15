@@ -6,3 +6,10 @@ ITEM_SCRAP,Scrap,Chatarra
 ITEM_CABLES,Cables,Cables
 ITEM_IRON,Iron,Hierro
 PROMPT_OPEN,Open,Abrir
+ERR_INVALID_REQUEST,Invalid request,Petición no válida
+ERR_NOT_ENOUGH_ITEMS,Not enough items,No hay suficientes objetos
+MSG_INVENTORY_FULL,Inventory full,Inventario lleno
+INVENTORY_TITLE,Inventory,Inventario
+LOOT_TITLE,Loot,Botín
+LOOT_TAKE_ALL,Take all,Coger todo
+HUD_STORAGE,Storage,Almacén

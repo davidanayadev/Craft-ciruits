@@ -6,6 +6,10 @@ extends Node3D
 ## in spec 009) decides the world, and tests can generate it with any seed.
 ## Positions are local to the zone, whose origin is the centre of its grid cell.
 
+## A box of this zone was interacted with while it held items (spec 005).
+## Relayed here so whoever loads the zone connects one signal, not every box.
+signal box_opened(box: LootBox, opener: Node3D)
+
 @export var data: ZoneData
 @export var box_scene: PackedScene
 
@@ -61,4 +65,9 @@ func _place_box(marker: Marker3D, marker_index: int, world_seed: int) -> void:
 	box.setup(
 		SeededRng.derive_seed(world_seed, data.zone_id, SeededRng.STREAM_BOX_LOOT, marker_index)
 	)
+	box.opened.connect(_on_box_opened.bind(box))
 	_boxes.append(box)
+
+
+func _on_box_opened(opener: Node3D, box: LootBox) -> void:
+	box_opened.emit(box, opener)
