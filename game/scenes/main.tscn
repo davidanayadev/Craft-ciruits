@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/dev/dev_zone.tscn" id="2_zone"]
@@ -7,11 +7,13 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="5_touch"]
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_hud.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_game_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_screen.tscn" id="8_game_over"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
 
 [node name="World" type="Node3D" parent="."]
+unique_name_in_owner = true
 
 [node name="ZoneSlot" type="Node3D" parent="World"]
 
@@ -34,3 +36,6 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="DebugHud" parent="UI" instance=ExtResource("6_hud")]
+
+[node name="GameOverScreen" parent="UI" instance=ExtResource("8_game_over")]
+unique_name_in_owner = true
