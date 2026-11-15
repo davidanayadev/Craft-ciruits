@@ -51,6 +51,24 @@ ADRs in `specs/decisions/`:
   `EventBus` with a closed event list, `DataRegistry` catalog, `UIManager` screen stack, server readiness).
   Read it before planning any feature.
 
+## Subagents
+
+Delegate to save cost: cheap models for mechanical work, fresh eyes at review gates. Details and rationale:
+`.claude/SUBAGENTS.md`.
+
+| When | Use |
+|---|---|
+| After each task, before saying something is done, or when CI fails | `godot-runner` (instead of running `tools/run_tests.sh` in the main session) |
+| Test-first step of `/sdd-implement` for a task with several requirements | `gut-test-writer` (pass the spec and R/T ids) |
+| Before a plan passes its review gate | `architecture-guardian plan NNN` |
+| Definition of Done | `godot-runner`, `i18n-auditor` and `balance-auditor` in parallel, then `architecture-guardian` once |
+| A fix attempt failed, or the bug is intermittent or unclear | `deep-debugger` |
+| Wide search across many files | built-in `Explore` |
+
+Do not delegate tasks of 1–3 tool calls, commit messages or PRs (the main session knows why the code changed), or
+work another subagent already reported on. Run Opus agents (`architecture-guardian`, `deep-debugger`) only at the
+points above, not after every change.
+
 ## The game
 
 **CyberScrap** is a mobile (Android first, iOS later) 3D isometric survival game in the style of
