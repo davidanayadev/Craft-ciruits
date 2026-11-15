@@ -50,7 +50,7 @@
   colocar al robot en el punto de aparición y conectar `interact_pressed` a `request_interact()`. Borrar
   `scenes/dev/dev_zone.tscn`. R-002-03 sigue en verde. Cubre: R-004-05, R-004-14, R-004-16. Verifica:
   `tools/run_tests.sh` y el juego arranca en PC dentro de la zona verde.
-- [ ] **T-004-12 (usuario + Claude)** Probar en PC y exportar un APK debug al Android real:
+- [x] **T-004-12 (usuario + Claude)** Probar en PC y exportar un APK debug al Android real:
   - el robot aparece en la zona verde y no sale de ella;
   - hay entre 5 y 7 cajas, siempre en el mismo sitio al reiniciar;
   - el botón "Abrir" aparece cerca de una caja, se lee bien y no choca con el joystick;
@@ -58,6 +58,9 @@
   - ≥ 30 FPS con el `DebugHud` y < 50K triángulos (monitor del editor en PC).
 
   Cubre: criterio de hecho, R-004-06, R-004-13. Verifica: checklist manual.
+
+  Resultado (2026-11-15): correcto en PC y en el Android real (usuario). Medido en PC con
+  `Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME` en `main.tscn`: 9.784 primitivas y 52 draw calls por fotograma.
 - [x] **T-004-13** Revisión final del diff:
   - sin literales de gameplay en scripts;
   - sin RNG global;
@@ -69,5 +72,5 @@
 
 ## Cierre
 
-- [ ] Definición de hecho (constitución §4) revisada.
-- [ ] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
+- [x] Definición de hecho (constitución §4) revisada. La CI corre al subir la rama (PR).
+- [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.

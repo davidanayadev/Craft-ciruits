@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3) and 003
-(battery, ACTION_PLAN Tarea 0.4) are done and merged. Spec 004 (green zone, ACTION_PLAN Tarea 1.1) is implemented
-on `feat/004-green-zone` and waits for its manual check on PC and Android (T-004-12) before it is closed: `game/`
+(battery, ACTION_PLAN Tarea 0.4) are done and merged. Spec 004 (green zone, ACTION_PLAN Tarea 1.1) is done on
+`feat/004-green-zone`: `game/`
 has its settings, i18n, InputMap, GUT 9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI,
 and a playable prototype (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric
 camera rig, `Robot` moved by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot

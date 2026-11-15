@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | En curso |
+| **Estado** | Hecho |
 | **Tarea(s) ACTION_PLAN** | 1.1 (sin "añadir a inventario", que pasa a la 005) |
 | **Fuentes** | ACTION_PLAN.md Tarea 1.1 · PMV.md §2.1 (zona de farmeo, botón interactuar), §2.3, §4.5 ganchos 2-3 · BALANCE.md §2, §2.1, §7.1, §11 · SPECS.md §26 · architecture.md §4, §5, §6, §8, §9.1, §9.3, §11, §12 · Constitución P2, P5, P8, P9, P11, P12 |
 | **Depende de** | 001, 002 (robot, cámara, controles táctiles), 003 (HUD; la batería sigue drenando en la zona) |
