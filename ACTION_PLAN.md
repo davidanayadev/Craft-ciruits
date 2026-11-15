@@ -19,55 +19,64 @@
 **Objetivo**: entorno de desarrollo listo + robot se mueve en escena 3D vacía.
 
 ### Tarea 0.1: Configuración del proyecto (4h)
-- [ ] Instalar Godot 4.7.2
-- [ ] Crear proyecto "CyberScrap" con configuración 3D
-- [ ] Configurar renderer Compatibility (OpenGL ES 3.0)
-- [ ] Configurar resolución móvil (1920x1080 apaisada desde 2026-11-14, aspect ratio 16:9)
-- [ ] Crear estructura de carpetas según PMV.md §4.2
-- [ ] Inicializar repositorio Git (privado)
-- [ ] Crear README.md con instrucciones de setup
+- [x] Instalar Godot 4.7.2
+- [x] Crear proyecto "CyberScrap" con configuración 3D
+- [x] Configurar renderer Compatibility (OpenGL ES 3.0)
+- [x] Configurar resolución móvil (1920x1080 apaisada desde 2026-11-14, aspect ratio 16:9)
+- [x] Crear estructura de carpetas según PMV.md §4.2
+- [x] Inicializar repositorio Git (privado)
+- [x] Crear README.md con instrucciones de setup
+
+Hecha con el spec 001.
 
 **Entregable**: proyecto Godot vacío pero configurado, commiteado a Git.
 
 ### Tarea 0.2: Escena base 3D (6h)
-- [ ] Crear escena `Main.tscn` con cámara isométrica (45° Y, 35° X)
-- [ ] Configurar luz direccional (sol) con sombras
-- [ ] Crear plano de suelo (GridMap o MeshInstance)
-- [ ] Configurar entorno (WorldEnvironment) con cielo básico
-- [ ] Probar renderizado en vista isométrica
+- [x] Crear escena `Main.tscn` con cámara isométrica (45° Y, 35° X)
+- [x] Configurar luz direccional (sol) con sombras
+- [x] Crear plano de suelo (GridMap o MeshInstance)
+- [x] Configurar entorno (WorldEnvironment) con cielo básico
+- [x] Probar renderizado en vista isométrica
+
+Hecha con el spec 002.
 
 **Entregable**: escena 3D vacía con cámara isométrica funcional.
 
 ### Tarea 0.3: Robot jugador (movimiento) (12h)
-- [ ] Crear escena `Robot.tscn` con CharacterBody3D
-- [ ] Importar modelo 3D low poly de robot (Kenney o similar)
-- [ ] Configurar colisiones (CapsuleShape)
-- [ ] Crear script `RobotController.gd`:
-  - [ ] Variables: `speed`, `rotation_speed`, `velocity`
-  - [ ] Input: joystick virtual flotante (aparece donde tocas en la mitad izquierda y desaparece al soltar). Zona muerta hasta el 15 % del radio; andar del 15 % al 80 %; correr por encima del 80 % (vuelve a andar al bajar del 70 %, para no alternar en el borde). Velocidad fija por tramo, no proporcional
-  - [ ] Input en PC: WASD/flechas para mover, Shift mantenido para correr
-  - [ ] Sin piernas no se puede correr (BALANCE.md §4.2)
-  - [ ] Movimiento relativo a cámara (WASD mapeado a isométrico)
-  - [ ] Rotación suave hacia dirección de movimiento
-- [ ] Crear UI de joystick virtual (CanvasLayer + TextureRect)
-- [ ] Probar movimiento en escena
+- [x] Crear escena `Robot.tscn` con CharacterBody3D
+- [ ] Importar modelo 3D low poly de robot (Kenney o similar). Pendiente: el robot es una primitiva provisional
+  hasta ACTION_PLAN 4.4 / 5.3
+- [x] Configurar colisiones (CapsuleShape)
+- [x] Crear script `RobotController.gd`:
+  - [x] Variables: `speed`, `rotation_speed`, `velocity`
+  - [x] Input: joystick virtual flotante (aparece donde tocas en la mitad izquierda y desaparece al soltar). Zona muerta hasta el 15 % del radio; andar del 15 % al 80 %; correr por encima del 80 % (vuelve a andar al bajar del 70 %, para no alternar en el borde). Velocidad fija por tramo, no proporcional
+  - [x] Input en PC: WASD/flechas para mover, Shift mantenido para correr
+  - [x] Sin piernas no se puede correr (BALANCE.md §4.2)
+  - [x] Movimiento relativo a cámara (WASD mapeado a isométrico)
+  - [x] Rotación suave hacia dirección de movimiento
+- [x] Crear UI de joystick virtual (CanvasLayer + TextureRect)
+- [x] Probar movimiento en escena
+
+Hecha con el spec 002 (como `robot.gd` + `PlayerInput` + `LocomotionSystem`), salvo el modelo 3D.
 
 **Entregable**: robot se mueve con joystick virtual en escena 3D.
 
 ### Tarea 0.4: Sistema de batería (core) (8h)
-- [ ] Crear autoload `GameManager.gd`:
-  - [ ] Solo estado global de la partida (mundo actual, ruleset). **No guarda la batería** ni ningún estado de un jugador (PMV.md §4.5, gancho 7: cooperativo futuro)
-- [ ] Crear componente `BatteryComponent.gd` (attachable a Robot):
-  - [ ] Variables: `battery_current`, `battery_max` (cada jugador tiene la suya)
-  - [ ] Métodos: `consume_battery(amount)`, `recharge_battery()`
-  - [ ] Signals: `battery_depleted`, `battery_low`
-  - [ ] Consumo pasivo: 0.1/s
-  - [ ] Consumo movimiento: +0.05/s (andar), +0.15/s (correr)
-  - [ ] El consumo no se detiene dentro de la base (BALANCE.md §1.1)
-  - [ ] Lógica: si `battery_current <= 0` → emitir señal `battery_depleted`
-- [ ] Crear HUD de batería (TextureProgressBar + Label)
-- [ ] Conectar señales a HUD (actualizar en tiempo real)
-- [ ] Test: batería baja al moverse, game over al llegar a 0
+- [x] Crear autoload `GameManager.gd`:
+  - [x] Solo estado global de la partida (mundo actual, ruleset). **No guarda la batería** ni ningún estado de un jugador (PMV.md §4.5, gancho 7: cooperativo futuro)
+- [x] Crear componente `BatteryComponent.gd` (attachable a Robot):
+  - [x] Variables: `battery_current`, `battery_max` (cada jugador tiene la suya)
+  - [x] Métodos: `consume_battery(amount)`, `recharge_battery()`
+  - [x] Signals: `battery_depleted`, `battery_low`
+  - [x] Consumo pasivo: 0.1/s
+  - [x] Consumo movimiento: +0.05/s (andar), +0.15/s (correr)
+  - [x] El consumo no se detiene dentro de la base (BALANCE.md §1.1)
+  - [x] Lógica: si `battery_current <= 0` → emitir señal `battery_depleted`
+- [x] Crear HUD de batería (TextureProgressBar + Label)
+- [x] Conectar señales a HUD (actualizar en tiempo real)
+- [x] Test: batería baja al moverse, game over al llegar a 0
+
+Hecha con el spec 003 (batería, HUD y game over provisional) y el 004 (`GameManager`, con la semilla del mundo).
 
 **Entregable**: sistema de batería funcional con HUD. Robot muere si batería = 0.
 
@@ -91,26 +100,30 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
 **Objetivo**: bucle completo base → zona de farmeo → combate → muerte → base.
 
 ### Tarea 1.1: Zona verde (farmeo básico) (18h)
-- [ ] Crear escena `FarmZoneGreen.tscn`:
-  - [ ] GridMap con tiles de suelo (tierra, hierba)
-  - [ ] Decoración: árboles, rocas, chatarra (modelos 3D low poly)
-  - [ ] Límites de zona (paredes invisibles o visibles)
-  - [ ] Asignar un `zone_id` (Vector2i; la zona verde del PMV es `(0, 0)`) y alinear la zona a la cuadrícula del futuro mapa global (PMV.md §4.5, gancho 2)
-- [ ] RNG con semilla (PMV.md §4.5, gancho 3):
-  - [ ] Utilidad que devuelve un `RandomNumberGenerator` sembrado con `semilla del mundo + zone_id`
-  - [ ] Prohibido usar `randf()`/`randi()` globales en la generación de la zona
-- [ ] Sistema de cajas de loot:
-  - [ ] Crear escena `LootBox.tscn` (Area3D + MeshInstance)
-  - [ ] Script `LootBox.gd`:
-    - [ ] Variables: `loot_table` (Array de items con probabilidades)
-    - [ ] Método `open()`: generar loot según tabla, emitir señal `loot_generated`
-    - [ ] Interacción: botón "Abrir" cuando jugador está cerca
-  - [ ] Colocar 5-7 cajas en zona verde, en posiciones elegidas con el RNG con semilla de la zona
-- [ ] Sistema de recolección:
-  - [ ] Crear UI de interacción (botón "Abrir" aparece cerca de caja)
-  - [ ] Al abrir: mostrar animación, generar items, añadir a inventario
-- [ ] Test: abrir cajas genera materiales
-- [ ] Test: con la misma semilla, las cajas aparecen en las mismas posiciones
+- [x] Crear escena `FarmZoneGreen.tscn`:
+  - [x] GridMap con tiles de suelo (tierra, hierba)
+  - [ ] Decoración: árboles, rocas, chatarra (modelos 3D low poly). Pendiente: la decoración es de primitivas
+    provisionales hasta ACTION_PLAN 4.4 / 5.3
+  - [x] Límites de zona (paredes invisibles o visibles)
+  - [x] Asignar un `zone_id` (Vector2i; la zona verde del PMV es `(0, 0)`) y alinear la zona a la cuadrícula del futuro mapa global (PMV.md §4.5, gancho 2)
+- [x] RNG con semilla (PMV.md §4.5, gancho 3):
+  - [x] Utilidad que devuelve un `RandomNumberGenerator` sembrado con `semilla del mundo + zone_id`
+  - [x] Prohibido usar `randf()`/`randi()` globales en la generación de la zona
+- [x] Sistema de cajas de loot:
+  - [x] Crear escena `LootBox.tscn` (Area3D + MeshInstance)
+  - [x] Script `LootBox.gd`:
+    - [x] Variables: `loot_table` (Array de items con probabilidades)
+    - [x] Método `open()`: generar loot según tabla, emitir señal `loot_generated`
+    - [x] Interacción: botón "Abrir" cuando jugador está cerca
+  - [x] Colocar 5-7 cajas en zona verde, en posiciones elegidas con el RNG con semilla de la zona
+- [x] Sistema de recolección:
+  - [x] Crear UI de interacción (botón "Abrir" aparece cerca de caja)
+  - [ ] Al abrir: mostrar animación, generar items, añadir a inventario. Pendiente: genera los items y cambia de
+    aspecto; meterlos en el inventario es de la Tarea 1.2 (pantalla de caja) y la animación, de la 4.4
+- [x] Test: abrir cajas genera materiales
+- [x] Test: con la misma semilla, las cajas aparecen en las mismas posiciones
+
+Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
 
 **Entregable**: zona verde con cajas de loot recolectables.
 
