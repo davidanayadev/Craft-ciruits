@@ -23,7 +23,7 @@
 - [x] **T-004-05** Test primero: `test_zone_population.gd` y `test_zone_resources.gd`. Crear `zone_population.gd`,
   `zone_data.gd`, `world_grid_config_data.gd`, `green_zone.tres` y `world_grid.tres`. Cubre: R-004-02, R-004-03
   (datos), R-004-21 (regla y datos). Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-06** Test primero: `test_interactable_component.gd` y `test_interactor_component.gd`, y el test de
+- [x] **T-004-06** Test primero: `test_interactable_component.gd` y `test_interactor_component.gd`, y el test de
   `interaction_range_m` en `test_movement_resources.gd`. Añadir `interaction_range_m` a `control_config_data.gd` y
   `controls.tres`, nombrar la capa 3D 2 `interaction` en `project.godot` (con su test en
   `test_project_settings.gd`) y crear los dos componentes. Cubre: R-004-12, R-004-15, R-004-17. Verifica:

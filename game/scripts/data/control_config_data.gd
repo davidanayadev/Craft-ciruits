@@ -11,3 +11,5 @@ extends Resource
 @export var joystick_walk_back_ratio: float = 0.0
 ## Yaw speed of the smooth turn toward the movement direction (R-002-07).
 @export var turn_speed_rad: float = 0.0
+## Distance at which the nearest interactable is offered (R-004-17).
+@export var interaction_range_m: float = 0.0

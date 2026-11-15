@@ -100,6 +100,12 @@ func test_r_004_08_19_autoloads_registered() -> void:
 	assert_eq(_get_string("autoload/DataRegistry"), "*res://scripts/autoload/data_registry.gd")
 
 
+func test_r_004_12_interaction_physics_layer_named() -> void:
+	# The name is what the editor shows; the number lives in the component.
+	var setting: String = "layer_names/3d_physics/layer_%d" % InteractableComponent.PHYSICS_LAYER
+	assert_eq(_get_string(setting), "interaction")
+
+
 func _get_rule(rules: Dictionary, path: String) -> int:
 	var decision: int = rules.get(path, DIRECTORY_RULE_INCLUDE)
 	return decision
