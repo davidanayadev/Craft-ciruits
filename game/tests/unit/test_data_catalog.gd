@@ -2,11 +2,20 @@ extends GutTest
 ## Items and catalog (spec 004): the three materials match BALANCE §2
 ## (R-004-18), DataCatalog and DataRegistry return items by id and report
 ## unknown ids (R-004-19), and the catalog has no repeated ids and lists every
-## item file (R-004-20).
-## The expected values mirror BALANCE.md §2; update both together.
+## item file (R-004-20). Loot tables match BALANCE §2.1 and only use catalog
+## items (R-004-22), and none has a broken entry (R-004-26).
+## The expected values mirror BALANCE.md §2 and §2.1; update both together.
 
 const ITEMS_DIR := "res://resources/items"
 const CATALOG_PATH := "res://resources/data_catalog.tres"
+const LOOT_DIR := "res://resources/loot"
+const BASIC_BOX_PATH := "res://resources/loot/basic_box.tres"
+## item id → quantity range as (min, max): "Caja básica (zona verde)", BALANCE §2.1.
+const EXPECTED_BASIC_BOX: Dictionary[StringName, Vector2i] = {
+	&"scrap": Vector2i(2, 5),
+	&"cables": Vector2i(0, 2),
+	&"iron": Vector2i(0, 1),
+}
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const SNAKE_CASE_PATTERN := "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
 ## id → [name_key, stack_max] (BALANCE §2).
@@ -124,3 +133,54 @@ func test_r_004_20_every_item_file_in_catalog() -> void:
 		var item: ItemData = load(ITEMS_DIR.path_join(file)) as ItemData
 		assert_not_null(item, "%s is an ItemData" % file)
 		assert_true(catalog.items.has(item), "%s is listed in the catalog" % file)
+
+
+func test_r_004_22_basic_box_matches_balance() -> void:
+	var table: LootTableData = load(BASIC_BOX_PATH) as LootTableData
+	assert_not_null(table, "basic_box.tres exists and is a LootTableData")
+	if table == null:
+		return
+	assert_eq(table.entries.size(), EXPECTED_BASIC_BOX.size(), "one entry per material")
+	for entry: LootEntryData in table.entries:
+		if entry == null or entry.item == null:
+			fail_test("basic_box.tres has an entry without item")
+			continue
+		assert_true(EXPECTED_BASIC_BOX.has(entry.item.id), "'%s' is in BALANCE §2.1" % entry.item.id)
+		if not EXPECTED_BASIC_BOX.has(entry.item.id):
+			continue
+		var expected: Vector2i = EXPECTED_BASIC_BOX[entry.item.id]
+		assert_eq(entry.min_quantity, expected.x, "minimum of %s" % entry.item.id)
+		assert_eq(entry.max_quantity, expected.y, "maximum of %s" % entry.item.id)
+
+
+func test_r_004_22_loot_items_in_catalog() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	for table: LootTableData in _load_loot_tables():
+		for entry: LootEntryData in table.entries:
+			if entry == null or entry.item == null:
+				continue
+			assert_true(
+				catalog.items.has(entry.item),
+				"%s: '%s' is a catalog item" % [table.resource_path, entry.item.id]
+			)
+
+
+func test_r_004_26_all_loot_tables_valid() -> void:
+	var tables: Array[LootTableData] = _load_loot_tables()
+	assert_gt(tables.size(), 0, "there is at least one loot table")
+	for table: LootTableData in tables:
+		var problems: PackedStringArray = LootSystem.validate(table)
+		assert_eq(problems.size(), 0, "%s: %s" % [table.resource_path, problems])
+
+
+func _load_loot_tables() -> Array[LootTableData]:
+	var tables: Array[LootTableData] = []
+	for file: String in DirAccess.get_files_at(LOOT_DIR):
+		var table: LootTableData = load(LOOT_DIR.path_join(file)) as LootTableData
+		assert_not_null(table, "%s is a LootTableData" % file)
+		if table != null:
+			tables.append(table)
+	return tables

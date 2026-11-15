@@ -17,7 +17,7 @@
   `ITEM_SCRAP`, `ITEM_CABLES` e `ITEM_IRON` (ES + EN) a `strings.csv` y reimportar. Crear los autoloads
   `GameManager` (con `dev_world_config_data.gd` y `dev_world.tres`) y `DataRegistry`, y registrarlos en
   `project.godot`. Añadir `test_game_manager.gd`. Cubre: R-004-08, R-004-18..20. Verifica: `tools/run_tests.sh`.
-- [ ] **T-004-04** Test primero: `test_loot_system.gd` y la parte de tablas de `test_data_catalog.gd`. Crear
+- [x] **T-004-04** Test primero: `test_loot_system.gd` y la parte de tablas de `test_data_catalog.gd`. Crear
   `item_stack.gd`, `loot_entry_data.gd`, `loot_table_data.gd`, `loot_system.gd` y `resources/loot/basic_box.tres`.
   Cubre: R-004-22, R-004-23 (tirada), R-004-26. Verifica: `tools/run_tests.sh`.
 - [ ] **T-004-05** Test primero: `test_zone_population.gd` y `test_zone_resources.gd`. Crear `zone_population.gd`,
