@@ -420,6 +420,9 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Guía básica (Tarea 5.4)**: ✅ se añade el paso "Craftea tu primera estación de carga", tras "Vuelve a la base".
 - [x] **Coste**: ✅ 4 chatarra como valor inicial (BALANCE.md §5.3). Tarea de playtesting (5.2): comprobar que la primera estación sale en los primeros minutos.
 
+**Cajas de loot (spec 004)**
+- [ ] **Reposición de cajas abiertas**: ¿se rellenan y cuándo (al volver a entrar, tras un tiempo, cada día)? BALANCE.md §8.1 cuenta "abrir 3 cajas" por sesión, pero ninguna regla lo regula. Mientras tanto, una caja abierta sigue abierta hasta reiniciar la partida (spec 004); la regla va a BALANCE.md y la aplica el guardado por zona (spec 010).
+
 **Decidir antes de empezar v1.1**
 - [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).
 - [x] **Viaje a pie entre zonas** en mundos por semilla: ✅ Decidido (nov 2026): cuesta batería según la distancia (valor en BALANCE.md §1.2 al diseñar v1.1). La gasolina y los vehículos lo abaratan después (SPECS §26).

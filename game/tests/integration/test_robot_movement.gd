@@ -19,7 +19,9 @@ func after_each() -> void:
 
 func test_r_002_04_robot_is_characterbody_with_capsule() -> void:
 	assert_true(_robot is CharacterBody3D, "robot is a CharacterBody3D")
-	var shapes: Array[Node] = _robot.find_children("*", "CollisionShape3D", true, false)
+	# Direct children only: the body's own collider. The interactor's detection
+	# sphere (spec 004) is a child of its Area3D and is not part of the body.
+	var shapes: Array[Node] = _robot.find_children("*", "CollisionShape3D", false, false)
 	assert_eq(shapes.size(), 1, "one collision shape")
 	if shapes.is_empty():
 		return

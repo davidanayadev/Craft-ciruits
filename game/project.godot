@@ -15,6 +15,11 @@ run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+DataRegistry="*res://scripts/autoload/data_registry.gd"
+GameManager="*res://scripts/autoload/game_manager.gd"
+
 [debug]
 
 gdscript/warnings/untyped_declaration=2
@@ -97,6 +102,10 @@ pause={
 [internationalization]
 
 locale/translations=PackedStringArray("res://i18n/strings.en.translation", "res://i18n/strings.es.translation")
+
+[layer_names]
+
+3d_physics/layer_2="interaction"
 
 [rendering]
 

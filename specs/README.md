@@ -81,8 +81,8 @@ plan a *Planificado*.
 | [002](002-iso-scene-player-movement/spec.md) | Escena isométrica y movimiento del robot | 0.2, 0.3 | Hecho |
 | [003](003-battery/spec.md) | Batería: consumo, señales y HUD | 0.4 | Hecho |
 | — | Spike de navmesh (sin spec, desechable) | 0.5 | — |
-| 004 | Zona verde, `zone_id` y RNG con semilla | 1.1 | Por crear |
-| 005 | Inventario e `ItemData` | 1.2 | Por crear |
+| [004](004-green-zone/spec.md) | Zona verde, `zone_id`, RNG con semilla y cajas de loot | 1.1 | Hecho |
+| 005 | Inventario (`InventoryComponent`, UI) y loot al jugador | 1.2 | Por crear |
 | 006 | Zombies: `HealthComponent`, IA, spawner con pool | 1.3 | Por crear |
 | 007 | Combate cuerpo a cuerpo y XP por muerte | 1.4 | Por crear |
 | 008 | Muerte, `RulesetData` y recuperación | 1.5 | Por crear |

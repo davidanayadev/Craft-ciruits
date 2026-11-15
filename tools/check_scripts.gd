@@ -13,7 +13,9 @@ const EXIT_OK: int = 0
 const EXIT_BROKEN_SCRIPTS: int = 1
 
 
-func _init() -> void:
+# Not in _init(): autoloads are registered after it, and a script that names
+# one (GameManager, DataRegistry) would fail to compile before that.
+func _initialize() -> void:
 	var scripts: PackedStringArray = _find_scripts(PROJECT_ROOT)
 	var broken: PackedStringArray = []
 	for path: String in scripts:

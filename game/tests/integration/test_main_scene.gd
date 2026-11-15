@@ -118,3 +118,96 @@ func test_r_003_12_depletion_opens_game_over_and_freezes_world() -> void:
 	await wait_physics_frames(10)
 	Input.action_release(&"move_forward")
 	assert_eq(robot.global_position, frozen_position, "the robot no longer moves")
+
+
+func _zone() -> FarmZone:
+	var slot: Node = _main.get_node("World/ZoneSlot")
+	if slot.get_child_count() != 1:
+		return null
+	return slot.get_child(0) as FarmZone
+
+
+## Moves the robot next to the first box of the zone and waits for its
+## interactor to pick it up.
+func _go_to_first_box() -> LootBox:
+	var box: LootBox = _zone().get_boxes()[0]
+	_robot().global_position = box.global_position + Vector3(1.6, 0.0, 0.0)
+	await wait_physics_frames(4)
+	return box
+
+
+func test_r_004_05_green_zone_loaded() -> void:
+	var slot: Node = _main.get_node("World/ZoneSlot")
+	assert_eq(slot.get_child_count(), 1, "one zone loaded in ZoneSlot")
+	var zone: FarmZone = _zone()
+	assert_not_null(zone, "the loaded zone is a FarmZone")
+	if zone == null:
+		return
+	assert_eq(zone.data.zone_id, Vector2i(0, 0), "it is the green zone, zone (0, 0)")
+	assert_between(
+		zone.get_boxes().size(),
+		zone.data.box_count_min,
+		zone.data.box_count_max,
+		"Main generated its boxes"
+	)
+
+
+func test_r_004_05_zone_generated_from_world_seed() -> void:
+	var zone: FarmZone = _zone()
+	var reference: FarmZone = (
+		load("res://scenes/farm_zone/farm_zone_green.tscn") as PackedScene
+	).instantiate() as FarmZone
+	add_child_autofree(reference)
+	reference.generate(GameManager.get_world_seed())
+	var expected: Array[Vector3] = []
+	for box: LootBox in reference.get_boxes():
+		expected.append(box.position)
+	var actual: Array[Vector3] = []
+	for box: LootBox in zone.get_boxes():
+		actual.append(box.position)
+	assert_eq(actual, expected, "the boxes are those of GameManager's world seed")
+
+
+func test_r_004_05_robot_at_spawn_point() -> void:
+	var zone: FarmZone = _zone()
+	var distance: float = _robot().global_position.distance_to(zone.get_spawn_position())
+	assert_lt(distance, 0.01, "the robot starts on the zone's spawn point")
+
+
+func test_r_004_13_hud_button_follows_robot_target() -> void:
+	var button: Button = _main.get_node("UI/Hud").get_node("%InteractButton") as Button
+	await wait_physics_frames(4)
+	assert_false(button.visible, "no button at the spawn point, away from every box")
+	await _go_to_first_box()
+	assert_true(button.visible, "the button appears next to a box")
+	assert_eq(button.text, "PROMPT_OPEN", "with the box's prompt")
+
+
+func test_r_004_14_hud_button_opens_box() -> void:
+	var button: Button = _main.get_node("UI/Hud").get_node("%InteractButton") as Button
+	var box: LootBox = await _go_to_first_box()
+	button.pressed.emit()
+	assert_true(box.is_opened(), "pressing the HUD button opens the box")
+	await wait_physics_frames(4)
+	assert_false(button.visible, "the opened box is no longer offered")
+
+
+func test_r_004_14_interact_action_opens_box_in_main() -> void:
+	var box: LootBox = await _go_to_first_box()
+	Input.action_press(&"interact")
+	await wait_physics_frames(2)
+	Input.action_release(&"interact")
+	assert_true(box.is_opened(), "the interact action opens the box")
+
+
+func test_r_004_16_no_interaction_after_game_over() -> void:
+	var button: Button = _main.get_node("UI/Hud").get_node("%InteractButton") as Button
+	var box: LootBox = await _go_to_first_box()
+	var robot: Robot = _robot()
+	robot.battery.consume(robot.battery.get_current())
+	await wait_physics_frames(2)
+	button.pressed.emit()
+	Input.action_press(&"interact")
+	await wait_physics_frames(2)
+	Input.action_release(&"interact")
+	assert_false(box.is_opened(), "a depleted robot opens nothing")

@@ -4,12 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Specs 001 (project bootstrap) and 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3) are done
-and merged. Spec 003 (battery, ACTION_PLAN Tarea 0.4) is done on `feat/003-battery`: `game/` has its settings,
-i18n, InputMap, GUT 9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable
-F0 prototype (`game/scenes/main.tscn`: dev zone, isometric camera rig, `Robot` moved by keyboard or a floating
-touch joystick, a `BatteryComponent` that drains by gait, a battery `Hud` and a provisional game over screen that
-spec 008 replaces). There is no combat, inventory or real death yet. The next spec is 004.
+Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3) and 003
+(battery, ACTION_PLAN Tarea 0.4) are done and merged. Spec 004 (green zone, ACTION_PLAN Tarea 1.1) is done on
+`feat/004-green-zone`: `game/`
+has its settings, i18n, InputMap, GUT 9.7.1 (ADR `specs/decisions/0002-test-framework-gut.md`), export presets, CI,
+and a playable prototype (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric
+camera rig, `Robot` moved by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot
+boxes opened with the HUD "Interact" button or E, a battery `Hud` and a provisional game over screen that spec 008
+replaces). The `GameManager` and `DataRegistry` autoloads exist. Boxes only announce their loot
+(`loot_generated`): there is no inventory, combat or real death yet. The next spec is 005.
 
 ## Commands
 

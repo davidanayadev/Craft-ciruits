@@ -66,6 +66,8 @@
 | **Caja básica (zona verde)** | 2-5 | 0-2 | 0-1 | 0% |
 | **Robot hostil básico** | 2-4 | 1-2 | 1-2 | 0% |
 
+> **Cómo se tira un rango** (decisión nov 2026, spec 004): cantidad entera uniforme entre ambos extremos, incluidos ("2-5" da 2, 3, 4 o 5 con la misma probabilidad). El contenido de cada caja sale del RNG con semilla de su zona (semilla del mundo + `zone_id` + índice de la caja), así que no depende del orden en que se abren. Un material que sale 0 no se entrega.
+
 ---
 
 ## 3. Enemigos
@@ -240,6 +242,10 @@
 
 ## 7. Zona de farmeo (diseño de encounter)
 
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Celda del mapa global** | 80x80 m | Decisión nov 2026 (spec 004). Cada zona cabe en una celda de la cuadrícula (SPECS.md §26 prevé zonas de 50-80 m) y se centra en ella. **No cambiar** una vez haya partidas guardadas: las posiciones se guardan como `(zone_id, posición local)` |
+
 ### 7.1 Zona Verde (fácil, safety net)
 
 | Parámetro | Valor |
@@ -339,6 +345,7 @@ Si pieza.durabilidad <= 0 → Pieza rota; el siguiente golpe degrada la siguient
 | **Cámara: tamaño ortográfico** | 10.0 m | Metros visibles en vertical (plan 002: cámara ortográfica, *keep height*; 14.0 hasta pasar a apaisado el 2026-11-14). Ajustar en el móvil (T-002-08) |
 | **Cámara: distancia física** | 20.0 m | Solo afecta a near/far y sombras; con cámara ortográfica no cambia el encuadre |
 | **Velocidad de giro del robot** | 10.0 rad/s | Media vuelta en ~0.3 s (plan 002). Ajustar en el móvil (T-002-08) |
+| **Radio de interacción** | 2.0 m | Distancia a la que aparece el botón "Interactuar" para el objeto más cercano (spec 004, decisión nov 2026). Ajustar en el móvil |
 | **Rango de la sensibilidad en Opciones** | Por definir | Se fija con la Tarea 4.2 |
 
 ---

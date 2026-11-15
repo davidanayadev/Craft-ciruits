@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/robot.gd" id="1_robot"]
 [ext_resource type="Script" path="res://scripts/components/player_input.gd" id="2_input"]
@@ -6,6 +6,7 @@
 [ext_resource type="Resource" path="res://resources/config/controls.tres" id="4_controls"]
 [ext_resource type="Script" path="res://scripts/components/battery_component.gd" id="5_battery"]
 [ext_resource type="Resource" path="res://resources/battery/robot_battery.tres" id="6_battery_config"]
+[ext_resource type="Script" path="res://scripts/components/interactor_component.gd" id="7_interactor"]
 
 [sub_resource type="CapsuleShape3D" id="capsule_shape"]
 
@@ -40,3 +41,8 @@ unique_name_in_owner = true
 script = ExtResource("5_battery")
 config = ExtResource("6_battery_config")
 legs = ExtResource("3_legs")
+
+[node name="Interactor" type="Area3D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("7_interactor")
+config = ExtResource("4_controls")
