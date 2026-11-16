@@ -5,6 +5,14 @@ extends CharacterBody3D
 ## It also feeds its gait to its BatteryComponent every physics frame (spec 003)
 ## and interacts with the target of its InteractorComponent (spec 004).
 ## It owns its inventory, sized by its chassis level (spec 005).
+## Enemies find it through PLAYER_GROUP and hit it with receive_hit() (spec 006).
+
+## A hit landed on this robot. Degradation of pieces connects here (spec 014).
+signal hit_received(damage: float, attacker: Node3D)
+
+## Group of every player entity; set in robot.tscn. Enemies look their target
+## up here instead of holding a reference, so co-op needs no change.
+const PLAYER_GROUP := &"players"
 
 @export var movement_stats: MovementStatsData
 @export var control_config: ControlConfigData
@@ -56,3 +64,16 @@ func request_interact() -> void:
 	if battery.is_depleted() or player_input.is_input_blocked():
 		return
 	interactor.interact_with_target(self)
+
+
+## Takes a hit: damage battery points, 1:1 (BALANCE §3.1), then hit_received.
+## A robot with a depleted battery takes none (R-006-18). Negative damage →
+## push_error, no change.
+func receive_hit(damage: float, attacker: Node3D) -> void:
+	if damage < 0.0:
+		push_error("Robot '%s': receive_hit() got a negative damage (%f)." % [name, damage])
+		return
+	if battery.is_depleted():
+		return
+	battery.consume(damage)
+	hit_received.emit(damage, attacker)

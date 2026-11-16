@@ -1,0 +1,23 @@
+class_name EnemyData
+extends Resource
+## One kind of enemy (BALANCE.md §3). Later specs add fields as they need them:
+## XP and drops with combat (spec 007).
+
+## Who the enemy sides with (SPECS.md §28). Only a data field until factions
+## get relations (v1.2).
+enum Faction { INFECTED, MACHINE, HUMAN }
+
+## snake_case and stable forever: saves and the network only use ids
+## (architecture §8). Never rename a published id.
+@export var id: StringName
+## Translation key of the player-visible name (ENEMY_ZOMBIE_SLOW…).
+@export var name_key: StringName
+@export var faction: Faction = Faction.INFECTED
+@export var hp_max: int = 0
+## Battery points a hit takes from the player, 1:1 (BALANCE §3.1).
+@export var hit_damage: float = 0.0
+## Metres per second.
+@export var move_speed: float = 0.0
+## Seconds between two hits while the target stays in attack range.
+@export var attack_interval: float = 0.0
+@export var ai: EnemyAiData

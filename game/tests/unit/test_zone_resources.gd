@@ -1,8 +1,8 @@
 extends GutTest
 ## Zone data (spec 004): the green zone is zone (0, 0) (R-004-02), fits in one
 ## cell of the global grid (R-004-03) and gets the box count of BALANCE §7.1
-## (R-004-21). The expected values mirror BALANCE.md §7 and §7.1; update both
-## together.
+## (R-004-21) and its zombies (R-006-23). The expected values mirror BALANCE.md
+## §7 and §7.1; update both together.
 
 const GREEN_ZONE_PATH := "res://resources/zones/green_zone.tres"
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
@@ -45,3 +45,31 @@ func test_r_004_21_box_counts_match_balance() -> void:
 		return
 	assert_eq(_zone.box_count_min, 5, "minimum boxes (BALANCE §7.1)")
 	assert_eq(_zone.box_count_max, 7, "maximum boxes (BALANCE §7.1)")
+
+
+func test_r_006_23_enemy_counts_match_balance() -> void:
+	if _zone == null:
+		fail_test("green_zone.tres is missing")
+		return
+	assert_eq(_zone.enemy_count_min, 5, "minimum zombies (BALANCE §7.1)")
+	assert_eq(_zone.enemy_count_max, 8, "maximum zombies (BALANCE §7.1)")
+
+
+func test_r_006_23_enemy_spawns_match_balance() -> void:
+	# BALANCE §7.1: first one of each kind, then each of the rest is slow or
+	# fast with the same chance.
+	if _zone == null:
+		fail_test("green_zone.tres is missing")
+		return
+	var ids: Array[StringName] = []
+	for entry: EnemySpawnEntryData in _zone.enemy_spawns:
+		if entry == null or entry.enemy == null:
+			fail_test("green_zone.tres has a spawn entry without enemy")
+			continue
+		ids.append(entry.enemy.id)
+		assert_eq(entry.min_count, 1, "one %s guaranteed" % entry.enemy.id)
+		assert_eq(entry.weight, _zone.enemy_spawns[0].weight, "%s: equal share" % entry.enemy.id)
+		assert_gt(entry.weight, 0, "%s takes part in the rest" % entry.enemy.id)
+		assert_true(DataRegistry.get_catalog().has_enemy(entry.enemy.id), "catalog enemy")
+	var expected: Array[StringName] = [&"zombie_slow", &"zombie_fast"]
+	assert_eq(ids, expected, "slow and fast zombies")

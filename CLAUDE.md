@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3), 003
-(battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1) and 005 (inventory, ACTION_PLAN
-Tarea 1.2) are done and merged. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
+(battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1), 005 (inventory, ACTION_PLAN
+Tarea 1.2) and 006 (zombies, ACTION_PLAN Tarea 1.3) are done and merged. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
@@ -14,8 +14,12 @@ by keyboard or a floating touch joystick, a `BatteryComponent` that drains by ga
 an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). A box keeps its roll
 in its own `InventoryComponent` and opens the loot screen, where the player takes stacks; the storage button (Tab)
 opens the inventory screen. Both screens go through `UIManager` (a node under `UI`, not an autoload), which blocks
-the robot's input while one is open without pausing the game. The `GameManager` and `DataRegistry` autoloads
-exist. There is no combat, real death, saving, chests or crafting yet. The next spec is 006.
+the robot's input while one is open without pausing the game. Slow and fast zombies (`EnemyData`, a
+`HealthComponent`, the pure `EnemyBrain` state machine and a `NavigationAgent3D` on the zone's baked navmesh)
+patrol, chase and hit the robot, which loses battery through `Robot.receive_hit`. `ZombieSpawner` places them
+from the world seed and the visit number, taking them from an `ObjectPool` under `World`. The zombie model is a
+placeholder made of primitives. The `GameManager` and `DataRegistry` autoloads exist. The robot cannot attack
+yet, and there is no real death, saving, chests or crafting. The next spec is 007.
 
 ## Commands
 

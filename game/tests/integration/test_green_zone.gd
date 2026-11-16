@@ -9,6 +9,7 @@ extends GutTest
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
+const DEV_WORLD_PATH := "res://resources/config/dev_world.tres"
 const SEED_A := 1001
 ## Seeds checked to give different layouts; see test_r_004_11_other_seed_other_layout.
 const SEED_B := 1002
@@ -210,6 +211,23 @@ func test_r_004_21_boxes_on_markers() -> void:
 		assert_true(markers.has(box), "box at %s sits on a marker" % box)
 		used[box] = true
 	assert_eq(used.size(), boxes.size(), "one box per marker at most")
+
+
+func test_r_004_21_dev_seed_known_boxes() -> void:
+	# Pins the boxes of the development world. Number and position of the boxes
+	# depend only on seed + zone_id (BALANCE §7.2): later changes to the zone's
+	# generation must not move them.
+	var dev_world: DevWorldConfigData = load(DEV_WORLD_PATH) as DevWorldConfigData
+	assert_eq(dev_world.world_seed, 20261115, "the seed this known answer was taken with")
+	var zone: FarmZone = _generated_zone(dev_world.world_seed)
+	var expected: Array[Vector3] = [
+		Vector3(-12, 0, -13),
+		Vector3(-3, 0, -18),
+		Vector3(7, 0, 2),
+		Vector3(-10, 0, 13),
+		Vector3(17, 0, 11),
+	]
+	assert_eq(_box_positions(zone), expected, "boxes of the development world")
 
 
 func test_r_004_21_box_count_in_range_for_many_seeds() -> void:

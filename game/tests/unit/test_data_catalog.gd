@@ -5,9 +5,11 @@ extends GutTest
 ## item file (R-004-20). Loot tables match BALANCE §2.1 and only use catalog
 ## items (R-004-22), and none has a broken entry (R-004-26). Every loot entry
 ## fits in one slot (R-005-17) and every item has an icon (R-005-31).
+## Enemies are listed and returned by id the same way (spec 006, R-006-04).
 ## The expected values mirror BALANCE.md §2 and §2.1; update both together.
 
 const ITEMS_DIR := "res://resources/items"
+const ENEMIES_DIR := "res://resources/enemies"
 const CATALOG_PATH := "res://resources/data_catalog.tres"
 const LOOT_DIR := "res://resources/loot"
 const BASIC_BOX_PATH := "res://resources/loot/basic_box.tres"
@@ -25,6 +27,7 @@ const EXPECTED_ITEMS: Dictionary[StringName, Array] = {
 	&"cables": [&"ITEM_CABLES", 50],
 	&"iron": [&"ITEM_IRON", 50],
 }
+const EXPECTED_ENEMY_IDS: Array[StringName] = [&"zombie_slow", &"zombie_fast"]
 
 
 func _new_item(id: StringName) -> ItemData:
@@ -37,6 +40,19 @@ func _new_catalog(ids: Array[StringName]) -> DataCatalog:
 	var catalog: DataCatalog = DataCatalog.new()
 	for id: StringName in ids:
 		catalog.items.append(_new_item(id))
+	return catalog
+
+
+func _new_enemy(id: StringName) -> EnemyData:
+	var enemy: EnemyData = EnemyData.new()
+	enemy.id = id
+	return enemy
+
+
+func _new_enemy_catalog(ids: Array[StringName]) -> DataCatalog:
+	var catalog: DataCatalog = DataCatalog.new()
+	for id: StringName in ids:
+		catalog.enemies.append(_new_enemy(id))
 	return catalog
 
 
@@ -211,3 +227,63 @@ func _load_loot_tables() -> Array[LootTableData]:
 		if table != null:
 			tables.append(table)
 	return tables
+
+
+func test_r_006_04_get_enemy_by_id() -> void:
+	var catalog: DataCatalog = _new_enemy_catalog([&"alpha", &"beta"])
+	assert_eq(catalog.build_index().size(), 0, "a valid catalog has no problems")
+	assert_true(catalog.has_enemy(&"beta"), "beta is in the catalog")
+	assert_false(catalog.has_enemy(&"gamma"), "gamma is not in the catalog")
+	assert_same(catalog.get_enemy(&"beta"), catalog.enemies[1], "get_enemy returns the listed one")
+
+
+func test_r_006_04_unknown_enemy_id_reports_error() -> void:
+	var catalog: DataCatalog = _new_enemy_catalog([&"alpha"])
+	catalog.build_index()
+	assert_null(catalog.get_enemy(&"gamma"), "an unknown id returns null")
+	assert_push_error("gamma")
+
+
+func test_r_006_04_items_and_enemies_do_not_share_ids() -> void:
+	# Two indexes: an enemy id is not an item id, and the other way round.
+	var catalog: DataCatalog = _new_catalog([&"alpha"])
+	catalog.enemies.append(_new_enemy(&"beta"))
+	assert_eq(catalog.build_index().size(), 0, "a valid catalog has no problems")
+	assert_false(catalog.has_item(&"beta"), "an enemy is not an item")
+	assert_false(catalog.has_enemy(&"alpha"), "an item is not an enemy")
+
+
+func test_r_006_04_registry_returns_enemies() -> void:
+	for id: StringName in EXPECTED_ENEMY_IDS:
+		var enemy: EnemyData = DataRegistry.get_enemy(id)
+		assert_not_null(enemy, "DataRegistry returns '%s'" % id)
+		if enemy != null:
+			assert_eq(enemy.id, id, "the enemy has the requested id")
+
+
+func test_r_006_04_registry_unknown_enemy_id_reports_error() -> void:
+	assert_null(DataRegistry.get_enemy(&"no_such_enemy"), "an unknown id returns null")
+	assert_push_error("no_such_enemy")
+
+
+func test_r_006_04_repeated_or_empty_enemy_ids_reported() -> void:
+	var repeated: DataCatalog = _new_enemy_catalog([&"alpha", &"beta", &"alpha"])
+	assert_eq(repeated.build_index().size(), 1, "one problem for the repeated id")
+	var empty_id: DataCatalog = _new_enemy_catalog([&"alpha", &""])
+	assert_eq(empty_id.build_index().size(), 1, "one problem for the empty id")
+	var missing: DataCatalog = _new_enemy_catalog([&"alpha"])
+	missing.enemies.append(null)
+	assert_eq(missing.build_index().size(), 1, "one problem for the empty slot")
+
+
+func test_r_006_04_every_enemy_file_in_catalog() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	var files: PackedStringArray = DirAccess.get_files_at(ENEMIES_DIR)
+	assert_eq(files.size(), EXPECTED_ENEMY_IDS.size(), "one file per enemy of the catalog")
+	for file: String in files:
+		var enemy: EnemyData = load(ENEMIES_DIR.path_join(file)) as EnemyData
+		assert_not_null(enemy, "%s is an EnemyData" % file)
+		assert_true(catalog.enemies.has(enemy), "%s is listed in the catalog" % file)

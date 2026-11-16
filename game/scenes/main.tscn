@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/farm_zone/farm_zone_green.tscn" id="2_zone"]
@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/game_over_screen.tscn" id="8_game_over"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ui_manager.tscn" id="9_ui_manager"]
 [ext_resource type="Resource" path="res://resources/ui/screens.tres" id="10_screens"]
+[ext_resource type="Script" path="res://scripts/components/object_pool.gd" id="11_pool"]
+[ext_resource type="PackedScene" path="res://scenes/entities/zombie.tscn" id="12_zombie"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -21,6 +23,11 @@ unique_name_in_owner = true
 
 [node name="GreenZone" parent="World/ZoneSlot" instance=ExtResource("2_zone")]
 unique_name_in_owner = true
+
+[node name="ZombiePool" type="Node" parent="World"]
+unique_name_in_owner = true
+script = ExtResource("11_pool")
+scene = ExtResource("12_zombie")
 
 [node name="Players" type="Node3D" parent="World"]
 

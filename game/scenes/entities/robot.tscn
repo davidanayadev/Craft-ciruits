@@ -17,7 +17,7 @@
 [sub_resource type="BoxMesh" id="nose_mesh"]
 size = Vector3(0.3, 0.3, 0.4)
 
-[node name="Robot" type="CharacterBody3D"]
+[node name="Robot" type="CharacterBody3D" groups=["players"]]
 script = ExtResource("1_robot")
 movement_stats = ExtResource("3_legs")
 control_config = ExtResource("4_controls")

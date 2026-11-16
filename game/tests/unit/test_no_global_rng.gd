@@ -4,6 +4,7 @@ extends GutTest
 ## only from SeededRng. The check covers every game script, which is stricter
 ## than "generation code" and needs no list of generation files to maintain.
 ## Addons and tests are not game code and are left out.
+## The zombie spawn and AI scripts are among the checked ones (R-006-24).
 
 const GAME_CODE_DIRS: Array[String] = ["res://scripts", "res://scenes"]
 ## Global functions (not preceded by "." or an identifier, so rng.randi_range()
@@ -12,6 +13,13 @@ const GLOBAL_RNG_PATTERN := (
 	"(?<![\\w.])(randf|randi|randi_range|randf_range|randfn|randomize)\\s*\\("
 	+ "|\\.(shuffle|pick_random)\\s*\\("
 )
+
+## Scripts that decide where zombies appear and what they do (spec 006).
+const SPAWN_SCRIPTS: PackedStringArray = [
+	"res://scenes/farm_zone/zombie_spawner.gd",
+	"res://scripts/systems/zone_population.gd",
+	"res://scripts/systems/enemy_brain.gd",
+]
 
 var _regex: RegEx
 
@@ -81,3 +89,14 @@ func test_r_004_10_no_global_rng_in_game_code() -> void:
 			var hits: PackedStringArray = _find_global_rng(source)
 			assert_eq(hits.size(), 0, "%s uses the global RNG: %s" % [script_path, hits])
 	assert_gt(checked, 0, "game scripts were found and checked")
+
+
+func test_r_006_24_spawn_scripts_scanned() -> void:
+	var scanned: PackedStringArray = PackedStringArray()
+	for dir_path: String in GAME_CODE_DIRS:
+		scanned.append_array(_collect_scripts(dir_path))
+	for script_path: String in SPAWN_SCRIPTS:
+		assert_true(scanned.has(script_path), "%s is checked for global RNG" % script_path)
+		var source: String = FileAccess.get_file_as_string(script_path)
+		assert_false(source.is_empty(), "%s could be read" % script_path)
+		assert_eq(_find_global_rng(source).size(), 0, "%s uses only seeded RNGs" % script_path)

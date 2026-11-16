@@ -82,8 +82,19 @@
 
 **Notas**:
 - Zombies no sueltan piezas, solo materiales básicos (0-1 chatarra).
-- Daño de zombie se aplica cada 1.5 segundos (si está en rango de ataque).
+- Daño de zombie se aplica cada 1.5 segundos (si está en rango de ataque). El primer golpe llega tras un intervalo completo en rango; salir y volver a entrar reinicia la espera (decisión nov 2026, spec 006).
+- **El daño son puntos de batería, 1:1** (decisión nov 2026, spec 006): un golpe de zombie lento quita 5 puntos de batería y uno rápido, 4. Sin defensa del jugador en el PMV (la `defensa_jugador` de §9.2 vale 0).
 - XP se otorga al jugador al matar.
+
+**IA de zombies** (valores iniciales, decisión nov 2026, spec 006; iguales para los dos tipos y ajustables en el móvil):
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Radio de visión** | 8 m | Al entrar el jugador, pasa a perseguir |
+| **Rango de ataque** | 1.5 m | Dentro, se para y golpea cada intervalo |
+| **Radio de patrulla** | 5 m | Alrededor de su punto de aparición |
+| **Pausa entre patrullas** | 2-4 s | Rango uniforme, con el RNG de la zona |
+| **Distancia de abandono** | 12 m | Más lejos, deja de perseguir y vuelve a patrullar |
 
 ### 3.2 Robots hostiles (1 tipo en PMV)
 
@@ -252,7 +263,7 @@
 | Parámetro | Valor |
 |---|---|
 | **Tamaño** | Pequeño (50x50m) |
-| **Zombies** | 5-8 (lentos y rápidos) |
+| **Zombies** | 5-8 (lentos y rápidos). Primero uno de cada tipo; cada uno de los demás es lento o rápido al 50 %. Número, tipo y posición salen de semilla del mundo + `zone_id` + número de visita, así que cambian en cada visita (decisión nov 2026, spec 006) |
 | **Robots hostiles** | 0-1 (básico) |
 | **Cajas** | 5-7 (básicas) |
 | **Materiales principales** | Chatarra, cables (poco hierro) |
