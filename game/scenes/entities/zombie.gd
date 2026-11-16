@@ -5,6 +5,8 @@ extends CharacterBody3D
 ## the rules live in EnemyBrain and every number comes from its EnemyData.
 ## Instances are pooled: activate() starts a new life from scratch, so the
 ## same instance can come back as another kind of zombie.
+## Players hit it through its HurtboxComponent; it flashes white and, when a
+## player's hit kills it, announces it on the EventBus (spec 007).
 
 ## Its HealthComponent reached 0. Whoever placed it returns it to the pool.
 signal defeated(zombie: Zombie)
@@ -21,11 +23,14 @@ var _patrol_point: Vector3 = Vector3.INF
 @onready var _health: HealthComponent = %Health
 @onready var _nav_agent: NavigationAgent3D = %NavAgent
 @onready var _animation_player: AnimationPlayer = %AnimationPlayer
+@onready var _hurtbox: HurtboxComponent = %Hurtbox
+@onready var _hit_flash: HitFlashComponent = %HitFlash
 
 
 func _ready() -> void:
 	set_physics_process(false)
 	_health.died.connect(_on_died)
+	_hurtbox.hurt.connect(_on_hurt)
 
 
 func _exit_tree() -> void:
@@ -66,6 +71,9 @@ func activate(data: EnemyData, home: Vector3, brain_seed: int) -> void:
 	global_position = home
 	velocity = Vector3.ZERO
 	_health.reset(data.hp_max)
+	# Nothing from its previous life (R-007-23).
+	_hurtbox.reset()
+	_hit_flash.clear()
 	_animation_player.play(ANIMATION_IDLE)
 	set_physics_process(true)
 
@@ -83,6 +91,10 @@ func get_state() -> EnemyBrain.State:
 
 func get_health() -> HealthComponent:
 	return _health
+
+
+func get_hurtbox() -> HurtboxComponent:
+	return _hurtbox
 
 
 ## Nearest player with battery left; a depleted one is not a target (R-006-18).
@@ -165,8 +177,17 @@ func _flat_offset_to(point: Vector3) -> Vector3:
 	return Vector3(point.x - global_position.x, 0.0, point.z - global_position.z)
 
 
+func _on_hurt(_damage: int, _attacker_uid: String) -> void:
+	_hit_flash.flash()
+
+
 func _on_died() -> void:
 	set_physics_process(false)
 	velocity = Vector3.ZERO
 	_animation_player.stop()
+	# died comes once per life, so the kill is announced once (R-007-17). A
+	# death nobody dealt has no killer and is not a kill.
+	var killer_uid: String = _hurtbox.get_last_attacker_uid()
+	if not killer_uid.is_empty():
+		EventBus.enemy_killed.emit(_data.id, killer_uid)
 	defeated.emit(self)

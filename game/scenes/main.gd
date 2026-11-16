@@ -11,6 +11,9 @@ extends Node
 ## drawn on top of the screens.
 ## The zombie pool lives here, under World and not in the zone, so it outlives
 ## the zone and is reused between visits (spec 006).
+## Combat (spec 007): the HUD attack button feeds the robot's input, and the
+## feedback and the debug XP are bound to the local robot. The pool of impact
+## sparks lives under World, next to the zombie pool.
 
 @onready var _robot: Robot = %Robot
 @onready var _camera_rig: CameraRig = %CameraRig
@@ -21,6 +24,9 @@ extends Node
 @onready var _zone: FarmZone = %GreenZone
 @onready var _zombie_pool: ObjectPool = %ZombiePool
 @onready var _game_over_screen: GameOverScreen = %GameOverScreen
+@onready var _impact_pool: ObjectPool = %ImpactPool
+@onready var _combat_feedback: CombatFeedback = %CombatFeedback
+@onready var _debug_hud: DebugHud = %DebugHud
 
 
 func _ready() -> void:
@@ -39,6 +45,18 @@ func _ready() -> void:
 	_touch_controls.joystick.released.connect(_on_joystick_released)
 	_robot.battery.battery_depleted.connect(_on_battery_depleted)
 	_game_over_screen.restart_requested.connect(_on_restart_requested)
+	_wire_combat()
+
+
+## Attack button, combat feedback and debug XP of the local robot.
+func _wire_combat() -> void:
+	# At most one burst per enemy and swing, and a burst ends before the next
+	# swing, so the zone's maximum of enemies covers every impact.
+	if _zone.data != null:
+		_impact_pool.prewarm(_zone.data.enemy_count_max)
+	_hud.attack_held_changed.connect(_robot.player_input.set_attack_button_held)
+	_combat_feedback.bind(_robot, _camera_rig, _hud)
+	_debug_hud.bind(_robot)
 
 
 ## Creates every zombie the zone can hold before the game starts, so none is

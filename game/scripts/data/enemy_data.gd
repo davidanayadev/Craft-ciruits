@@ -1,7 +1,7 @@
 class_name EnemyData
 extends Resource
 ## One kind of enemy (BALANCE.md §3). Later specs add fields as they need them:
-## XP and drops with combat (spec 007).
+## drops with the dropped item (spec 008).
 
 ## Who the enemy sides with (SPECS.md §28). Only a data field until factions
 ## get relations (v1.2).
@@ -20,4 +20,6 @@ enum Faction { INFECTED, MACHINE, HUMAN }
 @export var move_speed: float = 0.0
 ## Seconds between two hits while the target stays in attack range.
 @export var attack_interval: float = 0.0
+## XP for the player who deals the final hit (BALANCE §3.1, §6.2).
+@export var xp_reward: int = 0
 @export var ai: EnemyAiData

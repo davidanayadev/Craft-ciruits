@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" path="res://scenes/entities/zombie.gd" id="1_frpv3"]
 [ext_resource type="Script" path="res://scripts/components/health_component.gd" id="2_asks5"]
+[ext_resource type="Script" path="res://scripts/components/hurtbox_component.gd" id="3_hurtbox"]
+[ext_resource type="Script" path="res://scripts/components/hit_flash_component.gd" id="4_flash"]
+[ext_resource type="Material" path="res://resources/materials/hit_flash.tres" id="5_flash_material"]
+[ext_resource type="Resource" path="res://resources/config/combat_feedback.tres" id="6_feedback"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_47c00"]
 radius = 0.4
@@ -229,3 +233,19 @@ unique_name_in_owner = true
 [node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1406497787]
 unique_name_in_owner = true
 libraries/ = SubResource("AnimationLibrary_b0fnr")
+
+[node name="Hurtbox" type="Area3D" parent="." node_paths=PackedStringArray("health")]
+unique_name_in_owner = true
+script = ExtResource("3_hurtbox")
+health = NodePath("../Health")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_47c00")
+
+[node name="HitFlash" type="Node" parent="." node_paths=PackedStringArray("meshes")]
+unique_name_in_owner = true
+script = ExtResource("4_flash")
+meshes = [NodePath("../Model/Body"), NodePath("../Model/Head"), NodePath("../Model/ArmLeft"), NodePath("../Model/ArmRight")]
+material = ExtResource("5_flash_material")
+feedback = ExtResource("6_feedback")

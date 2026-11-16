@@ -1,6 +1,18 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scenes/ui/attack_button.gd" id="2_attack"]
+[ext_resource type="Script" path="res://scenes/ui/damage_flash.gd" id="3_damage"]
+
+[sub_resource type="Gradient" id="damage_gradient"]
+offsets = PackedFloat32Array(0.6, 1)
+colors = PackedColorArray(1, 0, 0, 0, 1, 0, 0, 0.7)
+
+[sub_resource type="GradientTexture2D" id="damage_texture"]
+gradient = SubResource("damage_gradient")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
 
 [node name="Hud" type="Control"]
 layout_mode = 3
@@ -11,6 +23,20 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_hud")
+
+[node name="DamageFlash" type="TextureRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("damage_texture")
+expand_mode = 1
+script = ExtResource("3_damage")
 
 [node name="BatteryBar" type="ProgressBar" parent="."]
 unique_name_in_owner = true
@@ -43,13 +69,32 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -360.0
-offset_top = -260.0
+offset_top = -500.0
 offset_right = -80.0
-offset_bottom = -120.0
+offset_bottom = -360.0
 grow_horizontal = 0
 grow_vertical = 0
 focus_mode = 0
 theme_override_font_sizes/font_size = 40
+
+[node name="AttackButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -340.0
+offset_top = -320.0
+offset_right = -80.0
+offset_bottom = -60.0
+grow_horizontal = 0
+grow_vertical = 0
+focus_mode = 0
+theme_override_font_sizes/font_size = 44
+text = "HUD_ATTACK"
+script = ExtResource("2_attack")
 
 [node name="StorageButton" type="Button" parent="."]
 unique_name_in_owner = true

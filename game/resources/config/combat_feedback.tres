@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CombatFeedbackData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/combat_feedback_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+enemy_flash_s = 0.1
+hit_dealt_shake_m = 0.05
+hit_dealt_shake_s = 0.1
+hit_received_shake_m = 0.15
+hit_received_shake_s = 0.2
+screen_edge_flash_s = 0.3

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-16) |
+| **Estado** | Hecho (2026-11-16) |
 | **Tarea(s) ACTION_PLAN** | 1.4 |
 | **Fuentes** | ACTION_PLAN.md Tarea 1.4 (y 2.7, 4.1, 4.3, 4.4 para los límites) · PMV.md §2.1 (controles táctiles, XP), §2.2, §2.3 (sin armas), §2.4, §3.2, §4.5 gancho 7, §10 (combate), §11 (game feel) · BALANCE.md §1.1, §3.1, §4.2, §6.2, §8.1, §8.2, §9.1, §11 · SPECS.md §18 (armas, v1.1) · architecture.md §3, §5, §7, §9.4, §9.5, §10.3, §11, §13 · Constitución P2, P3, P4, P6, P8, P11, P12, P13 |
 | **Depende de** | 003 (`BatteryComponent`), 005 (`UIManager` y bloqueo de input), 006 (`HealthComponent`, `Zombie`, `EnemyData`, `ObjectPool`, `Robot.receive_hit`) |

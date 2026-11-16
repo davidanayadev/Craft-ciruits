@@ -37,6 +37,20 @@ horizontal_alignment = 2
 vertical_alignment = 1
 label_settings = SubResource("fps_label_settings")
 
+[node name="XpLabel" type="Label" parent="."]
+unique_name_in_owner = true
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 132.0
+offset_right = -56.0
+offset_bottom = 200.0
+grow_horizontal = 0
+theme_override_styles/normal = SubResource("fps_panel")
+horizontal_alignment = 2
+vertical_alignment = 1
+label_settings = SubResource("fps_label_settings")
+
 [node name="Refresh" type="Timer" parent="."]
 unique_name_in_owner = true
 wait_time = 0.5

@@ -1,0 +1,32 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/effects/impact_sparks.gd" id="1_sparks"]
+
+[sub_resource type="ParticleProcessMaterial" id="sparks_process"]
+direction = Vector3(0, 1, 0)
+spread = 180.0
+initial_velocity_min = 2.0
+initial_velocity_max = 4.0
+gravity = Vector3(0, -9.8, 0)
+
+[sub_resource type="StandardMaterial3D" id="sparks_material"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="sparks_mesh"]
+material = SubResource("sparks_material")
+size = Vector3(0.08, 0.08, 0.08)
+
+[node name="ImpactSparks" type="Node3D"]
+script = ExtResource("1_sparks")
+
+[node name="Particles" type="GPUParticles3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+emitting = false
+amount = 10
+lifetime = 0.3
+one_shot = true
+explosiveness = 1.0
+process_material = SubResource("sparks_process")
+draw_pass_1 = SubResource("sparks_mesh")

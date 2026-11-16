@@ -3,7 +3,8 @@ extends GutTest
 ## faction (R-006-01), the two zombies match BALANCE §3.1 (R-006-02) and the
 ## AI tuning lives in a resource with the values of BALANCE §3.1 "IA de
 ## zombies", not in script literals (R-006-03).
-## The expected values mirror BALANCE.md §3.1; update both together.
+## Spec 007: each zombie carries the XP of BALANCE §3.1 and §6.2 (R-007-03).
+## The expected values mirror BALANCE.md §3.1 and §6.2; update both together.
 
 const ENEMIES_DIR := "res://resources/enemies"
 const ZOMBIE_AI_PATH := "res://resources/ai/zombie_ai.tres"
@@ -14,6 +15,8 @@ const EXPECTED_ZOMBIES: Dictionary[StringName, Array] = {
 	&"zombie_slow": [&"ENEMY_ZOMBIE_SLOW", 20, 5.0, 1.5, 1.5],
 	&"zombie_fast": [&"ENEMY_ZOMBIE_FAST", 15, 4.0, 3.5, 1.5],
 }
+## id → XP per kill (BALANCE §3.1, §6.2).
+const EXPECTED_XP: Dictionary[StringName, int] = {&"zombie_slow": 2, &"zombie_fast": 3}
 ## Scripts that run the AI: none may assign a number to an AI tuning field.
 const AI_SCRIPTS: PackedStringArray = [
 	"res://scripts/systems/enemy_brain.gd",
@@ -138,3 +141,16 @@ func test_r_006_03_no_ai_literals_in_scripts() -> void:
 			if regex.search(code) != null:
 				hits.append("line %d: %s" % [i + 1, code.strip_edges()])
 		assert_eq(hits.size(), 0, "%s sets an AI value in code: %s" % [script_path, hits])
+
+
+func test_r_007_03_zombies_xp_match_balance() -> void:
+	for id: StringName in EXPECTED_XP:
+		var enemy: EnemyData = _load_enemy(id)
+		if enemy == null:
+			fail_test("%s.tres is missing" % id)
+			continue
+		assert_eq(enemy.xp_reward, EXPECTED_XP[id], "XP of %s (BALANCE §6.2)" % id)
+
+
+func test_r_007_03_xp_reward_defaults_to_zero() -> void:
+	assert_eq(EnemyData.new().xp_reward, 0, "an enemy without the field gives no XP")

@@ -15,6 +15,7 @@ const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 ## ProgressBar snaps its value to its step.
 const BAR_TOLERANCE := 0.01
 const STORAGE_KEY := &"HUD_STORAGE"
+const ATTACK_KEY := &"HUD_ATTACK"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const INPUT_FRAMES := 2
 
@@ -224,3 +225,101 @@ func test_r_005_30_storage_button_key_translated() -> void:
 		if translations.size() == 1:
 			var text: String = translations[0].get_message(STORAGE_KEY)
 			assert_ne(text, "", "'%s' has a text for %s" % [locale, STORAGE_KEY])
+
+
+func _attack_button() -> AttackButton:
+	return _hud.get_node("%AttackButton") as AttackButton
+
+
+func _damage_flash() -> DamageFlash:
+	return _hud.get_node("%DamageFlash") as DamageFlash
+
+
+func _area(control: Control) -> float:
+	return control.size.x * control.size.y
+
+
+func test_r_007_16_attack_button_bottom_right_without_focus() -> void:
+	var button: AttackButton = _attack_button()
+	assert_not_null(button, "%AttackButton is an AttackButton")
+	if button == null:
+		return
+	assert_true(button.visible, "always shown, on every platform")
+	assert_eq(button.anchor_left, 1.0, "anchored to the right edge")
+	assert_eq(button.anchor_right, 1.0, "anchored to the right edge")
+	assert_eq(button.anchor_top, 1.0, "anchored to the bottom edge")
+	assert_eq(button.anchor_bottom, 1.0, "anchored to the bottom edge")
+	assert_lt(button.offset_right, 0.0, "inside the screen")
+	assert_lt(button.offset_bottom, 0.0, "inside the screen")
+	# Without focus, Space (attack) or Enter never press it by accident.
+	assert_eq(button.focus_mode, Control.FOCUS_NONE, "never takes keyboard focus")
+	assert_gt(_area(button), _area(_interact_button), "larger than the interact button")
+	assert_gt(_area(button), _area(_storage_button), "and than the storage button")
+	assert_lte(_interact_button.offset_bottom, button.offset_top, "the interact button sits above it")
+	assert_eq(_interact_button.anchor_left, 1.0, "which stays anchored to the right")
+
+
+func test_r_007_16_attack_key_translated() -> void:
+	var button: AttackButton = _attack_button()
+	assert_eq(button.text, String(ATTACK_KEY), "the button text is a translation key")
+	assert_ne(button.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "and it is translated")
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
+		if translations.size() == 1:
+			var text: String = translations[0].get_message(ATTACK_KEY)
+			assert_ne(text, "", "'%s' has a text for %s" % [locale, ATTACK_KEY])
+
+
+func test_r_007_16_emits_attack_held_changed() -> void:
+	watch_signals(_hud)
+	_attack_button().button_down.emit()
+	assert_signal_emitted_with_parameters(_hud, "attack_held_changed", [true])
+	_attack_button().button_up.emit()
+	assert_signal_emitted_with_parameters(_hud, "attack_held_changed", [false])
+	assert_signal_emit_count(_hud, "attack_held_changed", 2)
+
+
+func test_r_007_16_visible_while_modal() -> void:
+	_hud.bind(_robot)
+	_hud.set_modal_open(true)
+	assert_true(_attack_button().visible, "the attack button stays; PlayerInput blocks the attack")
+
+
+func test_r_007_16_released_when_hidden() -> void:
+	watch_signals(_hud)
+	_attack_button().button_down.emit()
+	_hud.visible = false
+	assert_signal_emitted_with_parameters(_hud, "attack_held_changed", [false])
+	assert_signal_emit_count(_hud, "attack_held_changed", 2, "hiding a held button releases it")
+	_hud.visible = true
+	assert_signal_emit_count(_hud, "attack_held_changed", 2, "showing it again changes nothing")
+
+
+func test_r_007_25_damage_flash_shows_and_fades() -> void:
+	var flash: DamageFlash = _damage_flash()
+	assert_not_null(flash, "%DamageFlash is a DamageFlash")
+	if flash == null:
+		return
+	assert_false(flash.visible, "hidden until the player is hit")
+	assert_eq(flash.mouse_filter, Control.MOUSE_FILTER_IGNORE, "it never takes a click")
+	assert_not_null(flash.texture, "it has its red edge")
+	_hud.flash_damage(0.5)
+	assert_true(flash.visible, "shown when the HUD is asked to flash")
+	assert_eq(flash.modulate.a, 1.0, "at full strength")
+	flash.advance(0.25)
+	assert_eq(flash.modulate.a, 0.5, "fading with time")
+	flash.advance(0.25)
+	assert_false(flash.visible, "gone when its time is over")
+	assert_false(flash.is_processing(), "and it stops processing")
+	assert_false(_hud.is_processing(), "the HUD itself never polls (R-003-11)")
+
+
+func test_r_007_25_damage_flash_restarts() -> void:
+	var flash: DamageFlash = _damage_flash()
+	_hud.flash_damage(0.5)
+	flash.advance(0.25)
+	_hud.flash_damage(0.5)
+	assert_eq(flash.modulate.a, 1.0, "a new hit starts the flash again")
+	_hud.flash_damage(0.0)
+	assert_true(flash.is_flashing(), "a flash without duration is ignored")

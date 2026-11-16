@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CombatConfigData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/combat_config_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+hitbox_reach_m = 2.0
+hitbox_width_m = 1.0
+impact_time_s = 0.2

@@ -11,4 +11,5 @@ hp_max = 15
 hit_damage = 4.0
 move_speed = 3.5
 attack_interval = 1.5
+xp_reward = 3
 ai = ExtResource("2")
