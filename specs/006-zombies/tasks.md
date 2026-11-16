@@ -104,6 +104,6 @@
 
 ## Cierre
 
-- [ ] Definición de hecho (constitución §4): `godot-runner`, `i18n-auditor` y `balance-auditor` en paralelo, y
+- [x] Definición de hecho (constitución §4): `godot-runner`, `i18n-auditor` y `balance-auditor` en paralelo, y
   después `architecture-guardian`.
-- [ ] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
+- [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.

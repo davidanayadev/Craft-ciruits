@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Planificado |
+| **Estado** | Hecho (2026-11-16) |
 | **Tarea(s) ACTION_PLAN** | 1.3 |
 | **Fuentes** | ACTION_PLAN.md Tarea 1.3 · PMV.md §2.1 (zombies), §2.3, §3.2, §4.3 (pool, máquina de estados), §4.5 ganchos 3 y 6 · BALANCE.md §1.1, §3.1, §4.1, §4.2, §7.1, §7.2 · SPECS.md §28 (facciones), §17 · architecture.md §3, §4, §6, §7, §8, §11, §12, §13 · Constitución P2, P3, P5, P6, P9, P12, P13 |
 | **Depende de** | 002 (robot), 003 (`BatteryComponent`), 004 (zona verde, `SeededRng`, `DataCatalog`), 005 (`UIManager`: el juego no se pausa con una pantalla abierta). La 005 debe estar cerrada y fusionada antes de crear la rama |
