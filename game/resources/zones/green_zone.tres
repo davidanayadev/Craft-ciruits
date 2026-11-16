@@ -1,6 +1,21 @@
-[gd_resource type="Resource" script_class="ZoneData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ZoneData" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/enemy_spawn_entry_data.gd" id="2"]
+[ext_resource type="Resource" path="res://resources/enemies/zombie_slow.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/enemies/zombie_fast.tres" id="4"]
+
+[sub_resource type="Resource" id="slow"]
+script = ExtResource("2")
+enemy = ExtResource("3")
+min_count = 1
+weight = 1
+
+[sub_resource type="Resource" id="fast"]
+script = ExtResource("2")
+enemy = ExtResource("4")
+min_count = 1
+weight = 1
 
 [resource]
 script = ExtResource("1")
@@ -8,3 +23,6 @@ zone_id = Vector2i(0, 0)
 size_m = Vector2(50, 50)
 box_count_min = 5
 box_count_max = 7
+enemy_count_min = 5
+enemy_count_max = 8
+enemy_spawns = Array[ExtResource("2")]([SubResource("slow"), SubResource("fast")])

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/ai/zombie_ai.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"zombie_slow"
+name_key = &"ENEMY_ZOMBIE_SLOW"
+hp_max = 20
+hit_damage = 5.0
+move_speed = 1.5
+attack_interval = 1.5
+ai = ExtResource("2")

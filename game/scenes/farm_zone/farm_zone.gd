@@ -5,6 +5,9 @@ extends Node3D
 ## never reads the seed itself, so whoever loads it (main.gd now, ZoneLoader
 ## in spec 009) decides the world, and tests can generate it with any seed.
 ## Positions are local to the zone, whose origin is the centre of its grid cell.
+## Enemies are apart from generate(): they depend on the visit and the boxes
+## do not (BALANCE §7.2), so spawn_enemies() takes the visit and a pool that
+## outlives the zone (spec 006).
 
 ## A box of this zone was interacted with while it held items (spec 005).
 ## Relayed here so whoever loads the zone connects one signal, not every box.
@@ -19,6 +22,8 @@ var _generated: bool = false
 @onready var _spawn_point: Marker3D = %SpawnPoint
 @onready var _box_markers: Node3D = %BoxMarkers
 @onready var _boxes_root: Node3D = %Boxes
+@onready var _enemy_markers: Node3D = %EnemyMarkers
+@onready var _zombie_spawner: ZombieSpawner = %ZombieSpawner
 
 
 ## Places the boxes once (second call → push_error, no change). How many and
@@ -50,6 +55,25 @@ func get_spawn_position() -> Vector3:
 
 func get_boxes() -> Array[LootBox]:
 	return _boxes
+
+
+## Places the zombies of the given visit, taken from the pool. Calling it
+## again without despawn_enemies() → push_error, no change.
+func spawn_enemies(world_seed: int, visit: int, pool: ObjectPool) -> void:
+	if data == null:
+		push_error("FarmZone '%s': data must be assigned." % name)
+		return
+	_zombie_spawner.spawn(data, _enemy_markers.get_children(), world_seed, visit, pool)
+
+
+## Returns every zombie to the pool. Whoever unloads the zone calls it first
+## (ZoneLoader, spec 009), so the pooled instances are not freed with it.
+func despawn_enemies() -> void:
+	_zombie_spawner.despawn_all()
+
+
+func get_enemies() -> Array[Zombie]:
+	return _zombie_spawner.get_active()
 
 
 func _place_box(marker: Marker3D, marker_index: int, world_seed: int) -> void:

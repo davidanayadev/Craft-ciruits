@@ -262,6 +262,7 @@ func get_health() -> HealthComponent
 class_name ZombieSpawner
 extends Node3D
 const FIRST_VISIT := 0                      # until spec 010 adds the visit counter
+@export var enemies_root: Node3D            # parent of the active zombies (%Enemies); added in T-006-11
 func spawn(zone: ZoneData, markers: Array[Node], world_seed: int, visit: int, pool: ObjectPool) -> void
 func despawn_all() -> void
 func get_active() -> Array[Zombie]
@@ -350,6 +351,32 @@ navegación y los parámetros del horneado son técnicos, no de gameplay. Viven 
    CC0 con sus animaciones, si se usa.
 8. Cómo leer los triángulos en pantalla en un APK debug: monitor `Performance` de render o depurador remoto del
    editor.
+
+### 5.1 Resultado de la verificación (T-006-01, 2026-11-15)
+
+Comprobado en la referencia de clases que genera el propio binario (`--doctool`, 4.7.2.stable) y con scripts de
+prueba en headless sobre `farm_zone_green.tscn`. Ningún punto falla; tres dan un ajuste técnico que no cambia el
+enfoque.
+
+| # | Resultado |
+|---|---|
+| 1 | Las tres propiedades y sus enums existen con esos nombres. El horneado **sí** lee las mallas del `GridMap` sin colisión, así que no hace falta el suelo plano. **Ajuste:** con `PARSED_GEOMETRY_BOTH` salen islas transitables encima de las copas, las rocas y la chatarra (el navmesh llegaba a y = 4.8). Se limita la altura con `filter_baking_aabb` (parámetro técnico del `NavigationMesh`): queda un solo plano, con los obstáculos y la valla recortados |
+| 2 | `NavigationRegion3D.bake_navigation_mesh()` y `NavigationServer3D.parse_source_geometry_data()` + `bake_from_source_geometry_data()` hornean igual en headless. **Ajuste:** el `NavigationMesh` se guarda como `.tres` externo (`resources/zones/green_zone_navmesh.tres`, unos 10 KB de texto) en lugar de dentro de la escena, para que el diff de `farm_zone_green.tscn` sea legible. El primer horneado se hace con el binario headless; el botón "Bake NavigationMesh" del editor lo rehace sobre el mismo archivo |
+| 3 | Todo existe con esos nombres; `avoidance_enabled` es `false` por defecto. Cambiar `target_position` y pedir el siguiente punto cuesta unos 90 µs en el PC de desarrollo (1 000 cambios en 89 ms). En el móvil se mide en T-006-14 |
+| 4 | El mapa tarda **4 pasos de física** (dos iteraciones) en sincronizarse tras añadir la zona. Antes, el agente no da camino (devuelve su propia posición, sin error). Los tests con navmesh esperan a que `map_get_iteration_id()` suba y a que haya camino, con un tope de fotogramas. Los tests de movimiento con navmesh se escriben tal cual (no hace falta el plan B del riesgo 1) |
+| 5 | Funciona: un punto dentro de un árbol o más allá de la valla da el punto transitable más cercano. **Ajuste:** antes de la primera sincronización la consulta escribe un error del motor, así que `Zombie` solo proyecta el punto si `map_get_iteration_id() > 0`; si no, usa el punto sin proyectar (el agente lo resuelve al sincronizarse) |
+| 6 | Sacar un `CharacterBody3D` del árbol con `call_deferred` desde un paso de física es seguro. Liberar las instancias guardadas en `NOTIFICATION_PREDELETE` del pool funciona con `free()` y con `queue_free()`, sin huérfanos |
+| 7 | Se comprueba al montar `zombie.tscn` (T-006-09): el test R-006-10 carga la escena y pide las tres animaciones |
+| 8 | `Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME` existe. Se lee en el depurador remoto del editor (Depurador → Monitores) con el APK debug lanzado desde el editor; el `DebugHud` no cambia |
+
+El navmesh queda entre 0.25 y 0.5 m por encima del suelo (redondeo de `cell_height`). No afecta: el zombie solo usa
+la dirección horizontal hacia el siguiente punto. Con `target_desired_distance = 1` (valor por defecto del agente),
+la patrulla termina a menos de 1 m del punto.
+
+**Añadido durante la implementación (T-006-11).** `ZombieSpawner` coloca cada zombie en su marcador **antes** de
+añadirlo al árbol. Un `CharacterBody3D` que entra en el origen y salta al marcador en el mismo fotograma arrastra,
+como una plataforma móvil, al personaje que tuviera encima (el robot, en el origen de la zona). Pasa igual al
+reutilizar una instancia del pool, que conserva la posición de su vida anterior.
 
 ## 6. Check de constitución
 

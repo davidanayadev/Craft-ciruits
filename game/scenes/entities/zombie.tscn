@@ -1,0 +1,231 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/entities/zombie.gd" id="1_frpv3"]
+[ext_resource type="Script" path="res://scripts/components/health_component.gd" id="2_asks5"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_47c00"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8iiss"]
+albedo_color = Color(0.3, 0.27, 0.35, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_q0vya"]
+material = SubResource("StandardMaterial3D_8iiss")
+radius = 0.35
+height = 1.3
+radial_segments = 10
+rings = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8xkb4"]
+albedo_color = Color(0.42, 0.55, 0.33, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_qs2ru"]
+material = SubResource("StandardMaterial3D_8xkb4")
+radius = 0.28
+height = 0.56
+radial_segments = 10
+rings = 5
+
+[sub_resource type="BoxMesh" id="BoxMesh_y3gxn"]
+material = SubResource("StandardMaterial3D_8xkb4")
+size = Vector3(0.14, 0.14, 0.7)
+
+[sub_resource type="Animation" id="Animation_rv1jy"]
+length = 0.6
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(-0.3, 0, 0), Vector3(0, 0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0, 0, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/ArmLeft:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.3, 1.25, -0.45), Vector3(-0.2, 1, -0.75), Vector3(-0.3, 1.25, -0.45)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/ArmRight:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.3, 1.25, -0.45), Vector3(0.2, 1, -0.75), Vector3(0.3, 1.25, -0.45)]
+}
+
+[sub_resource type="Animation" id="Animation_bvivf"]
+length = 2.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1, 2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, -0.05), Vector3(0, 0, 0.05), Vector3(0, 0, -0.05)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0, 0, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/ArmLeft:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(-0.3, 1.25, -0.45), Vector3(-0.3, 1.25, -0.45)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/ArmRight:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0.3, 1.25, -0.45), Vector3(0.3, 1.25, -0.45)]
+}
+
+[sub_resource type="Animation" id="Animation_5va6l"]
+length = 0.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.1, 0, -0.08), Vector3(-0.1, 0, 0.08), Vector3(-0.1, 0, -0.08)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0, 0.06, 0), Vector3(0, 0, 0), Vector3(0, 0.06, 0), Vector3(0, 0, 0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/ArmLeft:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(-0.3, 1.33, -0.45), Vector3(-0.3, 1.17, -0.45), Vector3(-0.3, 1.33, -0.45)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/ArmRight:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector3(0.3, 1.17, -0.45), Vector3(0.3, 1.33, -0.45), Vector3(0.3, 1.17, -0.45)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_b0fnr"]
+_data = {
+&"attack": SubResource("Animation_rv1jy"),
+&"idle": SubResource("Animation_bvivf"),
+&"walk": SubResource("Animation_5va6l")
+}
+
+[node name="Zombie" type="CharacterBody3D" unique_id=1213355710]
+script = ExtResource("1_frpv3")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=497687656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_47c00")
+
+[node name="Model" type="Node3D" parent="." unique_id=422486314]
+
+[node name="Body" type="MeshInstance3D" parent="Model" unique_id=673562727]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+mesh = SubResource("CapsuleMesh_q0vya")
+
+[node name="Head" type="MeshInstance3D" parent="Model" unique_id=1094293083]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+mesh = SubResource("SphereMesh_qs2ru")
+
+[node name="ArmLeft" type="MeshInstance3D" parent="Model" unique_id=1320584761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.25, -0.45)
+mesh = SubResource("BoxMesh_y3gxn")
+
+[node name="ArmRight" type="MeshInstance3D" parent="Model" unique_id=300987737]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.25, -0.45)
+mesh = SubResource("BoxMesh_y3gxn")
+
+[node name="Health" type="Node" parent="." unique_id=1974702558]
+unique_name_in_owner = true
+script = ExtResource("2_asks5")
+
+[node name="NavAgent" type="NavigationAgent3D" parent="." unique_id=2076124600]
+unique_name_in_owner = true
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1406497787]
+unique_name_in_owner = true
+libraries/ = SubResource("AnimationLibrary_b0fnr")

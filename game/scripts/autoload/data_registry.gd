@@ -28,3 +28,11 @@ func get_item(id: StringName) -> ItemData:
 		push_error("DataRegistry: no catalog loaded; cannot return item '%s'." % id)
 		return null
 	return _catalog.get_item(id)
+
+
+## Unknown id → push_error and null.
+func get_enemy(id: StringName) -> EnemyData:
+	if _catalog == null:
+		push_error("DataRegistry: no catalog loaded; cannot return enemy '%s'." % id)
+		return null
+	return _catalog.get_enemy(id)

@@ -10,6 +10,8 @@ extends RefCounted
 
 const STREAM_BOX_PLACEMENT := &"box_placement"
 const STREAM_BOX_LOOT := &"box_loot"
+const STREAM_ENEMY_SPAWN := &"enemy_spawn"
+const STREAM_ENEMY_BRAIN := &"enemy_brain"
 
 const _HEADER_SIZE := 20
 const _ZONE_X_OFFSET := 8

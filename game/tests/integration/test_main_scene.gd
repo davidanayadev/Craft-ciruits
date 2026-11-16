@@ -10,8 +10,12 @@ extends GutTest
 ## moves the loot to the robot (R-005-19, R-005-20), the storage button and
 ## action toggle the inventory screen (R-005-24), a screen blocks the robot
 ## without pausing the game (R-005-27) and game over closes them (R-005-29).
+## Spec 006: the zombies of the first visit are in the zone from the start
+## (R-006-26), taken from a prewarmed pool under World, and they keep acting
+## while a screen is open (R-006-19).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const MAIN_ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const CAMERA_PATH := "res://resources/config/camera.tres"
 
 var _main: Node
@@ -429,3 +433,74 @@ func test_r_005_29_game_over_closes_and_blocks_screens() -> void:
 	_send_open_storage(true)
 	await wait_process_frames(2)
 	assert_false(_ui_manager().is_modal_open(), "nor does the open_storage action")
+
+
+func _zombie_pool() -> ObjectPool:
+	return _main.get_node("World/ZombiePool") as ObjectPool
+
+
+func _describe_enemies(zone: FarmZone) -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	for zombie: Zombie in zone.get_enemies():
+		lines.append("%s @ %s" % [zombie.get_data().id, zombie.global_position])
+	return lines
+
+
+func test_r_006_26_main_passes_first_visit() -> void:
+	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var pool: ObjectPool = _zombie_pool()
+	assert_not_null(pool, "the zombie pool lives under World, outside the zone")
+	if pool == null:
+		return
+	var zombies: Array[Zombie] = zone.get_enemies()
+	assert_between(
+		zombies.size(), zone.data.enemy_count_min, zone.data.enemy_count_max, "zombies at start"
+	)
+	assert_eq(
+		pool.get_free_count(),
+		zone.data.enemy_count_max - zombies.size(),
+		"the pool was prewarmed with the maximum of the zone"
+	)
+	var expected: FarmZone = MAIN_ZONE_SCENE.instantiate() as FarmZone
+	add_child_autofree(expected)
+	var expected_pool: ObjectPool = ObjectPool.new()
+	expected_pool.scene = pool.scene
+	add_child_autofree(expected_pool)
+	expected.spawn_enemies(GameManager.get_world_seed(), ZombieSpawner.FIRST_VISIT, expected_pool)
+	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "world seed and visit 0")
+
+
+func test_r_006_23_no_zombie_sees_the_robot_at_start() -> void:
+	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	await wait_physics_frames(10)
+	# Zombies must enter the scene on their markers: one that enters on top of
+	# the robot and jumps away drags it along.
+	assert_eq(_robot().global_position, zone.get_spawn_position(), "the robot stays on its spawn")
+	for zombie: Zombie in zone.get_enemies():
+		assert_eq(zombie.get_state(), EnemyBrain.State.IDLE, "zombie at %s is idle at start" % zombie.global_position)
+
+
+func test_r_006_19_zombies_act_with_screen_open() -> void:
+	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var robot: Robot = _robot()
+	var zombie: Zombie = zone.get_enemies()[0]
+	# The navigation map needs a few physics frames before it gives paths.
+	await wait_physics_frames(10)
+	_storage_button().pressed.emit()
+	assert_true(_ui_manager().is_modal_open(), "the inventory screen is open")
+	var start: Vector3 = zombie.global_position
+	var vision: float = zombie.get_data().ai.vision_radius
+	# Towards the centre of the zone, inside the zombie's vision.
+	robot.global_position = start - start.normalized() * (vision * 0.75)
+	var battery_before: float = robot.battery.get_current()
+	await wait_physics_frames(60)
+	assert_true(_ui_manager().is_modal_open(), "the screen is still open")
+	assert_false(get_tree().paused, "the game is not paused")
+	assert_ne(zombie.get_state(), EnemyBrain.State.IDLE, "the zombie saw the robot")
+	assert_gt(zombie.global_position.distance_to(start), 0.5, "and walked towards it")
+	assert_lt(
+		zombie.global_position.distance_to(robot.global_position),
+		start.distance_to(robot.global_position),
+		"getting closer"
+	)
+	assert_lt(robot.battery.get_current(), battery_before, "the battery keeps draining")

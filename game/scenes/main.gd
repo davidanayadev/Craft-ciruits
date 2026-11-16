@@ -9,6 +9,8 @@ extends Node
 ## opens a box and the inventory on the storage button, and blocks the robot's
 ## input while one is open. UIManager sits before Hud in UI, so the HUD is
 ## drawn on top of the screens.
+## The zombie pool lives here, under World and not in the zone, so it outlives
+## the zone and is reused between visits (spec 006).
 
 @onready var _robot: Robot = %Robot
 @onready var _camera_rig: CameraRig = %CameraRig
@@ -17,11 +19,13 @@ extends Node
 @onready var _ui_manager: UIManager = %UIManager
 @onready var _world: Node3D = %World
 @onready var _zone: FarmZone = %GreenZone
+@onready var _zombie_pool: ObjectPool = %ZombiePool
 @onready var _game_over_screen: GameOverScreen = %GameOverScreen
 
 
 func _ready() -> void:
 	_zone.generate(GameManager.get_world_seed())
+	_spawn_enemies()
 	_robot.global_position = _zone.get_spawn_position()
 	_robot.camera_rig = _camera_rig
 	_camera_rig.target = _robot
@@ -35,6 +39,14 @@ func _ready() -> void:
 	_touch_controls.joystick.released.connect(_on_joystick_released)
 	_robot.battery.battery_depleted.connect(_on_battery_depleted)
 	_game_over_screen.restart_requested.connect(_on_restart_requested)
+
+
+## Creates every zombie the zone can hold before the game starts, so none is
+## instantiated mid-game, and places the ones of this visit.
+func _spawn_enemies() -> void:
+	if _zone.data != null:
+		_zombie_pool.prewarm(_zone.data.enemy_count_max)
+	_zone.spawn_enemies(GameManager.get_world_seed(), ZombieSpawner.FIRST_VISIT, _zombie_pool)
 
 
 func _on_joystick_sample_changed(sample: JoystickLogic.Sample) -> void:
