@@ -1,6 +1,7 @@
 extends GutTest
 ## Guards the project settings fixed by spec 001 (R-001-14) and the autoloads
 ## of spec 004: changing one of them from the editor must turn the suite red.
+## Spec 007 adds the EventBus autoload, loaded first, and the hurtbox layer.
 
 const RENDERER_COMPATIBILITY: String = "gl_compatibility"
 ## Values of the "Ignore,Warn,Error" hint of every debug/gdscript/warnings/* setting.
@@ -104,6 +105,21 @@ func test_r_004_12_interaction_physics_layer_named() -> void:
 	# The name is what the editor shows; the number lives in the component.
 	var setting: String = "layer_names/3d_physics/layer_%d" % InteractableComponent.PHYSICS_LAYER
 	assert_eq(_get_string(setting), "interaction")
+
+
+func test_r_007_17_event_bus_autoload_first() -> void:
+	assert_eq(_get_string("autoload/EventBus"), "*res://scripts/autoload/event_bus.gd")
+	# Loaded first, so every other autoload can connect to it in its _ready.
+	var bus: Node = get_tree().root.get_node_or_null("EventBus")
+	assert_not_null(bus, "EventBus is a node under /root")
+	if bus != null:
+		assert_eq(bus.get_index(), 0, "and the first autoload")
+
+
+func test_r_007_12_hurtbox_physics_layer_named() -> void:
+	# The name is what the editor shows; the number lives in the component.
+	var setting: String = "layer_names/3d_physics/layer_%d" % HurtboxComponent.PHYSICS_LAYER
+	assert_eq(_get_string(setting), "hurtbox")
 
 
 func test_r_005_33_back_does_not_quit() -> void:

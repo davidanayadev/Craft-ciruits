@@ -24,6 +24,8 @@ const DRAIN_SLACK := 0.5
 ## Physics frames the navigation map may take to synchronise (plan 006 §5.1).
 const NAV_SYNC_MAX_FRAMES := 30
 const ANIMATIONS: Array[StringName] = [&"idle", &"walk", &"attack"]
+const UID_A := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+const UID_B := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 var _slow: EnemyData
 var _fast: EnemyData
@@ -262,3 +264,85 @@ func test_r_006_22_reused_zombie_is_reset() -> void:
 	assert_true(reused.is_physics_processing(), "and acting again")
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_eq(reused.get_state(), EnemyBrain.State.IDLE, "with no target left from its first life")
+
+
+func test_r_007_17_scene_has_hurtbox_and_flash() -> void:
+	var zombie: Zombie = _new_zombie()
+	var hurtbox: HurtboxComponent = zombie.get_node("%Hurtbox") as HurtboxComponent
+	assert_not_null(hurtbox, "%Hurtbox is a HurtboxComponent")
+	assert_not_null(zombie.get_node("%HitFlash") as HitFlashComponent, "%HitFlash is a HitFlashComponent")
+	if hurtbox == null:
+		return
+	assert_same(zombie.get_hurtbox(), hurtbox, "get_hurtbox() returns it")
+	assert_same(hurtbox.health, zombie.get_health(), "it damages the zombie's own health")
+	var body: CollisionShape3D = zombie.get_node("CollisionShape3D") as CollisionShape3D
+	var shapes: Array[Node] = hurtbox.find_children("*", "CollisionShape3D", false, false)
+	assert_eq(shapes.size(), 1, "the hurtbox has one shape")
+	if shapes.size() != 1:
+		return
+	var hurt_shape: CollisionShape3D = shapes[0] as CollisionShape3D
+	assert_same(hurt_shape.shape, body.shape, "the same capsule as its body, shared")
+	assert_eq(hurt_shape.position, body.position, "in the same place")
+
+
+func test_r_007_17_enemy_killed_once_with_last_hitter() -> void:
+	var zombie: Zombie = _active_zombie(_slow)
+	var hurtbox: HurtboxComponent = zombie.get_hurtbox()
+	watch_signals(EventBus)
+	watch_signals(zombie)
+	hurtbox.receive_attack(_slow.hp_max - 1, UID_A)
+	assert_signal_not_emitted(EventBus, "enemy_killed", "a hit that does not kill announces nothing")
+	hurtbox.receive_attack(1, UID_B)
+	assert_signal_emit_count(EventBus, "enemy_killed", 1, "the kill is announced")
+	assert_signal_emitted_with_parameters(EventBus, "enemy_killed", [_slow.id, UID_B])
+	assert_signal_emit_count(zombie, "defeated", 1, "and the zombie is defeated as before")
+	hurtbox.receive_attack(1, UID_A)
+	assert_signal_emit_count(EventBus, "enemy_killed", 1, "hits on the dead zombie announce nothing more")
+
+
+func test_r_007_17_death_without_attacker_is_not_a_kill() -> void:
+	var zombie: Zombie = _active_zombie(_slow)
+	watch_signals(EventBus)
+	zombie.get_health().take_damage(_slow.hp_max)
+	assert_signal_not_emitted(EventBus, "enemy_killed", "nobody killed it")
+
+
+func test_r_007_24_hurt_flashes() -> void:
+	var zombie: Zombie = _active_zombie(_slow)
+	var flash: HitFlashComponent = zombie.get_node("%HitFlash") as HitFlashComponent
+	var body: MeshInstance3D = zombie.get_node("Model/Body") as MeshInstance3D
+	assert_false(flash.is_flashing(), "no flash before a hit")
+	zombie.get_hurtbox().receive_attack(1, UID_A)
+	assert_true(flash.is_flashing(), "a hit makes it flash")
+	assert_same(body.material_overlay, flash.material, "white over its meshes")
+	assert_eq(flash.meshes.size(), 4, "every mesh of the model flashes")
+	flash.advance(flash.feedback.enemy_flash_s)
+	assert_false(flash.is_flashing(), "for the flash time of the feedback data")
+	assert_null(body.material_overlay, "then it looks as before")
+
+
+func test_r_007_23_reused_zombie_is_clean() -> void:
+	var pool: ObjectPool = ObjectPool.new()
+	pool.scene = ZOMBIE_SCENE
+	add_child_autofree(pool)
+	var holder: Node3D = add_child_autofree(Node3D.new()) as Node3D
+	var zombie: Zombie = pool.acquire() as Zombie
+	holder.add_child(zombie)
+	zombie.activate(_slow, HOME, BRAIN_SEED)
+	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
+	assert_true(zombie.get_health().is_dead(), "first life: killed")
+	pool.release(zombie)
+	var reused: Zombie = pool.acquire() as Zombie
+	assert_same(reused, zombie, "the pool gives the same instance back")
+	holder.add_child(reused)
+	reused.activate(_fast, HOME, BRAIN_SEED + 1)
+	var flash: HitFlashComponent = reused.get_node("%HitFlash") as HitFlashComponent
+	var body: MeshInstance3D = reused.get_node("Model/Body") as MeshInstance3D
+	assert_eq(reused.get_health().get_current(), _fast.hp_max, "full HP")
+	assert_false(flash.is_flashing(), "no flash")
+	assert_null(body.material_overlay, "no flash material left on its meshes")
+	assert_eq(reused.get_hurtbox().get_last_attacker_uid(), "", "no record of who hit it")
+	assert_true(reused.get_hurtbox().is_alive(), "and it can be hit again")
+	watch_signals(EventBus)
+	reused.get_health().take_damage(_fast.hp_max)
+	assert_signal_not_emitted(EventBus, "enemy_killed", "the kill of its first life is not repeated")

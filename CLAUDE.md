@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3), 003
 (battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1), 005 (inventory, ACTION_PLAN
-Tarea 1.2) and 006 (zombies, ACTION_PLAN Tarea 1.3) are done and merged. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
+Tarea 1.2), 006 (zombies, ACTION_PLAN Tarea 1.3) and 007 (melee combat and XP on kill, ACTION_PLAN Tarea 1.4) are
+done and merged. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
@@ -18,8 +19,14 @@ the robot's input while one is open without pausing the game. Slow and fast zomb
 `HealthComponent`, the pure `EnemyBrain` state machine and a `NavigationAgent3D` on the zone's baked navmesh)
 patrol, chase and hit the robot, which loses battery through `Robot.receive_hit`. `ZombieSpawner` places them
 from the world seed and the visit number, taking them from an `ObjectPool` under `World`. The zombie model is a
-placeholder made of primitives. The `GameManager` and `DataRegistry` autoloads exist. The robot cannot attack
-yet, and there is no real death, saving, chests or crafting. The next spec is 007.
+placeholder made of primitives. The robot fights with one arm (`AttackStatsData`, rules in the pure
+`CombatSystem`): its `MeleeAttackComponent` swings on the HUD attack button, Space or left click (read through
+`PlayerInput.poll_attack`, never from the action state, so HUD clicks are not attacks), each swing costs battery
+and its impact is one shape query that only sees `HurtboxComponent`s. A zombie killed by a player emits
+`EventBus.enemy_killed` and the killer's `ExperienceComponent` adds the XP of its `EnemyData` (shown in the debug
+HUD only). `CombatFeedback` wires the white hit flash, camera shake, pooled impact sparks and the red screen edge.
+The `EventBus`, `GameManager` and `DataRegistry` autoloads exist. There is no real death, saving, chests,
+crafting, pieces or chassis levels yet. The next spec is 008.
 
 ## Commands
 

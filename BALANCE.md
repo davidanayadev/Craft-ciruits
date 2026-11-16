@@ -20,7 +20,7 @@
 | **Consumo pasivo (encendido)** | 0.1 puntos/segundo | 1 punto cada 10 segundos |
 | **Consumo movimiento (andar)** | +0.05 puntos/segundo | Total: 0.15/s moviéndose. Valor de las Piernas básicas (ver §4.2) |
 | **Consumo movimiento (correr)** | +0.15 puntos/segundo | Total: 0.25/s corriendo. Solo con piernas equipadas: sin piernas no se puede correr (§4.2) |
-| **Consumo ataque (golpe básico)** | 1 punto/golpe | Brazos básicos (sin armas en PMV) |
+| **Consumo ataque (golpe básico)** | 1 punto/golpe | Un brazo y Brazos básicos (sin armas en PMV; §4.2). Se cobra por golpe lanzado, también si falla, y aunque vacíe la batería (decisión nov 2026, spec 007) |
 | **Recarga en base** | Instantánea al 100% | Al interactuar con una Estación de carga (ver §5.3). Sin recarga automática: la batería se consume también dentro de la base (decisión nov 2026) |
 | **Batería al reaparecer** | 100% | Tras morir, en la base (PMV.md §2.4) |
 | **Umbral de batería baja** | 20% de la batería máxima | Dispara el aviso "Batería baja" (decisión nov 2026). Con la máxima base, 20 puntos |
@@ -81,7 +81,7 @@
 | **Rápido** | 15 | 4 | 3.5 m/s | Ninguna | 3 |
 
 **Notas**:
-- Zombies no sueltan piezas, solo materiales básicos (0-1 chatarra).
+- Zombies no sueltan piezas, solo materiales básicos (0-1 chatarra). Se tira con la regla de rangos de §2.1, así que la mitad de las veces no cae nada, y cae al suelo como objeto caído (§7.2; decisión nov 2026, spec 008).
 - Daño de zombie se aplica cada 1.5 segundos (si está en rango de ataque). El primer golpe llega tras un intervalo completo en rango; salir y volver a entrar reinicia la espera (decisión nov 2026, spec 006).
 - **El daño son puntos de batería, 1:1** (decisión nov 2026, spec 006): un golpe de zombie lento quita 5 puntos de batería y uno rápido, 4. Sin defensa del jugador en el PMV (la `defensa_jugador` de §9.2 vale 0).
 - XP se otorga al jugador al matar.
@@ -126,7 +126,7 @@
 
 | Pieza | Daño ataque | Velocidad ataque | Consumo batería/golpe | Efecto especial |
 |---|---|---|---|---|
-| **Sin brazos** | 0 | 0 | 0 | No puede atacar |
+| **Un brazo (sin Brazos básicos)** | 5 | 1.0 golpe/s | 1 | Estado base del robot, no es una pieza: no se degrada ni se pierde al morir. Se empieza con él y se vuelve a él al romper o perder los Brazos básicos. El robot nunca se queda sin ataque (decisión nov 2026, spec 007) |
 | **Brazos básicos** | 10 | 1.0 golpe/s | 1 | Ninguno |
 
 #### Piernas
@@ -224,6 +224,20 @@
 
 **Nota**: la base empieza solo con el Banco de reparaciones. La Estación de carga, el generador eólico y los cofres se construyen desde él.
 
+### 5.6 Base y cuadrícula de colocación (decisión nov 2026, spec 009)
+
+Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, se amplía.
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Tamaño de la base** | 20x20 m | Escena fija, centrada en su celda del mapa global (§7) |
+| **Tamaño de celda** | 1.0 m | Cuadrícula de colocación (ACTION_PLAN Tarea 2.8) |
+| **Área edificable** | 12x8 celdas | 96 celdas, menos las reservadas (punto de aparición, frente del banco y del punto de salida), que son dato de la escena de la base |
+| **Huella de la estación de carga** | 1x1 celdas | La huella es dato de cada estructura. La del generador y la del cofre se fijan con la spec 012 |
+| **Rotación de estructuras** | No | En el PMV no se giran |
+| **Mover una estructura** | Sin coste | Modo edición |
+| **Desmontar una estructura** | No | En el PMV las estructuras se mueven, no se quitan |
+
 ---
 
 ## 6. Progresión (XP / Mejora de chasis)
@@ -286,7 +300,8 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
 | **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
 | **Enemigos** | Reaparecen con el mismo contador de visitas (spec 006) |
-| **Quién lo aplica** | Guardado por zona (spec 010) |
+| **Material soltado por los enemigos** | Misma regla que los soltados al morir: cae al suelo como objeto caído, no depende del contador y caduca con la misma duración (decisión nov 2026, spec 008) |
+| **Quién lo aplica** | El contador y la reposición de cajas y enemigos: spec 008 (al morir) y spec 009 (al salir por el punto de salida). El guardado del contador, de las cajas abiertas y de los objetos caídos: spec 010 (decisión nov 2026, spec 008) |
 
 Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar batería y riesgo (ACTION_PLAN Tarea 5.2). Morir tampoco es una vía segura de recuperación: al volver a por las piezas, la zona ya está repuesta, con los enemigos de nuevo en pie (decisión nov 2026).
 
@@ -299,7 +314,7 @@ Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar bater
 | Acción | Resultado esperado |
 |---|---|
 | Viajar a zona verde | Sin coste (viajes ilimitados en PMV), desde el punto de salida de la base |
-| Matar 5 zombies | +10-15 XP, +2-5 chatarra |
+| Matar 5 zombies | +10-15 XP, +0-5 chatarra (0-1 por zombie, §3.1) |
 | Abrir 3 cajas | +6-15 chatarra, +0-6 cables, +0-3 hierro |
 | Morir (50% probabilidad) | Pierdes piezas equipadas, materiales del inventario |
 | Volver a base | Sin coste |
@@ -309,7 +324,7 @@ Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar bater
 
 | Día | Estado del jugador |
 |---|---|
-| **Día 1** | Sin piezas, 5 slots, zona verde. Aprende mecánicas. Guía básica. Craftea su primera Estación de carga. |
+| **Día 1** | Sin piezas (pelea con un brazo, §4.2), 5 slots, zona verde. Aprende mecánicas. Guía básica. Craftea su primera Estación de carga. |
 | **Día 2-3** | Consigue brazos básicos y piernas básicas. Empieza a explorar con más confianza. |
 | **Día 4-7** | Tiene piezas básicas. Aprende a reparar. Generador eólico genera baterías. |
 | **Día 7-14** | Nivel de chasis 2-3. Tiene combinación de piezas. Optimiza rutas de farmeo. |
@@ -380,6 +395,25 @@ Si pieza.durabilidad <= 0 → Pieza rota; el siguiente golpe degrada la siguient
 | **Velocidad de giro del robot** | 10.0 rad/s | Media vuelta en ~0.3 s (plan 002). Ajustar en el móvil (T-002-08) |
 | **Radio de interacción** | 2.0 m | Distancia a la que aparece el botón "Interactuar" para el objeto más cercano (spec 004, decisión nov 2026). Ajustar en el móvil |
 | **Rango de la sensibilidad en Opciones** | Por definir | Se fija con la Tarea 4.2 |
+
+**Combate** (valores iniciales, decisión nov 2026, spec 007; ajustar en el móvil):
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Auto-apuntado** | No | El robot golpea hacia donde mira; apuntar es cosa del jugador |
+| **Alcance del golpe** | 2.0 m | Caja delante del robot. Debe superar los 1.5 m a los que se para el zombie para atacar (§3.1) |
+| **Ancho del golpe** | 1.0 m | Daña una vez a cada enemigo vivo dentro |
+| **Momento del impacto** | 0.2 s | Desde el inicio del golpe. Menor que 1 / velocidad de ataque (§4.2) |
+| **Destello blanco del enemigo** | 0.1 s | Al recibir un golpe del robot |
+| **Sacudida de cámara al golpear** | 0.05 m durante 0.1 s | |
+| **Sacudida de cámara al recibir un golpe** | 0.15 m durante 0.2 s | |
+| **Borde rojo del HUD al recibir un golpe** | 0.3 s | |
+
+**Muerte** (valores iniciales, decisión nov 2026, spec 008; ajustar en el móvil):
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Pantalla de "Transferencia de Consciencia"** | 2.0 s | Termina sola, sin botón. Después el robot reaparece con la batería de §1.1 |
 
 ---
 

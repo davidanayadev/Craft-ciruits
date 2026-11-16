@@ -267,8 +267,8 @@ enum Op { SET, ADD, MULTIPLY }
 @export var value: float
 ```
 
-- Valores base del robot **sin piezas** en `RobotBaseStats.tres` (BALANCE §4.2: sin piernas 0.5 m/s, sin brazos
-  0 de daño…).
+- Valores base del robot **sin piezas** en `RobotBaseStats.tres` (BALANCE §4.2: sin piernas 0.5 m/s, con un
+  brazo 5 de daño…).
 - `StatsCalculator.compute(base, modifiers) -> Dictionary` aplica en orden `SET` → `ADD` → `MULTIPLY`.
 - `StatsComponent` recalcula al cambiar el equipo o romperse una pieza y emite `stats_changed`. Batería,
   movimiento y combate **leen** de él; ninguno mira las piezas directamente.

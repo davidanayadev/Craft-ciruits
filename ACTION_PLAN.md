@@ -174,27 +174,27 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
 ### Tarea 1.4: Sistema de combate (16h)
 - [ ] Ataque cuerpo a cuerpo con los brazos (sin armas en el PMV; armas en v1.1, ver SPECS.md §18):
   - [ ] Hitbox de ataque (Area3D) en los brazos del robot (BoneAttachment3D o nodo hijo)
-  - [ ] Daño y velocidad de ataque según los brazos equipados (BALANCE.md §4.2). Hasta la Fase 3, usar los valores de Brazos básicos
-  - [ ] Sin brazos: no puede atacar
+  - [ ] Daño y velocidad de ataque según los brazos equipados (BALANCE.md §4.2). Hasta la Fase 3, usar los valores de un brazo
+  - [ ] Sin Brazos básicos: ataca con un brazo, el estado base del robot (más débil; nunca se queda sin ataque, decisión nov 2026)
+  - [ ] Sin auto-apuntado: golpea hacia donde mira y puede moverse mientras golpea (BALANCE.md §11, "Combate")
 - [ ] Sistema de ataque:
   - [ ] Input: botón de atacar (derecha)
   - [ ] Animación de ataque (AnimationPlayer)
   - [ ] Hitbox: Area3D que se activa durante animación
   - [ ] Detección de enemigos en hitbox
   - [ ] Aplicar daño a HealthComponent del enemigo
-  - [ ] Consumo de batería: 1 punto/golpe
+  - [ ] Consumo de batería: 1 punto/golpe lanzado, también si falla (BALANCE.md §1.1)
   - [ ] Al matar: otorgar XP directa (zombie lento 2, rápido 3; BALANCE.md §6.2)
-- [ ] Feedback visual/sonoro:
+- [ ] Feedback visual (valores en BALANCE.md §11, "Combate"; los SFX de golpe y de daño pasan a la Tarea 4.3, que crea `AudioManager`):
   - [ ] Screen shake al golpear (Camera3D shake)
-  - [ ] Partículas de impacto (GPUParticles3D)
-  - [ ] SFX de golpe (AudioStreamPlayer3D)
+  - [ ] Partículas de impacto con pool (GPUParticles3D, o CPUParticles3D si no van en Compatibility)
   - [ ] Flash blanco en enemigo (modulate temporal)
 - [ ] Sistema de daño al jugador:
   - [ ] Cuando zombie ataca: restar batería
-  - [ ] Feedback: screen shake, SFX de daño, flash rojo en HUD
+  - [ ] Feedback: screen shake y flash rojo en el borde del HUD
 - [ ] Test: jugador puede matar zombies, zombies pueden matar al jugador
 
-**Entregable**: combate funcional con feedback visual/sonoro.
+**Entregable**: combate funcional con feedback visual.
 
 ### Tarea 1.5: Mecánica de muerte (10h)
 - [ ] Ruleset como dato (PMV.md §4.5, gancho 4):
@@ -204,19 +204,20 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
   - [ ] Cuando `battery_current <= 0`:
     - [ ] Emitir señal `player_died`
     - [ ] Guardar posición de muerte como `(zone_id, posición local)`; también si muere dentro de la base, con las mismas reglas (PMV.md §2.4)
-    - [ ] Morir cuenta como salir de la zona: subir su contador de visitas, de modo que cajas y enemigos se repongan antes de la recuperación (BALANCE.md §7.2)
+    - [ ] Morir cuenta como salir de la zona: subir su contador de visitas, de modo que cajas y enemigos se repongan antes de la recuperación (BALANCE.md §7.2). El contador se crea aquí, en memoria; la Tarea 2.3 lo guarda (decisión nov 2026, spec 008)
     - [ ] Guardar items del inventario (para drop)
-    - [ ] Limpiar piezas equipadas (conservar solo core)
-    - [ ] Transición a base, con la batería al 100% (BALANCE.md §1.1). Hasta la Fase 2 no hay estaciones de carga: reaparecer es la única recarga completa
-  - [ ] Mostrar pantalla de "Transferencia de Consciencia" (animación)
+    - [ ] Limpiar piezas equipadas (conservar solo core). Brazos y piernas se sueltan con el inventario; lo aplica la Tarea 3.1, que crea las ranuras (decisión nov 2026, spec 008)
+    - [ ] Transición a base, con la batería al 100% (BALANCE.md §1.1). Hasta la Fase 2 no hay estaciones de carga: reaparecer es la única recarga completa. Hasta la Tarea 2.1 tampoco hay base: el robot reaparece en el punto de aparición de la zona (decisión nov 2026, spec 008)
+  - [ ] Mostrar pantalla de "Transferencia de Consciencia" (animación). Termina sola (duración en BALANCE.md §11)
 - [ ] Drop de items al morir:
   - [ ] Crear escena `DroppedItem.tscn` (Area3D + MeshInstance)
-  - [ ] Spawner: crear dropped items en posición de muerte
+  - [ ] Spawner: crear un solo objeto caído con todas las pilas en la posición de muerte (decisión nov 2026, spec 008)
   - [ ] Caducidad: los items desaparecen tras 5 minutos (valor en BALANCE.md §7.2, configurable) contados desde la hora de la muerte con `ITimeService`, también con la app cerrada. Al cargar la partida se descartan los caducados; tiempo transcurrido negativo = 0 (PMV.md §10)
-- [ ] Tirar items del inventario (decisión nov 2026, PMV.md §10): desde la pantalla de inventario, el item cae como `DroppedItem` en la posición del robot y caduca con la misma regla (BALANCE.md §7.2)
+- [ ] Material de los zombies al morir (0-1 chatarra, BALANCE.md §3.1; decisión nov 2026, spec 007): cae como `DroppedItem` donde muere el zombie. La tirada sale de `SeededRng` con semilla + `zone_id` + número de visita + índice de aparición del zombie, para que no dependa del orden de las muertes
+- [ ] Tirar items del inventario (decisión nov 2026, PMV.md §10): desde la pantalla de inventario, el item cae como `DroppedItem` en la posición del robot y caduca con la misma regla (BALANCE.md §7.2). Al seleccionar una pila, un selector de cantidad (− / + y deslizador, por defecto la pila entera) decide cuántas unidades se tiran; el resto sigue en su ranura (decisión nov 2026, spec 008)
 - [ ] Recuperación de items:
   - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
-  - [ ] Interactuar con dropped items para recuperar
+  - [ ] Interactuar con el objeto caído para recuperar: coge directamente todo lo que quepa, sin pantalla
 - [ ] Test: al morir, jugador reaparece en base sin piezas y con la batería al 100%, items dropeados en zona
 
 **Entregable**: mecánica de muerte funcional con drop y recuperación de items.
@@ -233,8 +234,8 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
 ### Tarea 2.1: Escena de la base (12h)
 - [ ] Crear escena `Base.tscn`:
   - [ ] GridMap con tiles de suelo (metal, hormigón)
-  - [ ] Paredes y techo (estructura de almacén)
-  - [ ] Iluminación: luces puntuales (lámparas)
+  - [ ] Paredes, sin techo: la cámara isométrica debe ver al robot (decisión nov 2026, spec 009)
+  - [ ] Iluminación: como máximo 2 luces puntuales sin sombras más la direccional (PMV.md §3.2); el resto de lámparas, con material emisivo (decisión nov 2026, spec 009)
   - [ ] Decoración: cajas, barriles, herramientas (modelos 3D)
 - [ ] Zonas de la base:
   - [ ] Zona de entrada (spawn point)
@@ -246,7 +247,7 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
 **Entregable**: escena de base con límites y cuadrícula edificable definidos.
 
 ### Tarea 2.2: Estación de carga (recarga + guardado) (8h)
-Decisión nov 2026: la base empieza sin estación; se craftean (todas las que quieras, solo en la base) y la batería se consume también dentro de la base (BALANCE.md §5.3). Depende de la Tarea 2.4 para la receta.
+Decisión nov 2026: la base empieza sin estación; se craftean (todas las que quieras, solo en la base) y la batería se consume también dentro de la base (BALANCE.md §5.3). La spec 009 adelanta lo mínimo de la Tarea 2.4 para construirla (`RecipeData` con esta receta, cobro de materiales y pantalla de construcción del banco con una sola entrada); el guardado y el mensaje "Partida guardada" los conecta la Tarea 2.3 (decisión nov 2026, spec 009).
 - [ ] Crear escena `ChargingStation.tscn` (Area3D + MeshInstance):
   - [ ] Modelo 3D: panel con pantalla + cables
   - [ ] Interacción: botón "Recargar" cuando jugador está cerca
@@ -295,7 +296,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 **Entregable**: sistema de guardado funcional con encriptación y backup.
 
 ### Tarea 2.4: Banco de reparaciones (crafteo de piezas) (22h)
-- [ ] Crear recurso `RecipeData.gd` (PMV.md §4.5, gancho 5): ingredientes, resultado, `station` (`SELF`, `NANOBOTS`, `WORKBENCH`), `tier`, `requires` (plano o tecnología). En el PMV todas las recetas son `WORKBENCH`, tier 1, sin requisitos
+- [ ] Crear recurso `RecipeData.gd` (PMV.md §4.5, gancho 5; lo crea la spec 009 con la receta de la estación, y esta tarea lo amplía con el resto): ingredientes, resultado, `station` (`SELF`, `NANOBOTS`, `WORKBENCH`), `tier`, `requires` (plano o tecnología). En el PMV todas las recetas son `WORKBENCH`, tier 1, sin requisitos
 - [ ] Crear escena `RepairBench.tscn` (Area3D + MeshInstance):
   - [ ] Modelo 3D: mesa de trabajo con herramientas
   - [ ] Interacción: botón "Usar" cuando jugador está cerca
@@ -354,6 +355,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Grid 2x2 (4 slots)
   - [ ] Mostrar icono + cantidad
   - [ ] Botón "Transferir" (mover items entre cofre e inventario)
+  - [ ] Dividir y colocar pilas (decisión nov 2026, PMV.md §10): tocar una pila la selecciona, el selector de cantidad de la Tarea 1.5 elige cuántas unidades y tocar la ranura destino (del inventario o del cofre) las mueve ahí; se suman si es el mismo item y se intercambian si es otro. Reutiliza la regla de dividir de la spec 008
 - [ ] Construcción de cofres:
   - [ ] En banco de reparaciones: opción "Construir cofre"
   - [ ] Coste: 3 chatarra + 1 hierro
@@ -380,7 +382,7 @@ Depende de la Tarea 1.2 (inventario) y la Tarea 2.3 (guardado). Antes no existí
 Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura que construye, dentro de los límites de la base. La base en cualquier sitio del mundo llega en v1.1 (SPECS.md §32). Antes de la Tarea 2.2, que la usa.
 - [ ] Cuadrícula de la base: tamaño de celda y límites como dato (no literales)
 - [ ] Modo colocación al construir: vista previa de la estructura sobre la cuadrícula, verde si cabe y roja si no; confirmar o cancelar (táctil y PC)
-- [ ] Modo edición: mover una estructura ya construida
+- [ ] Modo edición: mover una estructura ya construida, sin coste, desde el botón "Editar base" del HUD (solo en la base). Tocar una celda mueve la vista previa; botones Confirmar / Cancelar (decisión nov 2026, spec 009; valores en BALANCE.md §5.6)
 - [ ] Ocupación: una celda no admite dos estructuras; nada fuera de los límites
 - [ ] Base llena: si no queda sitio en la cuadrícula, el botón de construir se desactiva con un aviso antes de gastar materiales (PMV.md §10)
 - [ ] Guardar posiciones como `(zone_id, celda)` en el Mundo (Tarea 2.3; PMV.md §4.5 gancho 2)
@@ -515,7 +517,7 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 
 ### Tarea 4.3: Audio (SFX + música) (20h)
 - [ ] SFX (15-20 sonidos):
-  - [ ] Combate: golpes, impactos, muerte zombie, muerte robot
+  - [ ] Combate: golpes, impactos, daño recibido, muerte zombie, muerte robot (los SFX de golpe y de daño salieron de la Tarea 1.4, spec 007)
   - [ ] UI: click botón, abrir menú, crafteo exitoso
   - [ ] Movimiento: pasos robot, viaje
   - [ ] Ambiente: viento, máquinas en base, zombies lejanos

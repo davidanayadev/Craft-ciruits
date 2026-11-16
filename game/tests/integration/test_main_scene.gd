@@ -504,3 +504,51 @@ func test_r_006_19_zombies_act_with_screen_open() -> void:
 		"getting closer"
 	)
 	assert_lt(robot.battery.get_current(), battery_before, "the battery keeps draining")
+
+
+func test_r_007_28_main_wires_combat() -> void:
+	var robot: Robot = _robot()
+	var hud: Hud = _hud()
+	var feedback: CombatFeedback = _main.get_node("CombatFeedback") as CombatFeedback
+	var impact_pool: ObjectPool = _main.get_node("World/ImpactPool") as ObjectPool
+	var debug_hud: DebugHud = _main.get_node("UI/DebugHud") as DebugHud
+	assert_not_null(feedback, "CombatFeedback exists under Main")
+	assert_not_null(impact_pool, "the impact pool lives under World")
+	assert_not_null(debug_hud, "DebugHud exists under UI")
+	if feedback == null or impact_pool == null or debug_hud == null:
+		return
+	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	assert_eq(impact_pool.get_free_count(), zone.data.enemy_count_max, "prewarmed for every enemy")
+	assert_same(feedback.impact_pool, impact_pool, "the feedback uses that pool")
+	assert_same(feedback.effects_root, _main.get_node("World"), "and plays its sparks under World")
+	# The HUD attack button reaches the robot's input.
+	hud.attack_held_changed.emit(true)
+	assert_true(robot.player_input.poll_attack(), "the attack button reaches PlayerInput")
+	hud.attack_held_changed.emit(false)
+	# Feedback bound to the local robot.
+	robot.hit_received.emit(1.0, robot)
+	assert_true(_rig().is_shaking(), "a hit on the robot shakes the camera")
+	assert_true((hud.get_node("%DamageFlash") as DamageFlash).visible, "and flashes the screen edges")
+	# Debug XP bound to the local robot.
+	robot.experience.add_xp(3)
+	assert_eq((debug_hud.get_node("%XpLabel") as Label).text, "XP: 3", "the debug HUD shows its XP")
+
+
+func test_r_007_28_robot_kills_a_zone_zombie() -> void:
+	var robot: Robot = _robot()
+	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var zombie: Zombie = zone.get_enemies()[0]
+	var enemy: EnemyData = zombie.get_data()
+	var enemies_before: int = zone.get_enemies().size()
+	# In front of the zombie, facing it, inside the reach of the swing.
+	robot.global_position = zombie.global_position + Vector3(0.0, 0.0, enemy.ai.attack_range * 0.9)
+	await wait_physics_frames(4)
+	var hits_to_kill: int = ceili(float(enemy.hp_max) / float(robot.melee.attack.damage))
+	var seconds: float = CombatSystem.swing_interval(robot.melee.attack) * hits_to_kill
+	_hud().attack_held_changed.emit(true)
+	await wait_physics_frames(ceili(seconds * Engine.physics_ticks_per_second))
+	_hud().attack_held_changed.emit(false)
+	assert_eq(robot.experience.get_total(), enemy.xp_reward, "the kill gave its XP")
+	await wait_physics_frames(2)
+	assert_eq(zone.get_enemies().size(), enemies_before - 1, "and the zombie left the zone")
+	assert_false(robot.battery.is_depleted(), "the robot survived the fight")

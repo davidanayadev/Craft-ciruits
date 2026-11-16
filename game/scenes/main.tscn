@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/farm_zone/farm_zone_green.tscn" id="2_zone"]
@@ -12,6 +12,9 @@
 [ext_resource type="Resource" path="res://resources/ui/screens.tres" id="10_screens"]
 [ext_resource type="Script" path="res://scripts/components/object_pool.gd" id="11_pool"]
 [ext_resource type="PackedScene" path="res://scenes/entities/zombie.tscn" id="12_zombie"]
+[ext_resource type="PackedScene" path="res://scenes/effects/impact_sparks.tscn" id="13_sparks"]
+[ext_resource type="Script" path="res://scenes/feedback/combat_feedback.gd" id="14_feedback"]
+[ext_resource type="Resource" path="res://resources/config/combat_feedback.tres" id="15_feedback_config"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -29,10 +32,22 @@ unique_name_in_owner = true
 script = ExtResource("11_pool")
 scene = ExtResource("12_zombie")
 
+[node name="ImpactPool" type="Node" parent="World"]
+unique_name_in_owner = true
+script = ExtResource("11_pool")
+scene = ExtResource("13_sparks")
+
 [node name="Players" type="Node3D" parent="World"]
 
 [node name="Robot" parent="World/Players" instance=ExtResource("3_robot")]
 unique_name_in_owner = true
+
+[node name="CombatFeedback" type="Node" parent="." node_paths=PackedStringArray("impact_pool", "effects_root")]
+unique_name_in_owner = true
+script = ExtResource("14_feedback")
+config = ExtResource("15_feedback_config")
+impact_pool = NodePath("../World/ImpactPool")
+effects_root = NodePath("../World")
 
 [node name="CameraRig" parent="." instance=ExtResource("4_camera")]
 unique_name_in_owner = true
@@ -50,6 +65,7 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="DebugHud" parent="UI" instance=ExtResource("6_hud")]
+unique_name_in_owner = true
 
 [node name="GameOverScreen" parent="UI" instance=ExtResource("8_game_over")]
 unique_name_in_owner = true

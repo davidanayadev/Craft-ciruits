@@ -4,7 +4,9 @@ extends Control
 ## "Interact" button at the bottom right, shown only while the local player
 ## has an interaction target and no screen is open (spec 004, R-005-27), a
 ## storage button at the bottom centre and a short "inventory full" message
-## (spec 005).
+## (spec 005). A large attack button sits at the bottom right, under the
+## interact button, and the screen edges flash red when the player is hit
+## (spec 007).
 ## It only listens to the signals of the local player it is bound to and never
 ## reads state in _process (architecture §9.5).
 
@@ -12,6 +14,8 @@ extends Control
 signal interact_pressed
 ## The player asked for the storage: the HUD button or the open_storage action.
 signal storage_pressed
+## The HUD attack button went down or up (touch or mouse).
+signal attack_held_changed(held: bool)
 
 var _has_target: bool = false
 var _modal_open: bool = false
@@ -22,11 +26,14 @@ var _modal_open: bool = false
 @onready var _storage_button: Button = %StorageButton
 @onready var _message_label: Label = %MessageLabel
 @onready var _message_timer: Timer = %MessageTimer
+@onready var _attack_button: AttackButton = %AttackButton
+@onready var _damage_flash: DamageFlash = %DamageFlash
 
 
 func _ready() -> void:
 	_interact_button.pressed.connect(_on_interact_button_pressed)
 	_storage_button.pressed.connect(_on_storage_button_pressed)
+	_attack_button.held_changed.connect(_on_attack_button_held_changed)
 	_message_timer.timeout.connect(_on_message_timer_timeout)
 
 
@@ -51,6 +58,11 @@ func bind(player: Robot) -> void:
 func set_modal_open(is_open: bool) -> void:
 	_modal_open = is_open
 	_update_interact_button()
+
+
+## Flashes the screen edges red for duration_s seconds (R-007-25).
+func flash_damage(duration_s: float) -> void:
+	_damage_flash.flash(duration_s)
 
 
 ## Whole number shown to the player: rounded up, so it never reads 0 while any
@@ -83,6 +95,10 @@ func _on_interact_button_pressed() -> void:
 
 func _on_storage_button_pressed() -> void:
 	storage_pressed.emit()
+
+
+func _on_attack_button_held_changed(held: bool) -> void:
+	attack_held_changed.emit(held)
 
 
 func _on_inventory_overflowed(_leftovers: Array[ItemStack]) -> void:

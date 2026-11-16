@@ -6,6 +6,8 @@ extends CharacterBody3D
 ## and interacts with the target of its InteractorComponent (spec 004).
 ## It owns its inventory, sized by its chassis level (spec 005).
 ## Enemies find it through PLAYER_GROUP and hit it with receive_hit() (spec 006).
+## It swings its MeleeAttackComponent, pays each swing with battery and earns
+## the XP of the enemies it kills (spec 007).
 
 ## A hit landed on this robot. Degradation of pieces connects here (spec 014).
 signal hit_received(damage: float, attacker: Node3D)
@@ -13,6 +15,7 @@ signal hit_received(damage: float, attacker: Node3D)
 ## Group of every player entity; set in robot.tscn. Enemies look their target
 ## up here instead of holding a reference, so co-op needs no change.
 const PLAYER_GROUP := &"players"
+const ANIMATION_ATTACK := &"attack"
 
 @export var movement_stats: MovementStatsData
 @export var control_config: ControlConfigData
@@ -21,13 +24,24 @@ const PLAYER_GROUP := &"players"
 ## Yaw source for camera-relative movement; null falls back to world axes.
 @export var camera_rig: Node3D
 
+## Who this player is in kills and, later, in saves and the network. Generated
+## at start-up until spec 010 brings the Profile's player_uuid.
+var player_uid: String = ""
+
 @onready var player_input: PlayerInput = %PlayerInput
 @onready var battery: BatteryComponent = %BatteryComponent
 @onready var interactor: InteractorComponent = %Interactor
 @onready var inventory: InventoryComponent = %InventoryComponent
+@onready var melee: MeleeAttackComponent = %MeleeAttack
+@onready var experience: ExperienceComponent = %Experience
+@onready var _animation_player: AnimationPlayer = %AnimationPlayer
 
 
 func _ready() -> void:
+	player_uid = Uid.generate()
+	melee.attacker_uid = player_uid
+	melee.swing_started.connect(_on_swing_started)
+	EventBus.enemy_killed.connect(_on_enemy_killed)
 	if chassis_levels == null:
 		push_error("Robot '%s': chassis_levels must be assigned." % name)
 		return
@@ -37,23 +51,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if player_input.is_interact_just_pressed():
 		request_interact()
-	var camera_yaw: float = camera_rig.rotation.y if camera_rig != null else 0.0
-	var world_dir: Vector3 = LocomotionSystem.world_direction(
-		player_input.get_direction(), camera_yaw
+	_move(delta)
+	# After moving and turning: the impact uses the facing of this very step
+	# (R-007-14).
+	melee.tick(
+		delta, player_input.poll_attack(), battery.is_depleted(), player_input.is_input_blocked()
 	)
-	var run_intent: bool = player_input.is_run_intent()
-	velocity = LocomotionSystem.horizontal_velocity(world_dir, run_intent, movement_stats)
-	# The gait comes from the intent, not from the real displacement: pushing
-	# against a wall drains like walking (plan 003 §7).
-	battery.tick(delta, LocomotionSystem.gait(world_dir, run_intent, movement_stats))
-	if world_dir != Vector3.ZERO:
-		rotation.y = LocomotionSystem.rotate_toward_yaw(
-			rotation.y,
-			LocomotionSystem.target_yaw(world_dir),
-			control_config.turn_speed_rad,
-			delta
-		)
-	move_and_slide()
 
 
 ## Interacts with the nearest interactable in range, if any. Both input paths
@@ -77,3 +80,36 @@ func receive_hit(damage: float, attacker: Node3D) -> void:
 		return
 	battery.consume(damage)
 	hit_received.emit(damage, attacker)
+
+
+func _move(delta: float) -> void:
+	var camera_yaw: float = camera_rig.rotation.y if camera_rig != null else 0.0
+	var world_dir: Vector3 = LocomotionSystem.world_direction(
+		player_input.get_direction(), camera_yaw
+	)
+	var run_intent: bool = player_input.is_run_intent()
+	velocity = LocomotionSystem.horizontal_velocity(world_dir, run_intent, movement_stats)
+	# The gait comes from the intent, not from the real displacement: pushing
+	# against a wall drains like walking (plan 003 §7).
+	battery.tick(delta, LocomotionSystem.gait(world_dir, run_intent, movement_stats))
+	if world_dir != Vector3.ZERO:
+		rotation.y = LocomotionSystem.rotate_toward_yaw(
+			rotation.y,
+			LocomotionSystem.target_yaw(world_dir),
+			control_config.turn_speed_rad,
+			delta
+		)
+	move_and_slide()
+
+
+## Every swing costs battery, hit or miss (R-007-10). The animation is only
+## presentation: the impact moment comes from CombatConfigData.
+func _on_swing_started(battery_cost: float) -> void:
+	battery.consume(battery_cost)
+	_animation_player.stop()
+	_animation_player.play(ANIMATION_ATTACK)
+
+
+## Only this robot's kills count: with several players each one earns its own.
+func _on_enemy_killed(enemy_id: StringName, killer_uid: String) -> void:
+	experience.reward_kill(enemy_id, killer_uid, player_uid, DataRegistry.get_catalog())
