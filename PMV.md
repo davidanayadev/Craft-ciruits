@@ -35,7 +35,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 | **Zona de farmeo** | **1 zona** (verde). Recolecta: chatarra, cables, hierro. Spawns de zombies y robots. |
 | **Zombies (2 tipos)** | Lento, Rápido. No sueltan piezas. |
 | **Robots hostiles (1 tipo)** | Básico (daño físico). Suelta piezas al morir. |
-| **Sistema de daño por partes** | Cada golpe recibido (zombies y robots) degrada -5 la primera pieza equipada intacta, en orden: Brazos (al romperse pierdes ataque) → Piernas (movimiento muy lento) → Core (drena batería). Ver BALANCE.md §4.1. |
+| **Sistema de daño por partes** | Cada golpe recibido (zombies y robots) degrada -5 la primera pieza equipada intacta, en orden: Brazos (al romperse vuelves a pelear con un brazo, más débil) → Piernas (movimiento muy lento) → Core (drena batería). Ver BALANCE.md §4.1. |
 | **Mecánica de muerte** | Al morir (batería = 0): pierdes TODO excepto el Core. Reapareces en la base. Ventana temporal para volver a la zona y recuperar piezas. |
 | **Base** | Safe zone, sin muros ni ataques dentro. **Colocación libre en cuadrícula** dentro de los límites de la escena de la base: el jugador elige dónde va cada estructura que construye (estaciones, generador, cofres) y puede moverla después (decisión nov 2026; base en cualquier sitio del mundo en v1.1, SPECS.md §32). Contiene: |
 | — Banco de reparaciones | Incluido desde el inicio (lo único que trae la base). Reparar o crear piezas básicas; construir estaciones de carga, generador eólico y cofres. |
@@ -430,6 +430,13 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Coger el loot de una caja**: ✅ Decidido (nov 2026): **no es automático**. Interactuar con la caja abre una pantalla con su contenido y el inventario del jugador; tocar una pila la coge (lo que quepa) y el botón "Coger todo" coge todo lo que quepa. Al vaciarse la caja, la pantalla se cierra y la caja se desactiva. Desde esa pantalla no se deposita (ver "Tirar items y dejarlos en cajas"). Lo implementa el spec 005.
 - [x] **Loot que no cabe en el inventario**: ✅ Decidido (nov 2026): se queda en la caja durante la visita y se recoge al volver a interactuar, sin nueva tirada; se pierde al empezar la visita siguiente (BALANCE.md §7.2). Lo implementa el spec 005.
 - [x] **Tirar items y dejarlos en cajas**: ✅ Decidido (nov 2026): un item del inventario se puede **tirar** al suelo, donde caduca con la misma regla que lo soltado al morir (5 minutos, también con la app cerrada), o **dejar en una caja ya vaciada**, que funciona como contenedor con la capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2). Tirar lo implementa el spec 008 (reutiliza el objeto caído y su caducidad); dejar en cajas, el de cofres (ACTION_PLAN Tarea 2.6), que comparte la UI de transferencia.
+
+**Combate (spec 007)**
+- [x] **Nunca sin ataque**: ✅ Decidido (nov 2026): sin Brazos básicos el robot pelea con **un brazo**, su estado base (como "una pierna" en las piernas): no es un item, no se degrada ni se pierde al morir. Daño 5, 1.0 golpe/s, 1 de batería por golpe (BALANCE.md §4.2). Se empieza con él y se vuelve a él al romper o perder los Brazos básicos: es la red de seguridad del combate. Descartado: "sin brazos no puede atacar", que dejaba indefenso a un jugador nuevo o recién muerto.
+- [x] **Auto-apuntado**: ✅ Decidido (nov 2026): no existe en el PMV. El robot golpea hacia donde mira y apuntar es cosa del jugador; se quita esa facilidad a propósito. Puede moverse y girar mientras golpea.
+- [x] **Coste del golpe**: ✅ Decidido (nov 2026): 1 punto de batería por golpe **lanzado**, también si falla, y aunque vacíe la batería (BALANCE.md §1.1). Mantener el botón golpea a la velocidad de los brazos.
+- [x] **Material de los zombies**: ✅ Decidido (nov 2026): cae al suelo como objeto caído con la muerte del jugador (ACTION_PLAN Tarea 1.5, spec 008), no directo al inventario.
+- [x] **SFX de combate**: ✅ Decidido (nov 2026): pasan a la Tarea 4.3 con `AudioManager`; la 007 solo trae feedback visual (BALANCE.md §11, "Combate").
 
 **Decidir antes de empezar v1.1**
 - [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).

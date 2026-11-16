@@ -174,27 +174,27 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
 ### Tarea 1.4: Sistema de combate (16h)
 - [ ] Ataque cuerpo a cuerpo con los brazos (sin armas en el PMV; armas en v1.1, ver SPECS.md §18):
   - [ ] Hitbox de ataque (Area3D) en los brazos del robot (BoneAttachment3D o nodo hijo)
-  - [ ] Daño y velocidad de ataque según los brazos equipados (BALANCE.md §4.2). Hasta la Fase 3, usar los valores de Brazos básicos
-  - [ ] Sin brazos: no puede atacar
+  - [ ] Daño y velocidad de ataque según los brazos equipados (BALANCE.md §4.2). Hasta la Fase 3, usar los valores de un brazo
+  - [ ] Sin Brazos básicos: ataca con un brazo, el estado base del robot (más débil; nunca se queda sin ataque, decisión nov 2026)
+  - [ ] Sin auto-apuntado: golpea hacia donde mira y puede moverse mientras golpea (BALANCE.md §11, "Combate")
 - [ ] Sistema de ataque:
   - [ ] Input: botón de atacar (derecha)
   - [ ] Animación de ataque (AnimationPlayer)
   - [ ] Hitbox: Area3D que se activa durante animación
   - [ ] Detección de enemigos en hitbox
   - [ ] Aplicar daño a HealthComponent del enemigo
-  - [ ] Consumo de batería: 1 punto/golpe
+  - [ ] Consumo de batería: 1 punto/golpe lanzado, también si falla (BALANCE.md §1.1)
   - [ ] Al matar: otorgar XP directa (zombie lento 2, rápido 3; BALANCE.md §6.2)
-- [ ] Feedback visual/sonoro:
+- [ ] Feedback visual (valores en BALANCE.md §11, "Combate"; los SFX de golpe y de daño pasan a la Tarea 4.3, que crea `AudioManager`):
   - [ ] Screen shake al golpear (Camera3D shake)
-  - [ ] Partículas de impacto (GPUParticles3D)
-  - [ ] SFX de golpe (AudioStreamPlayer3D)
+  - [ ] Partículas de impacto con pool (GPUParticles3D, o CPUParticles3D si no van en Compatibility)
   - [ ] Flash blanco en enemigo (modulate temporal)
 - [ ] Sistema de daño al jugador:
   - [ ] Cuando zombie ataca: restar batería
-  - [ ] Feedback: screen shake, SFX de daño, flash rojo en HUD
+  - [ ] Feedback: screen shake y flash rojo en el borde del HUD
 - [ ] Test: jugador puede matar zombies, zombies pueden matar al jugador
 
-**Entregable**: combate funcional con feedback visual/sonoro.
+**Entregable**: combate funcional con feedback visual.
 
 ### Tarea 1.5: Mecánica de muerte (10h)
 - [ ] Ruleset como dato (PMV.md §4.5, gancho 4):
@@ -213,6 +213,7 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
   - [ ] Crear escena `DroppedItem.tscn` (Area3D + MeshInstance)
   - [ ] Spawner: crear dropped items en posición de muerte
   - [ ] Caducidad: los items desaparecen tras 5 minutos (valor en BALANCE.md §7.2, configurable) contados desde la hora de la muerte con `ITimeService`, también con la app cerrada. Al cargar la partida se descartan los caducados; tiempo transcurrido negativo = 0 (PMV.md §10)
+- [ ] Material de los zombies al morir (0-1 chatarra, BALANCE.md §3.1; decisión nov 2026, spec 007): cae como `DroppedItem` donde muere el zombie. La tirada sale de `SeededRng` con semilla + `zone_id` + número de visita + índice de aparición del zombie, para que no dependa del orden de las muertes
 - [ ] Tirar items del inventario (decisión nov 2026, PMV.md §10): desde la pantalla de inventario, el item cae como `DroppedItem` en la posición del robot y caduca con la misma regla (BALANCE.md §7.2)
 - [ ] Recuperación de items:
   - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
@@ -515,7 +516,7 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 
 ### Tarea 4.3: Audio (SFX + música) (20h)
 - [ ] SFX (15-20 sonidos):
-  - [ ] Combate: golpes, impactos, muerte zombie, muerte robot
+  - [ ] Combate: golpes, impactos, daño recibido, muerte zombie, muerte robot (los SFX de golpe y de daño salieron de la Tarea 1.4, spec 007)
   - [ ] UI: click botón, abrir menú, crafteo exitoso
   - [ ] Movimiento: pasos robot, viaje
   - [ ] Ambiente: viento, máquinas en base, zombies lejanos

@@ -84,7 +84,7 @@ plan a *Planificado*.
 | [004](004-green-zone/spec.md) | Zona verde, `zone_id`, RNG con semilla y cajas de loot | 1.1 | Hecho |
 | [005](005-inventory/spec.md) | Inventario (`InventoryComponent`, UI) y loot al jugador | 1.2 | Hecho |
 | [006](006-zombies/spec.md) | Zombies: `HealthComponent`, IA, spawner con pool | 1.3 | Hecho |
-| 007 | Combate cuerpo a cuerpo y XP por muerte | 1.4 | Por crear |
+| [007](007-melee-combat/spec.md) | Combate cuerpo a cuerpo y XP por muerte | 1.4 | Aprobado |
 | 008 | Muerte, `RulesetData` y recuperación | 1.5 | Por crear |
 | 009 | Escena de base, colocación libre y estación de carga | 2.1, 2.8, 2.2 | Por crear |
 | 010 | Guardado Perfil/Mundo, `IStore` | 2.3 | Por crear |
