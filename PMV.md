@@ -438,6 +438,29 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Material de los zombies**: ✅ Decidido (nov 2026): cae al suelo como objeto caído con la muerte del jugador (ACTION_PLAN Tarea 1.5, spec 008), no directo al inventario.
 - [x] **SFX de combate**: ✅ Decidido (nov 2026): pasan a la Tarea 4.3 con `AudioManager`; la 007 solo trae feedback visual (BALANCE.md §11, "Combate").
 
+**Muerte y objetos caídos (spec 008)**
+- [x] **Reaparecer antes de tener base**: ✅ Decidido (nov 2026): hasta que la spec 009 traiga la base y el viaje, el robot reaparece en el punto de aparición de la zona, que hace de base provisional. Las reglas de §2.4 no cambian.
+- [x] **Quién crea el contador de visitas**: ✅ Decidido (nov 2026): la spec 008 lo crea en memoria, lo sube al morir y repone cajas y enemigos; la 009 lo sube al salir por el punto de salida; la 010 solo lo guarda (BALANCE.md §7.2).
+- [x] **Forma del objeto caído**: ✅ Decidido (nov 2026): **un solo objeto por muerte**, con todas las pilas. El material de un zombie y un item tirado son un objeto con una pila. Interactuar **coge directamente** todo lo que quepa, sin pantalla; lo que no cabe se queda con su hora original. Descartado: un objeto por pila (hasta 20 interacciones en el nivel 5) y abrir la pantalla de caja.
+- [x] **Piezas equipadas al morir**: ✅ Decidido (nov 2026): brazos y piernas se **sueltan** en el mismo objeto caído, con su durabilidad (recuperables, no destruidos); el Core se queda. Lo aplica la spec 014, que crea las ranuras; la 008 suelta solo el inventario.
+- [x] **Pantalla de transferencia**: ✅ Decidido (nov 2026): termina sola, sin botón, a los 2,0 s (BALANCE.md §11). La animación definitiva es de ACTION_PLAN Tarea 4.4.
+- [x] **Caducidad del material de los zombies**: ✅ Decidido (nov 2026): la misma regla que cualquier objeto caído (BALANCE.md §7.2).
+- [x] **Aviso de caducidad**: ✅ Decidido (nov 2026): el objeto desaparece al cumplirse su tiempo, también a la vista. Sin cuenta atrás ni marcador en la 008; se decide con el HUD (ACTION_PLAN Tarea 4.1) y el playtesting.
+- [x] **Dividir y colocar pilas**: ✅ Decidido (nov 2026): una pila se puede **dividir** para colocar sus unidades donde quieras. Al seleccionarla aparece un selector de cantidad (− / + y deslizador, por defecto la pila entera) y la acción usa esa cantidad. La spec 008 lo aplica a tirar; mover la pila o una parte a la ranura que elijas, y repartirla entre el inventario y un contenedor, llega con los cofres (ACTION_PLAN Tarea 2.6), con "tocar la pila y tocar el destino": se mueve, se suma si es el mismo item o se intercambia si es otro. Sustituye a "no se pide en el PMV" de la spec 005. Descartado: botón de dividir a la mitad y arrastrar y soltar.
+- [ ] **Red de seguridad, "piezas medio rotas"** (§2.4 punto 5): la chatarra ya está garantizada (la caja da 2-5, BALANCE.md §2.1), pero las piezas medio rotas no tienen tabla ni valores. Decidir con la spec 014, o quitar la frase si el brazo y la pierna base ya bastan como red.
+
+**Base, viaje y colocación (spec 009)** (todas decididas en nov 2026)
+- [x] **Construir la estación antes del banco completo**: ✅ la spec 009 adelanta lo mínimo de la Tarea 2.4: `RecipeData` con la receta de la estación, el cobro de materiales en `CraftingSystem` y el banco con una pantalla de construcción de una sola entrada. La spec 011 añade piezas, reparación y la UI completa. Los materiales se cobran al confirmar la colocación, no al pulsar "Construir".
+- [x] **Guardado**: ✅ la spec 009 no escribe en disco; el autoguardado al entrar en la base y al recargar, y el mensaje "Partida guardada", los conecta la spec 010. Hasta entonces cada arranque es un mundo nuevo que empieza en la base.
+- [x] **Cuadrícula**: ✅ celda de 1,0 m, base de 20x20 m y área edificable de 12x8 celdas (BALANCE.md §5.6); si se queda corta, se amplía. Huella como dato de cada estructura (estación 1x1), sin rotación.
+- [x] **Controles de colocación**: ✅ tocar o hacer clic en una celda lleva ahí la vista previa; botones "Confirmar" y "Cancelar" (Enter / Escape en PC; el botón atrás de Android cancela). El robot no se mueve ni ataca mientras tanto, pero la batería sigue bajando. Descartado: vista previa que sigue al robot y arrastrar.
+- [x] **Modo edición**: ✅ botón "Editar base" en el HUD, visible solo en la base; tocar una estructura la coge y se mueve sin coste. El banco y el punto de salida no se mueven.
+- [x] **Celdas no edificables**: ✅ celdas reservadas como dato de la base (punto de aparición, frente del banco y del punto de salida); una celda con un robot encima es inválida. No se comprueba que el jugador se encierre.
+- [x] **Desmontar estructuras**: ✅ fuera del PMV: se mueven, no se quitan.
+- [x] **Detalles del viaje**: ✅ sin confirmación y también con enemigos persiguiéndote; la pantalla de carga dura lo que tarde la carga y el mundo queda congelado mientras.
+- [x] **Techo y luces de la base**: ✅ sin techo (la cámara isométrica debe ver al robot) y como máximo 2 luces puntuales sin sombras más la direccional (§3.2).
+- [x] **Contador de visitas de la base**: ✅ el contador solo se aplica a las zonas de farmeo; morir o salir de la base no sube nada.
+
 **Decidir antes de empezar v1.1**
 - [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).
 - [x] **Viaje a pie entre zonas** en mundos por semilla: ✅ Decidido (nov 2026): cuesta batería según la distancia (valor en BALANCE.md §1.2 al diseñar v1.1). La gasolina y los vehículos lo abaratan después (SPECS §26).

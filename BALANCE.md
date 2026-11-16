@@ -81,7 +81,7 @@
 | **Rápido** | 15 | 4 | 3.5 m/s | Ninguna | 3 |
 
 **Notas**:
-- Zombies no sueltan piezas, solo materiales básicos (0-1 chatarra).
+- Zombies no sueltan piezas, solo materiales básicos (0-1 chatarra). Se tira con la regla de rangos de §2.1, así que la mitad de las veces no cae nada, y cae al suelo como objeto caído (§7.2; decisión nov 2026, spec 008).
 - Daño de zombie se aplica cada 1.5 segundos (si está en rango de ataque). El primer golpe llega tras un intervalo completo en rango; salir y volver a entrar reinicia la espera (decisión nov 2026, spec 006).
 - **El daño son puntos de batería, 1:1** (decisión nov 2026, spec 006): un golpe de zombie lento quita 5 puntos de batería y uno rápido, 4. Sin defensa del jugador en el PMV (la `defensa_jugador` de §9.2 vale 0).
 - XP se otorga al jugador al matar.
@@ -224,6 +224,20 @@
 
 **Nota**: la base empieza solo con el Banco de reparaciones. La Estación de carga, el generador eólico y los cofres se construyen desde él.
 
+### 5.6 Base y cuadrícula de colocación (decisión nov 2026, spec 009)
+
+Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, se amplía.
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Tamaño de la base** | 20x20 m | Escena fija, centrada en su celda del mapa global (§7) |
+| **Tamaño de celda** | 1.0 m | Cuadrícula de colocación (ACTION_PLAN Tarea 2.8) |
+| **Área edificable** | 12x8 celdas | 96 celdas, menos las reservadas (punto de aparición, frente del banco y del punto de salida), que son dato de la escena de la base |
+| **Huella de la estación de carga** | 1x1 celdas | La huella es dato de cada estructura. La del generador y la del cofre se fijan con la spec 012 |
+| **Rotación de estructuras** | No | En el PMV no se giran |
+| **Mover una estructura** | Sin coste | Modo edición |
+| **Desmontar una estructura** | No | En el PMV las estructuras se mueven, no se quitan |
+
 ---
 
 ## 6. Progresión (XP / Mejora de chasis)
@@ -286,7 +300,8 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
 | **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
 | **Enemigos** | Reaparecen con el mismo contador de visitas (spec 006) |
-| **Quién lo aplica** | Guardado por zona (spec 010) |
+| **Material soltado por los enemigos** | Misma regla que los soltados al morir: cae al suelo como objeto caído, no depende del contador y caduca con la misma duración (decisión nov 2026, spec 008) |
+| **Quién lo aplica** | El contador y la reposición de cajas y enemigos: spec 008 (al morir) y spec 009 (al salir por el punto de salida). El guardado del contador, de las cajas abiertas y de los objetos caídos: spec 010 (decisión nov 2026, spec 008) |
 
 Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar batería y riesgo (ACTION_PLAN Tarea 5.2). Morir tampoco es una vía segura de recuperación: al volver a por las piezas, la zona ya está repuesta, con los enemigos de nuevo en pie (decisión nov 2026).
 
@@ -393,6 +408,12 @@ Si pieza.durabilidad <= 0 → Pieza rota; el siguiente golpe degrada la siguient
 | **Sacudida de cámara al golpear** | 0.05 m durante 0.1 s | |
 | **Sacudida de cámara al recibir un golpe** | 0.15 m durante 0.2 s | |
 | **Borde rojo del HUD al recibir un golpe** | 0.3 s | |
+
+**Muerte** (valores iniciales, decisión nov 2026, spec 008; ajustar en el móvil):
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Pantalla de "Transferencia de Consciencia"** | 2.0 s | Termina sola, sin botón. Después el robot reaparece con la batería de §1.1 |
 
 ---
 
