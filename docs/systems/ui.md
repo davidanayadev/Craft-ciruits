@@ -5,17 +5,20 @@
 > dueña del estado.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [003](../../specs/003-battery/spec.md),
 > [005](../../specs/005-inventory/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008
+> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md) ·
+> Última actualización: spec 009
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
-| `UIManager` | Escena/`Control` (nodo bajo `UI`, **no** autoload) | `game/scenes/ui/ui_manager.gd` | Pila de pantallas por id; cierra la de arriba con `pause` y con atrás de Android |
-| `UIScreen` | Clase base | `game/scenes/ui/ui_screen.gd` | `setup(context)` y señal `close_requested` |
+| `UIManager` | Escena/`Control` (nodo bajo `UI`, **no** autoload) | `game/scenes/ui/ui_manager.gd` | Pila de pantallas por id; `pause` y atrás de Android van a la de arriba (`handle_back`) o la cierran; `is_open(id)` |
+| `UIScreen` | Clase base | `game/scenes/ui/ui_screen.gd` | `setup(context)`, `close_requested`, `handle_back() -> bool` y `on_closed()` |
 | `UIScreenCatalog` | Recurso | `game/scripts/data/ui_screen_catalog.gd` | Diccionario id → `PackedScene` |
-| `screens.tres` | `.tres` | `game/resources/ui/screens.tres` | Registra `inventory` y `loot` |
-| `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería, botones Interact, almacenamiento y atacar, aviso de inventario lleno y borde rojo |
+| `screens.tres` | `.tres` | `game/resources/ui/screens.tres` | Registra `inventory`, `loot`, `build` y `placement` |
+| `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería, botones Interact, almacenamiento, atacar y "Editar base" (solo con la base cargada), aviso de inventario lleno y borde rojo |
+| `LoadingScreen` | `Control` | `game/scenes/ui/loading_screen.gd` | Cubre el juego durante un viaje; fuera de `UIManager` ([travel.md](travel.md)) |
+| `BuildScreen`, `PlacementScreen` | Pantallas | [base.md](base.md) | Lista de recetas del banco y modo colocar/editar |
 | `AttackButton` | `Button` | `game/scenes/ui/attack_button.gd` | Botón grande de mantener, abajo a la derecha, visible en PC y móvil; emite `held_changed` |
 | `DamageFlash` | `TextureRect` | `game/scenes/ui/damage_flash.gd` | Borde rojo radial que se desvanece; `flash(duration_s)` |
 | `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS y XP, solo en builds de depuración |
@@ -26,25 +29,31 @@
 
 ## Cómo funciona
 
-Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `DebugHud`, `TransferScreen`. Lo que
-va después se dibuja encima.
+Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `DebugHud`, `TransferScreen` y
+`LoadingScreen` (ver el archivo para el orden exacto). Lo que va después se dibuja encima.
 
 1. **Abrir.** `main.gd` llama a `ui_manager.open(id, context)`. El manager busca la escena en el catálogo, la
    instancia, la añade como hijo, la apila, conecta su `close_requested` y llama a `setup(context)`. Id
    desconocido o ya abierto: `push_error` y nada cambia.
 2. **Contexto.** Es un `Dictionary` con claves constantes de cada pantalla (`CONTEXT_SOURCE`,
    `CONTEXT_INVENTORY`). La pantalla convierte con `as` y avisa si falta algo; nunca busca datos en el árbol.
-3. **Cerrar.** `close_top()` (acción `pause`, atrás de Android o el botón de almacenamiento) y `close_all()`
-   (game over). `_remove_at` saca la pantalla de la pila al instante, para que `is_modal_open()` sea correcto, y la
-   libera con `queue_free()` porque el cierre puede llegar en mitad de una señal de la propia pantalla.
+3. **Cerrar.** `close_top()` (el botón de almacenamiento), `close_all()` (muerte y viaje) y, con `pause` o atrás de
+   Android, `_back()` (spec 009): primero pregunta a la pantalla de arriba `handle_back()`; si devuelve `true` se
+   queda abierta (la gestionó ella), si no se cierra. `_remove_at` saca la pantalla de la pila al instante, para que
+   `is_modal_open()` sea correcto, llama a `on_closed()` (limpieza por **cualquier** camino de cierre, antes del
+   `queue_free`) y la libera con `queue_free()` porque el cierre puede llegar en mitad de una señal de la propia pantalla.
 4. **Bloqueo de entrada.** `modal_state_changed(is_open)` se emite solo al pasar de ninguna pantalla a alguna y
-   al revés. `main.gd` lo conecta a `PlayerInput.set_input_blocked` (sin dirección, carrera ni interactuar) y a
-   `Hud.set_modal_open` (oculta el botón Interact). `Robot.request_interact()` también se ignora. El árbol **no se
+   al revés. `main.gd` lo conecta a `PlayerInput.set_input_blocked(bloqueado, REASON_SCREEN)` (sin dirección, carrera
+   ni interactuar; ver [movement.md](movement.md)). `Robot.request_interact()` también se ignora. El árbol **no se
    pausa**: la batería sigue gastando y los zombies actúan ([enemies.md](enemies.md)).
-5. **HUD.** `Hud.bind(robot)` conecta `battery_changed`, `target_changed` del interactor y `overflowed` del
-   inventario, y pinta el estado inicial con los mismos manejadores. Emite `interact_pressed` y `storage_pressed`
-   (botón o acción `open_storage`); `main.gd` las enruta. No lee estado en `_process`.
-6. **Almacenamiento.** `main.gd`: batería agotada, nada; pantalla abierta, `close_top()`; si no, abre
+5. **HUD.** `Hud.bind(robot)` conecta `battery_changed`, `target_changed` del interactor, `overflowed` del
+   inventario y `blocked_changed` de `PlayerInput` (el botón Interact se oculta con cualquier motivo de bloqueo:
+   pantalla, muerte o viaje; `set_modal_open` ya no existe), y pinta el estado inicial con los mismos manejadores.
+   Emite `interact_pressed`, `storage_pressed` (botón o acción `open_storage`) y `edit_base_pressed`; `main.gd` y
+   `BuildFlow` las enrutan. `set_edit_base_available` muestra el botón solo con la base cargada. No lee estado en
+   `_process`.
+6. **Almacenamiento.** `main.gd`: batería agotada o viaje en curso, nada; pantalla abierta, `close_top()` (con la
+   colocación abierta, esto la cancela sin gastar nada); si no, abre
    `inventory` con el inventario y el robot como `CONTEXT_THROWER`.
 7. **Atacar** (007). `AttackButton` solo usa `button_down`/`button_up` (responde a cualquier dedo, así se golpea
    con un pulgar mientras el otro mueve el joystick) y emite `held_changed`; si se oculta pulsado, emite
@@ -65,7 +74,10 @@ va después se dibuja encima.
     muestra `QuantitySelector` y el botón "Tirar", y solo llama a `Robot.request_throw(ranura, cantidad)`; la
     pantalla nunca cambia el inventario. `QuantitySelector.set_maximum(n)` fija el rango 1..n y empieza en n sin
     emitir; el valor se lee del deslizador. Sin `CONTEXT_THROWER` los controles de tirar no se muestran.
-11. **Táctil.** `TouchControls` es el único sitio que pregunta por la pantalla táctil (o `force_touch_debug`);
+11. **Carga y colocación** (009). `LoadingScreen` es como `TransferScreen`: fuera de `UIManager`, traga los toques y
+    no tiene mínimo de duración. `PlacementScreen` recibe los clics del suelo en `_gui_input` (un toque llega como
+    clic de ratón emulado) y usa `handle_back`/`on_closed` ([base.md](base.md)).
+12. **Táctil.** `TouchControls` es el único sitio que pregunta por la pantalla táctil (o `force_touch_debug`);
    oculta la capa y desactiva el joystick si no hay. Las pantallas son un fondo oscuro a pantalla completa que
    consume los toques, así que el joystick no aparece mientras hay una abierta.
 
@@ -93,7 +105,10 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 | Botón de atacar visible siempre, también con una pantalla abierta | R-007-16 no pide ocultarlo; puede tapar algún botón abajo a la derecha de una pantalla | R-007-16, [plan 007 §7](../../specs/007-melee-combat/plan.md) |
 | `AttackButton` sin seguir su propio toque | En 4.7.2 `BaseButton` ya responde a cualquier dedo | plan 007 §5.1 punto 2 |
 | La pantalla de inventario solo pide tirar | El cambio lo hacen los componentes dueños del estado | R-008-42 |
-| Dos dueños del bloqueo de entrada (`UIManager` y la transferencia) | No chocan: durante la transferencia no se abre ninguna pantalla | plan 008 §7 |
+| Bloqueo de entrada por motivos (`screen`, `death`, `travel`) | Con tres dueños ya podían pisarse; el plan 008 lo dejó previsto | [plan 009 §1](../../specs/009-base-placement-charging/plan.md) "Bloqueo de entrada con motivos", plan 008 §7 |
+| `UIScreen.handle_back()` y `on_closed()` | Escape y atrás deben cancelar por pasos (mover → editar) y la limpieza debe correr cierre quien cierre | R-009-56, [plan 009 §1](../../specs/009-base-placement-charging/plan.md) |
+| `LoadingScreen` fuera de `UIManager` | Escape y atrás no deben cerrarla | plan 009 §3 |
+| La colocación es una pantalla de `UIManager` | Reutiliza bloqueo sin pausa, cierre al morir y Escape/atrás | plan 009 §1 |
 | Texto solo por claves de traducción | i18n obligatoria | R-005-30, Constitución P11 |
 
 ## Relación con otros sistemas
@@ -108,7 +123,11 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 
 - `open()` de un id ya abierto es un error, no una segunda pantalla.
 - `UIManager` solo reacciona a `pause` si hay pantalla abierta; sin ella, esa acción queda libre.
-- `TransferScreen` hereda de `Control`, no de `UIScreen`: no pasa por `UIManager`.
+- `TransferScreen` y `LoadingScreen` heredan de `Control`, no de `UIScreen`: no pasan por `UIManager`.
+- `close_top()` (botón de almacenamiento, botón "Editar base" pulsado otra vez) no pasa por `handle_back`: cierra la
+  pantalla entera aunque la colocación esté en `MOVE`.
+- Un `UIScreen` que necesite limpiar algo (vista previa, estado de otros nodos) lo hace en `on_closed()`, no en
+  `close_requested`.
 - `DebugHud` no se traduce a propósito (solo depuración). Es el único sitio donde se ve la XP.
 - Un dedo que estaba pulsado al morir no llega a soltar (la transferencia traga la suelta): por eso `main.gd`
   cancela el joystick y el botón de atacar. Se comprueba a mano en el móvil.
@@ -126,8 +145,9 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 
 | Archivo | Verifica |
 |---|---|
-| `tests/unit/test_ui_manager.gd` | Pila, ids desconocidos/repetidos, `modal_state_changed`, `close_top`/`close_all`, `pause` y atrás |
-| `tests/unit/test_hud.gd` | Barra y número de batería, botón Interact con/sin modal, mensaje de inventario lleno, botón de atacar (posición, texto traducido, `attack_held_changed`), borde rojo |
+| `tests/unit/test_ui_manager.gd` | Pila, ids desconocidos/repetidos, `modal_state_changed`, `close_top`/`close_all`, `pause` y atrás, `handle_back` que mantiene la pantalla, `on_closed` en cada cierre, `is_open` |
+| `tests/unit/test_hud.gd` | Barra y número de batería, botón Interact con/sin bloqueo, mensaje de inventario lleno, botón de atacar, borde rojo, botón "Editar base" solo en la base |
+| `tests/unit/test_loading_screen.gd` | Oculta hasta `show_loading()`, textos como claves, traga toques |
 | `tests/unit/test_transfer_screen.gd` | Título traducido, oculta hasta `play()`, traga toques, duración desde la config, `finished` una vez |
 | `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador |
 | `tests/unit/test_debug_hud.gd` | Muestra la XP |

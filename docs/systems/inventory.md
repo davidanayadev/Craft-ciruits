@@ -2,7 +2,7 @@
 
 > Ranuras de ítems por entidad (robot, cajas de loot, más adelante cofres), con reglas de apilado puras y las
 > pantallas que las muestran. Es la primera pieza de estado por jugador después de la batería.
-> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008 (dividir, tirar, caer al morir)
+> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md) · Última actualización: spec 009 (`remove_many`)
 
 ## Piezas
 
@@ -107,6 +107,9 @@ Las ranuras de una caja no salen de ninguna tabla: son tantas como pilas dio la 
 - `ItemStack` solo tiene `item` y `quantity`: durabilidad y `uid` de pila llegan con la spec 014, que debe llevarlos por
   `InventoryRules` para que tirar y recoger no los pierdan (R-008-11).
 - Al caer, las pilas parciales del mismo item se fusionan: se conserva el total por item, no la ranura.
+- `remove_many(amounts)` (spec 009) cobra varios ítems a la vez, todo o nada y con un solo `inventory_changed`: ítem
+  desconocido o cantidad no positiva es `ERR_INVALID_REQUEST`, falta de algo es `ERR_NOT_ENOUGH_ITEMS`. La regla pura
+  está en `InventoryRules.can_remove_many`/`remove_many`; lo usa `BaseStructures.place` ([base.md](base.md)).
 - `ChassisLevelData.xp_required` existe pero nadie lo lee todavía (ACTION_PLAN 2.7).
 - Los controles de las pantallas tienen `focus_mode = NONE` para que Tab siga llegando a `open_storage`.
 

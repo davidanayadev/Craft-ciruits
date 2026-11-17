@@ -1,8 +1,9 @@
 # Muerte, objetos caídos y recuperación
 
-> Al llegar la batería a 0 el robot suelta su inventario donde cae, la zona se repone con la visita siguiente y, tras una
-> pantalla de transferencia, reaparece con la batería llena. Lo caído se recoge con "Interactuar" y caduca.
-> Specs: [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008
+> Al llegar la batería a 0 el robot suelta su inventario donde cae, la zona `FARM` se repone con la visita siguiente y,
+> tras una pantalla de transferencia, reaparece en la base con la batería llena. Lo caído se recoge con "Interactuar",
+> caduca y sobrevive a descargar la zona.
+> Specs: [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md) · Última actualización: spec 009
 
 ## Piezas
 
@@ -19,7 +20,7 @@
 | `ITimeService`, `LocalTimeService` | Servicio | `game/scripts/services/` | Contrato del reloj e implementación con el reloj del dispositivo |
 | `GameManager` | Autoload | `game/scripts/autoload/game_manager.gd` | Ruleset, contador de visitas por zona y `get_time_service()` |
 | `TransferScreen` | `Control` | `game/scenes/ui/transfer_screen.gd`, `.tscn` | "Transferencia de Consciencia"; fuera de `UIManager` |
-| `Main` | Escena | `game/scenes/main.gd` | Cablea todo: pantalla, congelado de `World`, repoblación y punto de reaparición |
+| `Main` | Escena | `game/scenes/main.gd` | Cablea todo: pantalla, congelado de `World`, viaje a la base y reaparición (`_respawn_pending`) |
 
 ## Cómo funciona
 
@@ -29,15 +30,23 @@
    pendiente mataría a un zombi cuya devolución al pool quedaría detrás de la repoblación); si
    `ruleset.drops_inventory`, `DroppedItemSpawner.drop_inventory()` (un solo objeto con todas las pilas; con el inventario
    vacío no crea nada); si no `ruleset.keeps_xp`, `experience.reset()`; `GameManager.increment_visit_count(zona)`;
-   y al final `EventBus.player_died(player_uid)`, para que quien escuche ya vea el inventario en el suelo.
-3. `GameManager` emite `zone_visit_changed`. `Main` repuebla en diferido la zona cargada
-   ([world_zones.md](world_zones.md)) y vuelve a llamar `discard_expired_now()`.
+   y al final `EventBus.player_died(player_uid)`, para que quien escuche ya vea el inventario en el suelo. El
+   contador solo sube si la zona de la muerte `counts_visits()` (`FARM`): morir en la base no repuebla nada. Una zona
+   que el catálogo no conoce es `push_error` y no cuenta visita.
+3. `GameManager` emite `zone_visit_changed`. `ZoneLoader` repuebla en diferido la zona cargada
+   ([world_zones.md](world_zones.md), [travel.md](travel.md)) y vuelve a llamar `discard_expired_now()`.
 4. `Main._on_player_died` (solo si el uid es el del robot local): `UIManager.close_all()`, bloquea el input, suelta el
-   joystick y el botón de ataque, `TransferScreen.play()` y congela `World` en diferido (`process_mode = DISABLED`).
+   joystick y el botón de ataque, `TransferScreen.play()` y congela `World` en diferido (`process_mode = DISABLED`,
+   con el motivo `DEATH`, [travel.md](travel.md)). Cerrar las pantallas cancela una colocación o un movimiento en
+   curso sin cobrar nada ([base.md](base.md)).
 5. `TransferScreen` avanza con `advance(delta)` desde su `_process` y emite `finished` al cumplir la duración.
-6. `Main._on_transfer_finished` llama `DeathController.respawn(robot, zone.get_spawn_position())`. Calcula la batería
-   (máximo × `respawn_battery_ratio`), llama `Robot.respawn_at` y emite `EventBus.player_respawned`. Si `respawn`
-   devuelve `false` (robot vivo o sin ruleset: `push_error`), `Main` no reanuda `World`.
+6. `Main._on_transfer_finished` marca `_respawn_pending` y viaja a la base con `ZoneLoader.travel_to` (también si
+   murió dentro de la base: la recarga). Al terminar el viaje, `Main._respawn_at` llama
+   `DeathController.respawn(robot, base.get_spawn_position())`. Calcula la batería (máximo × `respawn_battery_ratio`),
+   llama `Robot.respawn_at` y emite `EventBus.player_respawned`; después quita los motivos `DEATH` y `TRAVEL`. Si
+   `respawn` devuelve `false` (robot vivo o sin ruleset: `push_error`), `Main` no reanuda `World`. Si el viaje
+   falla o se rechaza, reaparece en el `SpawnPoint` de la zona que sigue cargada. Si la muerte coincide con un viaje
+   en curso por una salida, espera a que termine y viaja a la base.
 7. Recoger: `DroppedItem` conecta `interacted` y pasa todas las ranuras al inventario de quien interactúa con
    `take_from`; entra lo que cabe en orden de ranura. Si algo no cabe, el inventario emite `overflowed` y el HUD muestra
    el aviso de [inventory.md](inventory.md); el objeto se queda con el resto y su hora original. Si queda vacío emite
@@ -54,6 +63,14 @@
 - Un `Timer` creado por el spawner (cada `EXPIRY_CHECK_INTERVAL_S`, solo mientras hay objetos) llama
   `discard_expired_now()`; también lo llama `Main` al poblar y repoblar. Un objeto caducado vuelve al pool sin dar nada.
 - El reloj lo expone `GameManager.get_time_service()` y `Main` se lo asigna al spawner; el spawner no crea relojes.
+
+### Objetos caídos y descarga de zona (spec 009)
+
+- `DroppedItemSpawner.unbind_zone()` (lo llama `ZoneLoader` al descargar): guarda `to_data()` de cada objeto por
+  `zone_id` en memoria y los devuelve al pool; ninguno se libera con la zona.
+- `bind_zone(zone_id, zona)` (al cargar): restaura los guardados de esa zona con su `uid`, posición local, hora de caída
+  y pilas, y llama `discard_expired_now()` antes de que nadie interactúe. Un id de ítem desconocido pierde esa pila con
+  `push_error`, no el resto. Los guardados no caducan mientras la zona no está cargada.
 
 ## Datos
 
@@ -76,7 +93,9 @@
 | `DroppedItem` guarda sus pilas en un `InventoryComponent` | Reutiliza apilado y "lo que cabe"; no crea ni pierde unidades | R-008-11, [plan 008 §1](../../specs/008-death-recovery/plan.md) |
 | Objetos caídos bajo `World`, fuera de la zona, con posición `(zone_id, local)` | Repoblar o descargar la zona no los toca | R-008-10, R-008-16, [plan 008 §1](../../specs/008-death-recovery/plan.md) |
 | `TransferScreen` fuera de `UIManager` | Escape y "atrás" no deben cerrarla | [plan 008 §1](../../specs/008-death-recovery/plan.md) |
-| Reaparece en el `SpawnPoint` de la zona | Hace de base hasta la spec 009 | [spec 008 §6](../../specs/008-death-recovery/spec.md) (pregunta 1) |
+| Reaparece en el `SpawnPoint` de la base, por un viaje, también si murió dentro de ella | El punto de reaparición se decide en un solo sitio y la muerte sigue un solo camino | R-009-51, R-009-52, [plan 009 §1](../../specs/009-base-placement-charging/plan.md) "Muerte con base" |
+| Morir en la base no sube el contador de visitas | Solo las zonas `FARM` cuentan | [plan 009 §1](../../specs/009-base-placement-charging/plan.md) (pregunta 12) |
+| Los objetos caídos guardan su estado en JSON al descargar la zona | Es el mismo camino que usará la 010 al cargar | R-009-17, plan 009 §1 |
 | El spawner recibe el reloj inyectado | Los tests usan un reloj falso sin tocar el autoload | [plan 008 §6](../../specs/008-death-recovery/plan.md) (aviso P10) |
 | `World` se congela con `process_mode`, sin pausar el árbol | La pantalla de transferencia sigue corriendo | [plan 008 §1](../../specs/008-death-recovery/plan.md) |
 
@@ -95,12 +114,14 @@
   valiendo ([plan 008 §7](../../specs/008-death-recovery/plan.md)).
 - Se pierde y se conserva solo el inventario: `keeps_core` se declara pero no lo aplica nadie hasta la spec 014 (piezas).
 - Las pilas parciales del mismo item se fusionan al caer: "tal como estaban" se cumple por item y cantidad, no por ranura.
-- Nada se guarda: contador de visitas y objetos caídos viven en memoria (spec 010). `to_data()` ya devuelve solo tipos
-  JSON; `from_data` no existe.
+- Nada se guarda en disco: contador de visitas y objetos caídos viven en memoria (spec 010). `to_data()` devuelve solo
+  tipos JSON y `bind_zone` ya los restaura desde memoria.
 - `GameManager` es un autoload: una muerte en un test deja la visita en 1. Las suites que instancian `main.tscn` o un
   `DeathController` llaman a `clear_visit_counts()` **antes** de instanciar.
-- Dos escritores del bloqueo de input (`UIManager` y la transferencia); no chocan mientras no se abra una pantalla
-  muerto. Un tercero obligaría a un contador de motivos.
+- El bloqueo de input y el congelado de `World` van por motivos (`DEATH`, `TRAVEL`, `SCREEN`): terminar el viaje no
+  levanta el bloqueo de la muerte ([movement.md](movement.md)).
+- Salir por una salida y morir en el mismo paso de física suma dos visitas a la zona de origen (muerte y salida):
+  aceptado en [plan 009 §5.3](../../specs/009-base-placement-charging/plan.md).
 - Un objeto puede verse hasta 1 s tras caducar (resolución del `Timer`). Sin cuenta atrás ni marcador (ACTION_PLAN 4.1).
 - Morir justo en el punto de reaparición deja el objeto bajo el robot; se recoge igual con "Interactuar".
 - R-008-45 (FPS en Android): la spec lo da por verificado a mano, pero [tasks.md](../../specs/008-death-recovery/tasks.md)
@@ -111,7 +132,7 @@
 - Otro modo de juego: nuevo `RulesetData` `.tres` en `resources/rulesets/`, registrado en el catálogo; si necesita un
   campo nuevo, léelo en `DeathController` (nunca compares el id).
 - Otro origen de objetos caídos: llamar a `drop_stacks` o `drop_from_slot` del spawner desde quien cablee el evento.
-- Reaparecer en la base (spec 009): cambiar el argumento de `respawn` en `Main._on_transfer_finished`.
+- Cambiar dónde se reaparece: `Main._respawn_at` y el destino de `_travel_to_base_for_respawn`; no hay otro sitio.
 
 ## Tests
 
@@ -122,6 +143,6 @@
 | `tests/unit/test_time_service.gd` | Contrato, reloj local, solo `local_time_service.gd` lee `Time` |
 | `tests/unit/test_dropped_item.gd` | Pilas, uid, recoger (total y parcial), `reset`, JSON, prompt ES/EN |
 | `tests/unit/test_transfer_screen.gd` | Oculta hasta `play()`, `finished` una vez, absorbe toques, textos |
-| `tests/integration/test_dropped_item_spawner.gd` | Pool, hora, caducidad, objeto reutilizado limpio |
-| `tests/integration/test_death_controller.gd` | Una muerte, un `player_died`; XP y ranuras; reaparición; ruleset a mano |
-| `tests/integration/test_main_scene.gd` | Pantallas cerradas, robot congelado, bucle morir-reaparecer-recuperar |
+| `tests/integration/test_dropped_item_spawner.gd` | Pool, hora, caducidad, objeto reutilizado limpio; guardar al descargar y restaurar (caducados descartados) |
+| `tests/integration/test_death_controller.gd` | Una muerte, un `player_died`; XP y ranuras; reaparición; ruleset a mano; morir en la base no cuenta visita |
+| `tests/integration/test_main_scene.gd` | Pantallas cerradas, robot congelado, bucle morir-reaparecer en la base-recuperar, fallo del viaje de reaparición, muerte colocando o moviendo |

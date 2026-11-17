@@ -3,7 +3,8 @@
 > Cómo el robot se mueve en la escena isométrica: entrada unificada (teclado y joystick táctil), reglas puras de
 > marcha y la cámara que lo sigue.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [007](../../specs/007-melee-combat/spec.md)
-> (entrada de ataque y sacudida de cámara) · Última actualización: spec 007
+> (entrada de ataque y sacudida de cámara), [009](../../specs/009-base-placement-charging/spec.md) (motivos de
+> bloqueo, `place_at`) · Última actualización: spec 009
 
 ## Piezas
 
@@ -52,6 +53,14 @@
    botón del HUD se mantiene o si hubo una pulsación desde la última llamada (así un toque más corto que un paso de
    física no se pierde; una pulsación durante la espera no se guarda). Con la entrada bloqueada devuelve `false`.
 
+7. **Bloqueo por motivos** (spec 009). `PlayerInput.set_input_blocked(blocked, reason)` con `REASON_SCREEN`
+   (`UIManager`), `REASON_DEATH` (muerte) y `REASON_TRAVEL` (viaje). Cada dueño enciende y apaga solo el suyo; la
+   entrada queda bloqueada mientras haya alguno activo (`is_input_blocked()`). `blocked_changed(blocked)` se emite solo
+   cuando "algún motivo" cambia: añadir un segundo motivo o quitar uno de dos no emite. Un motivo vacío es `push_error`.
+   El `Hud` lo escucha para ocultar el botón Interact ([ui.md](ui.md)).
+8. **Colocarse.** `Robot.place_at(posición)` pone al robot en un punto, quieto; es como llega a cada zona
+   ([travel.md](travel.md)) y lo usa también `respawn_at`.
+
 ## Datos
 
 | Recurso | Clase | Valores en |
@@ -88,7 +97,9 @@ y suelta el joystick durante la transferencia).
 ## Trampas y límites
 
 - Con la entrada bloqueada `PlayerInput` no da dirección, correr ni interactuar, pero el robot sigue procesando:
-  la batería sigue drenando.
+  la batería sigue drenando (salvo durante un viaje o una muerte, que además congelan `World`).
+- Un nuevo dueño del bloqueo debe usar su propio motivo: pasar el de otro puede levantarle el bloqueo.
+- Mientras la colocación está abierta (incluido `EDIT_PICK`) el robot no se mueve: es una pantalla de `UIManager`.
 - `force_touch_debug` es un flag exportado del nodo `TouchControls`; la UI táctil solo se oculta si no hay pantalla
   táctil y el flag está apagado.
 - Si falta `config` en `CameraRig` solo se registra error; si falta `camera_rig` en `Robot` se usa el yaw 0.
@@ -116,7 +127,7 @@ y suelta el joystick durante la transferencia).
 | `game/tests/unit/test_locomotion_system.gd` | Dirección relativa a cámara, velocidades, sin piernas, giro, marcha |
 | `game/tests/unit/test_joystick_logic.gd` | Zona muerta, histéresis de correr, límite de radio, dirección |
 | `game/tests/unit/test_floating_joystick.gd` | Mitad izquierda, un solo dedo, liberación, UI táctil y debug |
-| `game/tests/unit/test_player_input.gd` | Bloqueo de entrada (joystick, teclado, interactuar), `poll_attack` (pulsación no encolada, evento no gestionado, ratón emulado, sin quedarse pegado) |
+| `game/tests/unit/test_player_input.gd` | Bloqueo de entrada (joystick, teclado, interactuar), motivos independientes y `blocked_changed`, `poll_attack` (pulsación no encolada, evento no gestionado, ratón emulado, sin quedarse pegado) |
 | `game/tests/unit/test_camera_rig.gd` | Sacudida: desplaza, no supera la fuerza, vuelve a 0, gana la más fuerte |
 | `game/tests/unit/test_movement_resources.gd` | `.tres` de piernas, controles y cámara contra BALANCE |
 | `game/tests/integration/test_robot_movement.gd` | Capsule, andar por InputMap, parada sin deslizar, obstáculo |

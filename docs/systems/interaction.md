@@ -1,7 +1,7 @@
 # Interacción
 
 > Un robot detecta el objeto interactuable más cercano a su alcance y lo activa con la tecla E o con el botón "Interactuar" del HUD.
-> Specs: [004](../../specs/004-green-zone/spec.md), [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008 (`DroppedItem` como interactuable)
+> Specs: [004](../../specs/004-green-zone/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md) · Última actualización: spec 009 (salida, banco y estación como interactuables)
 
 ## Piezas
 
@@ -67,7 +67,8 @@ interactuante ([death.md](death.md)). Como viene de un pool, `setup()` lo activa
 - El objetivo se recalcula en `_physics_process`, no al instante: un objeto liberado deja de ser objetivo vía `get_target()`.
 - Un nuevo interactuable necesita su `CollisionShape3D` hijo; sin él el interactor no lo detecta.
 - El interactor no filtra por línea de visión ni por dirección: solo distancia.
-- Existen `PROMPT_OPEN` y `PROMPT_PICK_UP`. `PROMPT_RECHARGE` y otras claves llegan con sus specs.
+- Claves de aviso existentes: `PROMPT_OPEN`, `PROMPT_PICK_UP`, `PROMPT_TRAVEL` (`ExitPoint`), `PROMPT_USE` (`RepairBench`) y `PROMPT_RECHARGE` (`ChargingStation`).
+- Un `InteractableComponent` tiene `enabled`: `BaseStructures` lo apaga en las estructuras mientras se coloca o se mueve ([base.md](base.md)).
 - Con varios objetos caídos juntos (por ejemplo la muerte y un zombi), el interactor ofrece solo el más cercano.
 - Cada robot interactúa por separado; en co-op el `Hud` solo se enlaza al robot local.
 

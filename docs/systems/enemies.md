@@ -112,7 +112,8 @@ marcadores en `%EnemyMarkers` (más que el máximo de enemigos). `drop_table = n
   robot si se solapan.
 - `home` y los puntos de patrulla están en coordenadas globales.
 - La visita sale de `GameManager`, que no se guarda todavía (spec 010). `FarmZone.repopulate()` llama a
-  `despawn_enemies()` en cada muerte del robot; el `ZoneLoader` llega con la spec 009.
+  `despawn_enemies()` en cada muerte del robot en una zona `FARM`; `ZoneLoader` también la llama al descargar la zona
+  ([travel.md](travel.md)). La base no tiene enemigos ni navmesh.
 - `activate()` ahora recibe `drop_seed` como cuarto argumento: quien lo llame a mano (tests) debe pasarlo.
 - La posición del hurtbox va un paso de física por detrás del cuerpo del zombie (matiz de `intersect_shape`,
   [plan 007 §5.1](../../specs/007-melee-combat/plan.md)).

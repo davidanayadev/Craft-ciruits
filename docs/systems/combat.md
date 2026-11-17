@@ -3,7 +3,7 @@
 > El robot golpea con un brazo en la dirección que mira, cada golpe cuesta batería, los zombies mueren y el robot
 > suma XP. Incluye el feedback del golpe (destello, sacudida, chispas, borde rojo).
 > Specs: [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) (solo
-> `cancel_swing` y `ExperienceComponent.reset`) · Última actualización: spec 008
+> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · Última actualización: spec 009
 
 ## Piezas
 
@@ -49,6 +49,8 @@
      vuelven al pool, en diferido, con `finished`).
    - `robot.hit_received` → sacudida de "golpe recibido" y `Hud.flash_damage()`.
    El destello blanco del enemigo lo dispara el propio zombie con `hurtbox.hurt` → `HitFlashComponent.flash()`.
+   `CombatFeedback.release_all()` (spec 009) devuelve al pool todas las chispas que siguen activas; `Main` la llama al
+   empezar un viaje, porque las chispas cuelgan de `World` y no de la zona que se descarga ([travel.md](travel.md)).
 
 ```
 Botón/Espacio/clic -> PlayerInput.poll_attack -> MeleeAttack.tick -> swing_started -> battery.consume
