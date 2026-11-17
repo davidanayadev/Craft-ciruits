@@ -1,7 +1,7 @@
 # Interacción
 
 > Un robot detecta el objeto interactuable más cercano a su alcance y lo activa con la tecla E o con el botón "Interactuar" del HUD.
-> Specs: [004](../../specs/004-green-zone/spec.md) · Última actualización: spec 005 (el botón se oculta con una pantalla abierta)
+> Specs: [004](../../specs/004-green-zone/spec.md), [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008 (`DroppedItem` como interactuable)
 
 ## Piezas
 
@@ -16,7 +16,7 @@
 
 ## Cómo funciona
 
-1. Un objeto (hoy `LootBox`) lleva un `InteractableComponent` con `prompt_key` (clave de traducción, `PROMPT_OPEN`)
+1. Un objeto (`LootBox`, `DroppedItem`) lleva un `InteractableComponent` con `prompt_key` (clave de traducción, `PROMPT_OPEN`)
    y una forma de colisión hija. En `_ready()` se pone solo en la capa de física 2 ("interaction"), sin máscara
    y con `monitorable = true`.
 2. El robot lleva un `InteractorComponent`. En `_ready()` crea una esfera de radio `config.interaction_range_m`, con
@@ -31,6 +31,14 @@
 7. `request_interact()` no hace nada con la batería agotada o con el input bloqueado por una pantalla. Si no,
    llama `interactor.interact_with_target(self)` → `target.interact(robot)` → `interacted.emit(robot)`.
 8. `enabled = false` hace que el objeto no se ofrezca como objetivo y que `interact()` no emita.
+
+### Objeto caído (spec 008)
+
+`DroppedItem` lleva `%Interactable` con `prompt_key = PROMPT_PICK_UP` ("Recoger" / "Pick up"), así que el HUD ofrece el
+botón sin cambios. Al interactuar, conecta `interacted` a su recogida: pasa todas las pilas al inventario del
+interactuante ([death.md](death.md)). Como viene de un pool, `setup()` lo activa y `reset()` lo desactiva
+(`enabled = false`); el interactor puede apuntar un paso de física a un objeto ya devuelto, y al estar desactivado
+`interact_with_target` no hace nada. No tiene cuerpo de colisión: el robot lo atraviesa.
 
 ## Datos
 
@@ -50,7 +58,7 @@
 
 ## Relación con otros sistemas
 
-- [loot.md](loot.md): `LootBox` es el único objeto interactuable hoy.
+- [loot.md](loot.md): `LootBox`. [death.md](death.md): `DroppedItem`. Son los dos objetos interactuables hoy.
 - [ui.md](ui.md): `Hud` y bloqueo de input mientras hay pantallas (`UIManager`). [battery.md](battery.md): batería agotada bloquea.
 - [movement.md](movement.md): `PlayerInput` y la acción `interact` del InputMap. Valores en [data_catalog.md](data_catalog.md).
 
@@ -59,7 +67,8 @@
 - El objetivo se recalcula en `_physics_process`, no al instante: un objeto liberado deja de ser objetivo vía `get_target()`.
 - Un nuevo interactuable necesita su `CollisionShape3D` hijo; sin él el interactor no lo detecta.
 - El interactor no filtra por línea de visión ni por dirección: solo distancia.
-- Solo existe `PROMPT_OPEN`. `PROMPT_RECHARGE` y otras claves llegan con sus specs.
+- Existen `PROMPT_OPEN` y `PROMPT_PICK_UP`. `PROMPT_RECHARGE` y otras claves llegan con sus specs.
+- Con varios objetos caídos juntos (por ejemplo la muerte y un zombi), el interactor ofrece solo el más cercano.
 - Cada robot interactúa por separado; en co-op el `Hud` solo se enlaza al robot local.
 
 ## Cómo extenderlo
@@ -75,3 +84,4 @@ Objeto nuevo interactuable: añadir un `InteractableComponent` con su forma de c
 | `tests/unit/test_interactor_component.gd` | Más cercano, `target_changed` con física real, radio desde datos (R-004-12, 15, 17) |
 | `tests/unit/test_hud.gd` | Botón con el `prompt_key` del objetivo, oculto sin objetivo, emite `interact_pressed` (R-004-13) |
 | `tests/integration/test_robot_interaction.gd` | E y botón abren la caja; batería agotada no interactúa (R-004-14, 16) |
+| `tests/unit/test_dropped_item.gd` | Prompt `PROMPT_PICK_UP` traducido ES/EN y recogida al interactuar (R-008-12, 13) |

@@ -1,7 +1,7 @@
 # Batería
 
-> La batería es la salud del robot: se gasta sola, al moverse y al recibir golpes, y al llegar a 0 la partida termina.
-> Specs: [003](../../specs/003-battery/spec.md) · Última actualización: spec 006 (el golpe de zombi entra por `Robot.receive_hit`)
+> La batería es la salud del robot: se gasta sola, al moverse y al recibir golpes, y al llegar a 0 el robot muere.
+> Specs: [003](../../specs/003-battery/spec.md), [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008 (la muerte pasa por `DeathController`)
 
 ## Piezas
 
@@ -13,8 +13,8 @@
 | `LocomotionSystem.gait()` | Sistema puro | `game/scripts/systems/locomotion_system.gd` | Convierte dirección + intención de correr en `Gait` (IDLE/WALK/RUN) |
 | `Robot` | Escena | `game/scenes/entities/robot.gd` | Alimenta `tick()` cada frame de física; `receive_hit()` consume |
 | `Hud` | Escena | `game/scenes/ui/hud.gd` | Barra y número de batería |
-| `GameOverScreen` | Escena | `game/scenes/ui/game_over_screen.gd` | Pantalla provisional de fin de partida |
-| `Main` | Escena | `game/scenes/main.gd` | Reacciona a `battery_depleted` |
+| `DeathController` | Nodo | `game/scenes/death/death_controller.gd` | Escucha `battery_depleted` y aplica el ruleset ([death.md](death.md)) |
+| `Main` | Escena | `game/scenes/main.gd` | Muestra la transferencia y congela `World` al morir el robot local |
 
 ## Cómo funciona
 
@@ -31,12 +31,17 @@
    Consumir más de lo que queda no es error: agota la batería.
 7. `Hud.bind(robot)` se conecta a `battery_changed` y pinta el estado inicial; muestra `ceili(current)` para no enseñar 0
    mientras quede carga. No lee estado en `_process`.
-8. `Main._on_battery_depleted()` cierra las pantallas del `UIManager`, abre `GameOverScreen` y congela `World`
-   (`process_mode = DISABLED`, diferido) sin pausar el árbol. El botón emite `restart_requested` y `Main` recarga la escena.
+8. `DeathController` escucha `battery_depleted` y aplica el ruleset (suelta el inventario, sube la visita, emite
+   `player_died`); `Main` cierra las pantallas, muestra `TransferScreen` y congela `World` (`process_mode = DISABLED`,
+   diferido) sin pausar el árbol. Ya no hay game over ni recarga de escena. Al reaparecer, `Robot.respawn_at` carga la
+   batería con `add()`. Ver [death.md](death.md).
+9. Coste de ataque (spec 007): `MeleeAttackComponent` emite `swing_started(battery_cost)` y `Robot` lo conecta a
+   `battery.consume()`, acierte o no. `BatteryComponent` no cambió; un golpe propio puede agotar la batería.
 
 ```
 Robot._physics_process -> BatteryComponent.tick -> battery_changed -> Hud
-Robot.receive_hit ------> consume -------------> battery_depleted -> Main -> GameOverScreen + World congelado
+Robot.receive_hit ------> consume -------------> battery_depleted -> DeathController -> player_died -> Main (TransferScreen)
+MeleeAttackComponent.swing_started -> Robot -> consume
 ```
 
 ## Datos
@@ -55,20 +60,21 @@ Robot.receive_hit ------> consume -------------> battery_depleted -> Main -> Gam
 | `consume`/`add`/`recharge_full` devuelven `void`, no `ActionResult` | Un importe negativo es un fallo de programación, no un fallo del jugador; consumir de más es la muerte | [plan 003 §6](../../specs/003-battery/plan.md) |
 | `ProgressBar` en lugar de `TextureProgressBar` | Aún no hay texturas | [plan 003 §7](../../specs/003-battery/plan.md) |
 | Número entero redondeado hacia arriba en el HUD | Pregunta cerrada en nov 2026 | [spec 003](../../specs/003-battery/spec.md) (preguntas abiertas, nº 4) |
-| Game over provisional con reinicio | Lo sustituye el spec 008 | R-003-12, [spec 003](../../specs/003-battery/spec.md) |
+| La muerte real sustituye al game over provisional | `GameOverScreen` y la recarga de escena se borraron | R-008-33, R-003-12 |
+| El coste de ataque se descuenta en `Robot`, no en el componente de combate | Sin documentar (R-007-10 solo exige el coste por golpe) | R-007-10, [plan 007](../../specs/007-melee-combat/plan.md) |
 
 ## Relación con otros sistemas
 
 - Usa [movement.md](movement.md): `LocomotionSystem.Gait` y `MovementStatsData.walk_drain`.
 - Lo usan [enemies.md](enemies.md) (el golpe llega por `Robot.receive_hit`, que llama `consume`) e [interaction.md](interaction.md)
   (un robot con batería agotada no interactúa).
-- Las pantallas (`Hud`, `GameOverScreen`, `UIManager`) se describen en [ui.md](ui.md). Datos en [data_catalog.md](data_catalog.md).
+- Las pantallas (`Hud`, `TransferScreen`, `UIManager`) se describen en [ui.md](ui.md); la muerte, en [death.md](death.md). Datos en [data_catalog.md](data_catalog.md).
 
 ## Trampas y límites
 
 - `legs` se asigna a mano en el componente; el spec 014 lo sustituye por `StatsComponent`. El máximo también pasará al Core equipado.
-- No hay muerte real, drops ni respawn (spec 008), ni recarga en Estación de carga (specs 009 y 012). Solo el reinicio de escena.
-- El consumo por golpe dado y la degradación de piezas aún no existen (specs 007 y 014; `Robot.hit_received` es el punto de enganche).
+- No hay recarga en Estación de carga (specs 009 y 012) ni degradación de piezas (spec 014; `Robot.hit_received` es el punto de enganche).
+- La batería al reaparecer sale de `RulesetData.respawn_battery_ratio`, no de `BatteryConfigData`.
 - `battery_low` no tiene oyentes todavía.
 - Con la batería agotada `receive_hit()` no hace nada (R-006-18).
 
@@ -86,6 +92,6 @@ Robot.receive_hit ------> consume -------------> battery_depleted -> Main -> Gam
 | `tests/unit/test_battery_resources.gd` | R-003-13: `.tres` coinciden con BALANCE |
 | `tests/unit/test_locomotion_system.gd` | `gait()` |
 | `tests/unit/test_hud.gd` | R-003-11: redondeo, sigue a `battery_changed`, sin polling |
-| `tests/unit/test_game_over_screen.gd` | R-003-12: oculta hasta `open()`, botón, textos ES/EN |
 | `tests/integration/test_robot_battery.gd` | Consumo con física real e InputMap |
-| `tests/integration/test_main_scene.gd` | HUD enlazado y game over al agotarse |
+| `tests/integration/test_main_scene.gd` | HUD enlazado; al agotarse, transferencia y reaparición ([death.md](death.md)) |
+| `tests/integration/test_robot_combat.gd` | Un golpe cuesta batería, también si falla (R-007-10) |

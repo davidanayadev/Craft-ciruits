@@ -2,7 +2,9 @@
 
 > Configuración de Godot, InputMap, traducciones, arnés de tests, CI y exportación sobre los que se apoya todo lo
 > demás. No contiene gameplay.
-> Specs: [001](../../specs/001-project-bootstrap/spec.md) · Última actualización: spec 006 (backfill de la 001)
+> Specs: [001](../../specs/001-project-bootstrap/spec.md); ajustes añadidos por la
+> [004](../../specs/004-green-zone/spec.md) y la [007](../../specs/007-melee-combat/spec.md) ·
+> Última actualización: spec 008 (la 008 no cambia `project.godot`)
 
 ## Piezas
 
@@ -27,7 +29,14 @@
    `unsafe_call_argument` valen `2` (error). Por eso un `Variant` no entra directo en un assert de GUT.
 4. **InputMap**: acciones `move_forward/back/left/right` (WASD y flechas), `run` (Shift izq.), `attack` (Espacio y
    botón izquierdo), `use_consumable` (Q), `interact` (E), `open_storage` (Tab), `pause` (Esc). El gameplay lee
-   solo acciones o `PlayerInput`, nunca teclas ([movement.md](movement.md)).
+   solo acciones o `PlayerInput`, nunca teclas ([movement.md](movement.md)). `attack` se lee a través de
+   `PlayerInput.poll_attack()`, no del estado de la acción ([combat.md](combat.md)).
+   **Capas de física 3D con nombre**: `2 = interaction` (spec 004) y `3 = hurtbox` (spec 007, las usan el impacto
+   del robot y los hurtboxes de los enemigos). Los números viven en `InteractableComponent.PHYSICS_LAYER` y
+   `HurtboxComponent.PHYSICS_LAYER`.
+   **Autoloads** (orden de carga): `EventBus`, `DataRegistry`, `GameManager` ([data_catalog.md](data_catalog.md)).
+   `EventBus` va el primero (spec 007) para que los demás puedan conectarse en su `_ready`. Ni la 007 ni la 008
+   añadieron acciones de input.
 5. **i18n**: `strings.csv` tiene una fila por clave; `locale/translations` apunta a los dos `.translation`
    generados. Si el idioma del dispositivo no es ES ni EN, se usa inglés (fallback por defecto de Godot). El texto
    visible va siempre por `tr()` sobre una clave de este CSV.
@@ -68,8 +77,8 @@ Los ajustes fijados por una spec los vigilan `test_project_settings.gd` y `test_
 - `check_scripts.gd` comprueba la carga en `_initialize()` y no en `_init()`, porque los autoloads se registran
   después de `_init()`.
 - Un `.gd` que no compila pasa GUT con aviso y solo lo detecta `check_scripts.gd`.
-- `test_project_settings.gd` también vigila ajustes de specs posteriores (autoloads, capa de física `interaction`,
-  `quit_on_go_back=false`).
+- `test_project_settings.gd` también vigila ajustes de specs posteriores (autoloads, incluido `EventBus`, capas de
+  física `interaction` y `hurtbox`, `quit_on_go_back=false`).
 - Solo vale la medición de rendimiento en Android real; el PC es un entorno de desarrollo (ADR 0001).
 
 ## Cómo extenderlo
@@ -83,5 +92,5 @@ Los ajustes fijados por una spec los vigilan `test_project_settings.gd` y `test_
 
 | Archivo | Verifica |
 |---|---|
-| `game/tests/unit/test_project_settings.gd` | Nombre, escena principal, renderer, 1920x1080 expand, avisos, traducciones y fallback |
+| `game/tests/unit/test_project_settings.gd` | Nombre, escena principal, renderer, 1920x1080 expand, avisos, traducciones y fallback, autoload `EventBus`, nombre de la capa `hurtbox` |
 | `game/tests/unit/test_input_map.gd` | Cada acción existe y tiene tecla de teclado |

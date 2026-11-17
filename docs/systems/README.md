@@ -64,13 +64,15 @@ Si el porqué de algo no está escrito en ninguna fuente, se pone **"Sin documen
 
 | Sistema | Página | Specs | Código principal |
 |---|---|---|---|
-| Base del proyecto | [foundation.md](foundation.md) | 001 | `game/project.godot`, `tools/run_tests.sh`, `tools/check_scripts.gd`, `.github/workflows/ci.yml` |
-| Catálogo de datos y autoloads | [data_catalog.md](data_catalog.md) | 004, 005, 006 | `DataRegistry`, `GameManager`, `DataCatalog`, `ActionResult` |
-| Movimiento y cámara | [movement.md](movement.md) | 002 | `Robot`, `PlayerInput`, `LocomotionSystem`, `JoystickLogic`, `FloatingJoystick`, `CameraRig` |
-| Batería | [battery.md](battery.md) | 003 | `BatteryComponent`, `BatteryConfigData` |
-| Mundo y zonas | [world_zones.md](world_zones.md) | 004, 006 | `Main`, `FarmZone`, `ZoneData`, `ZonePopulation`, `SeededRng` |
-| Interacción | [interaction.md](interaction.md) | 004 | `InteractableComponent`, `InteractorComponent` |
-| Botín | [loot.md](loot.md) | 004, 005 | `LootBox`, `LootSystem`, `LootTableData`, `ItemData` |
-| Inventario | [inventory.md](inventory.md) | 005 | `InventoryComponent`, `InventoryRules`, `ItemStack`, pantallas de caja e inventario |
-| Interfaz (UI) | [ui.md](ui.md) | 002, 003, 005 | `UIManager`, `UIScreen`, `Hud`, `GameOverScreen` |
-| Enemigos | [enemies.md](enemies.md) | 006 | `Zombie`, `HealthComponent`, `EnemyBrain`, `ZombieSpawner`, `ObjectPool` |
+| Base del proyecto | [foundation.md](foundation.md) | 001, 007 | `game/project.godot`, `tools/run_tests.sh`, `tools/check_scripts.gd`, `.github/workflows/ci.yml` |
+| Catálogo de datos y autoloads | [data_catalog.md](data_catalog.md) | 004, 005, 006, 007, 008 | `EventBus`, `DataRegistry`, `GameManager`, `DataCatalog`, `ActionResult` |
+| Movimiento y cámara | [movement.md](movement.md) | 002, 007 | `Robot`, `PlayerInput`, `LocomotionSystem`, `JoystickLogic`, `FloatingJoystick`, `CameraRig` |
+| Batería | [battery.md](battery.md) | 003, 007, 008 | `BatteryComponent`, `BatteryConfigData` |
+| Mundo y zonas | [world_zones.md](world_zones.md) | 004, 006, 008 | `Main`, `FarmZone`, `ZoneData`, `ZonePopulation`, `SeededRng`, `GameManager` (visitas) |
+| Interacción | [interaction.md](interaction.md) | 004, 008 | `InteractableComponent`, `InteractorComponent` |
+| Botín | [loot.md](loot.md) | 004, 005, 008 | `LootBox`, `LootSystem`, `LootTableData`, `ItemData` |
+| Inventario | [inventory.md](inventory.md) | 005, 008 | `InventoryComponent`, `InventoryRules`, `ItemStack`, `QuantitySelector`, pantallas de caja e inventario |
+| Interfaz (UI) | [ui.md](ui.md) | 002, 003, 005, 007, 008 | `UIManager`, `UIScreen`, `Hud`, `TransferScreen`, `AttackButton`, `QuantitySelector` |
+| Enemigos | [enemies.md](enemies.md) | 006, 007, 008 | `Zombie`, `HealthComponent`, `HurtboxComponent`, `EnemyBrain`, `ZombieSpawner`, `ObjectPool` |
+| Combate y XP | [combat.md](combat.md) | 007, 008 | `MeleeAttackComponent`, `CombatSystem`, `HurtboxComponent`, `ExperienceComponent`, `CombatFeedback` |
+| Muerte y objetos caídos | [death.md](death.md) | 008 | `DeathController`, `RulesetData`, `DroppedItem`, `DroppedItemSpawner`, `DroppedItemRules`, `ITimeService`, `TransferScreen` |

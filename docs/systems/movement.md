@@ -2,7 +2,8 @@
 
 > Cómo el robot se mueve en la escena isométrica: entrada unificada (teclado y joystick táctil), reglas puras de
 > marcha y la cámara que lo sigue.
-> Specs: [002](../../specs/002-iso-scene-player-movement/spec.md) · Última actualización: spec 006 (backfill de la 002)
+> Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [007](../../specs/007-melee-combat/spec.md)
+> (entrada de ataque y sacudida de cámara) · Última actualización: spec 007
 
 ## Piezas
 
@@ -16,7 +17,7 @@
 | `LocomotionSystem` | sistema puro | `game/scripts/systems/locomotion_system.gd` | Dirección relativa a cámara, marcha, velocidad, giro |
 | `MovementStatsData` | Resource | `game/scripts/data/movement_stats_data.gd` | Velocidades y si puede correr (`resources/movement/basic_legs.tres`) |
 | `ControlConfigData` | Resource | `game/scripts/data/control_config_data.gd` | Umbrales del joystick y giro (`resources/config/controls.tres`) |
-| `CameraRig` | Node3D | `game/scenes/camera/camera_rig.gd` | Aplica la config y sigue al objetivo |
+| `CameraRig` | Node3D | `game/scenes/camera/camera_rig.gd` | Aplica la config, sigue al objetivo y sacude (`shake()`, spec 007) |
 | `CameraConfigData` | Resource | `game/scripts/data/camera_config_data.gd` | Ángulos, distancia y tamaño ortográfico (`resources/config/camera.tres`) |
 
 ## Cómo funciona
@@ -42,7 +43,14 @@
    6. `move_and_slide()`.
 5. **Cámara**. `CameraRig` aplica `CameraConfigData` en `_ready()` (ortográfica, `size`, rotación Y y X, posición a
    `distance` del origen) y en cada `_physics_process` copia la posición global del `target`. `Main` asigna
-   `robot.camera_rig` y `camera_rig.target`.
+   `robot.camera_rig` y `camera_rig.target`. `shake(strength_m, duration_s)` desplaza la cámara con
+   `h_offset`/`v_offset` en el plano de la pantalla, sin tocar la posición que sigue al robot; la fuerza baja
+   lineal a 0 y una sacudida nueva solo sustituye a la actual si no es más débil. Usa un RNG propio de semilla fija
+   y solo procesa mientras sacude. Quien la pide es `CombatFeedback` ([combat.md](combat.md)).
+6. **Ataque** (spec 007). `Robot` llama una vez por paso a `PlayerInput.poll_attack()` y se lo pasa a
+   `melee.tick()` ([combat.md](combat.md)). `poll_attack()` devuelve `true` si la acción `attack` se mantiene, si el
+   botón del HUD se mantiene o si hubo una pulsación desde la última llamada (así un toque más corto que un paso de
+   física no se pierde; una pulsación durante la espera no se guarda). Con la entrada bloqueada devuelve `false`.
 
 ## Datos
 
@@ -63,6 +71,7 @@ píxeles) es de layout de UI, no de balance.
 | Velocidad fija por tramo, dirección analógica | Decisión cerrada nov 2026 | [R-002-17](../../specs/002-iso-scene-player-movement/spec.md) |
 | El gameplay lee solo `PlayerInput`, nunca eventos | Constitución P8: no mirar el dispositivo | R-002-13 |
 | Reglas de movimiento en una clase pura sin Node | Testeable y reutilizable por un anfitrión | [constitución P3](../../specs/constitution.md), comentario de `locomotion_system.gd` |
+| El ataque no se lee de `Input.is_action_pressed(&"attack")`, sino de `_unhandled_input` y del botón del HUD | El estado de la acción cambia **antes** de que la GUI reparta el evento: un clic izquierdo en un botón del HUD (la acción `attack` incluye el ratón) contaría como golpe | R-007-15, [plan 007 §1](../../specs/007-melee-combat/plan.md) "Input" |
 | Una sola regla de "correr" (`gait`) | Velocidad y drenaje de batería no pueden discrepar | Comentario de `locomotion_system.gd` |
 | Cámara ortográfica que sigue rígidamente | La zona de 50x50 m no cabe en pantalla | R-002-02 |
 | Todos los números en `.tres` | Constitución P2, P5 | R-002-14 |
@@ -72,7 +81,9 @@ píxeles) es de layout de UI, no de balance.
 
 Usa: [foundation.md](foundation.md) (acciones del InputMap). Lo usan: [battery.md](battery.md) (la marcha),
 [interaction.md](interaction.md) (`request_interact`, alcance), [ui.md](ui.md) (`UIManager` bloquea la entrada
-con `set_input_blocked`), [enemies.md](enemies.md) (grupo `players` del robot).
+con `set_input_blocked`; el botón de atacar llama a `set_attack_button_held`), [enemies.md](enemies.md) (grupo
+`players` del robot), [combat.md](combat.md) (`poll_attack`, `shake`), [death.md](death.md) (bloquea la entrada
+y suelta el joystick durante la transferencia).
 
 ## Trampas y límites
 
@@ -81,6 +92,12 @@ con `set_input_blocked`), [enemies.md](enemies.md) (grupo `players` del robot).
 - `force_touch_debug` es un flag exportado del nodo `TouchControls`; la UI táctil solo se oculta si no hay pantalla
   táctil y el flag está apagado.
 - Si falta `config` en `CameraRig` solo se registra error; si falta `camera_rig` en `Robot` se usa el yaw 0.
+- Un evento de ratón emulado desde un toque (`device = -1`) no casa con la acción `attack` (la del ratón es
+  `device = 32`), así que tocar el joystick o el escenario en Android no es un golpe
+  ([plan 007 §5.1](../../specs/007-melee-combat/plan.md), punto 1).
+- Con `force_touch_debug` el clic izquierdo mueve el joystick y también golpea: `FloatingJoystick` no marca el
+  evento como gestionado (plan 007 §7). Solo en depuración.
+- `FloatingJoystick.cancel()` (spec 008) suelta el dedo que sigue, para cuando algo tapa la pantalla.
 - Aún no hay piezas: `can_run = false` solo se prueba con un recurso hecho a mano.
 - No hay salto, esquiva ni agacharse (agacharse es v1.1, SPECS §30).
 - Los ajustes del jugador (sensibilidad del joystick) aún no existen; llegan con ACTION_PLAN 4.2.
@@ -99,6 +116,7 @@ con `set_input_blocked`), [enemies.md](enemies.md) (grupo `players` del robot).
 | `game/tests/unit/test_locomotion_system.gd` | Dirección relativa a cámara, velocidades, sin piernas, giro, marcha |
 | `game/tests/unit/test_joystick_logic.gd` | Zona muerta, histéresis de correr, límite de radio, dirección |
 | `game/tests/unit/test_floating_joystick.gd` | Mitad izquierda, un solo dedo, liberación, UI táctil y debug |
-| `game/tests/unit/test_player_input.gd` | Bloqueo de entrada (joystick, teclado, interactuar) |
+| `game/tests/unit/test_player_input.gd` | Bloqueo de entrada (joystick, teclado, interactuar), `poll_attack` (pulsación no encolada, evento no gestionado, ratón emulado, sin quedarse pegado) |
+| `game/tests/unit/test_camera_rig.gd` | Sacudida: desplaza, no supera la fuerza, vuelve a 0, gana la más fuerte |
 | `game/tests/unit/test_movement_resources.gd` | `.tres` de piernas, controles y cámara contra BALANCE |
 | `game/tests/integration/test_robot_movement.gd` | Capsule, andar por InputMap, parada sin deslizar, obstáculo |
