@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-17) |
+| **Estado** | Hecho (2026-11-17) |
 | **Tarea(s) ACTION_PLAN** | 2.3 (y la parte de guardado de 2.2 y 2.8) |
 | **Fuentes** | ACTION_PLAN.md Tarea 2.3 (y 1.5, 2.2, 2.5, 2.6, 2.7, 2.8, 3.1, 4.1, 4.2 para los límites) · PMV.md §2.1 (persistencia), §2.3, §3 (guardado local, savegame corrupto), §4.5 ganchos 1, 2, 7 y 8, §10 (cajas y viaje; guardado de la spec 009) · BALANCE.md §5.3, §7, §7.2 · SPECS.md §23, §26, §27 (v1.1) · ONLINE.md "Preparación del código desde el PMV" puntos 1, 4, 7 y 9 · TOOLING.md §3, "Resumen de decisiones por fase" (`IStore` + `LocalStore` en el PMV) · architecture.md §3, §5, §7, §8, §10, §12, §13 · Constitución P2, P3, P4, P9, P10, P11, P13, P14 |
 | **Depende de** | 003 (`BatteryComponent`), 004 (cajas, `ZoneData`, `SeededRng`), 005 (`InventoryComponent`, `ItemStack`, aviso del HUD), 007 (`ExperienceComponent`, `player_uid`, `EventBus`), 008 (contador de visitas, objeto caído, `ITimeService`, regla de caducidad, `RulesetData`), 009 (`ZoneLoader`, base, estructuras colocadas, aviso de recarga); 007, 008 y 009 deben estar *Hecho* antes de implementar esta |

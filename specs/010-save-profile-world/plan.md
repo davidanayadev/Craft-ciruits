@@ -100,7 +100,7 @@ tocaría `SaveManager` y rompería R-010-03 y R-010-25. Otra alternativa descart
 | D5 | Clave de cifrado: una constante en `LocalSaveStore`, usada con `FileAccess.open_encrypted_with_pass`. Antes de descifrar se miran los 4 primeros bytes (`GDEC`). | Pregunta 1: ofuscación, no secreto. Vive solo en el almacén (R-010-57). Mirar la cabecera evita que un archivo en claro llegue al descifrado (que escribe un error del motor, §5.1). |
 | D6 | Ajuste de proyecto `cyberscrap/save/plain_json_in_debug` (por defecto `false`). `LocalSaveStore.should_encrypt(is_debug, plain_setting)` es puro: en release siempre cifra. Al leer, un archivo con cabecera `GDEC` se descifra; uno sin ella solo se acepta en modo sin cifrar. | R-010-64. Un archivo en claro en release sería editable a mano, que es justo lo que evita el cifrado. |
 | D7 | El Mundo se busca por `world_id` en el nombre del archivo (`world_<id>.save`); `ISaveStore.list_world_ids()` lo encuentra. En el PMV hay uno; si aparecen más, `push_error` y se usa el primero en orden. | R-010-18, sin pantalla de selección (v1.1). |
-| D8 | Mundo nuevo: `world_id = Uid.generate()`, semilla de 64 bits con `Crypto.generate_random_bytes(8).decode_s64(0)` (no el RNG global, `test_no_global_rng`), ruleset `normal` (constante `NEW_WORLD_RULESET_ID` de `SaveManager`: un id de datos, no un número de juego) y nombre vacío. Los tests fijan la semilla con `SaveManager.create_world(seed)`. | R-010-19, pregunta 9. |
+| D8 | Mundo nuevo: `world_id = Uid.generate()`, semilla de 64 bits con `Crypto.generate_random_bytes(8).decode_s64(0)` (no el RNG global, `test_no_global_rng`), ruleset `normal` (campo `new_world_ruleset` de `DataCatalog`, apuntando a `normal.tres`; enmendado al implementar, 2026-11-17: una constante `&"normal"` en `SaveManager` rompía la guarda de la spec 008, `test_r_008_03`, que prohíbe ese literal en el código) y nombre vacío. Los tests fijan la semilla con `SaveManager.create_world(seed)`. | R-010-19, pregunta 9. |
 | D9 | `DevWorldConfigData` y `dev_world.tres` se **borran**: nadie los lee ya. `test_game_manager.gd` (casos R-004-08 y R-008-02) se sustituye por los casos R-010-20, porque R-010-20 reemplaza esos requisitos, y esos dos requisitos se marcan como sustituidos en las specs 004 y 008. `test_green_zone.gd` fija su semilla de respuesta conocida (20261115) en una constante del test; `test_death_controller.gd` toma el ruleset de `DataRegistry`. | Pregunta 9. No se debilita ningún test: los requisitos que comprobaban dejan de existir y los nuevos tienen su test. Borrado aprobado por el usuario (2026-11-17). |
 | D10 | Los tests nunca tocan los guardados reales ni dependen del orden. Un *hook* de GUT (`pre_run_script`, verificado en `addons/gut/gut_config.gd:44`) instala un `MemorySaveStore` y una `quit_action` que no sale. `use_store()` reinicia **todo** el estado de `SaveManager` (Mundo, Perfil, retenciones, pendientes, bloqueo). Los tests que instancian `main.tscn` llaman en `before_each` a `SaveTestSupport.start_world()`, que pone un almacén nuevo y crea un Mundo con una semilla fija (`KNOWN_SEED`), y en `after_each` a `SaveTestSupport.reset()`. Los de `LocalSaveStore` usan `user://test_saves/<uid>/`, borrada al acabar, y afirman con `assert_engine_error` el error que el motor escribe al descifrar un archivo dañado. | Spec §5 ("nunca los guardados reales"), pregunta 9 (semilla por parámetro), constitución P13 (deterministas). |
 | D11 | Avisos: `Hud.show_notice(key)` reutiliza la etiqueta y el temporizador del aviso de la spec 005 (también para "inventario lleno"). El aviso que impide jugar (R-010-55) es una pantalla nueva, `NoticeScreen`, que no se cierra con "atrás"; mientras el juego está bloqueado, `Main` ignora el botón de almacén. | R-010-45, R-010-49, R-010-55, R-010-62 sin un sistema de notificaciones (Tarea 4.1). |
@@ -290,7 +290,6 @@ func from_save_data(data: Dictionary) -> void
 # --- Autoloads ---------------------------------------------------------------
 # SaveManager (autoload, no class_name)
 signal save_notice(message_key: StringName)                    # non-blocking notices: R-010-45, R-010-49
-const NEW_WORLD_RULESET_ID := &"normal"
 const REASON_NEW_WORLD := &"new_world"
 const REASON_ENTERED_BASE := &"entered_base"
 const REASON_RECHARGED := &"recharged"
@@ -469,7 +468,7 @@ No hay valores de juego nuevos. Los que intervienen ya existen y se citan por su
 | Recurso / `.tres` | Campos | Valores desde |
 |---|---|---|
 | `DroppedItemConfigData` (`dropped_items.tres`) | `lifetime_s` (caducidad al cargar, R-010-30) | BALANCE §7.2 (5 min), sin cambios |
-| `RulesetData` (`normal.tres`) | `id = normal` (ruleset del Mundo nuevo) | PMV §2.4, sin cambios |
+| `RulesetData` (`normal.tres`) | `id = normal` (ruleset del Mundo nuevo, por `DataCatalog.new_world_ruleset` en `data_catalog.tres`) | PMV §2.4, sin cambios |
 | `BatteryConfigData` (`robot_battery.tres`) | `maximum` (se recalcula al cargar, R-010-24) | BALANCE §1.1, sin cambios |
 | `ChassisLevelData` (`chassis_levels.tres`) | ranuras del nivel 1 (se recalculan, R-010-24) | BALANCE §6, sin cambios |
 | `ZoneData` (`base.tres`, `green_zone.tres`) | `size_m` (posición válida, R-010-36) | BALANCE §7, sin cambios |
@@ -506,12 +505,12 @@ Windows 11:
 |---|---|---|
 | 1 | `FileAccess.open_encrypted_with_pass(path, mode_flags, pass)` | ✅ Existe (también `open_encrypted(path, mode_flags, key, iv)`). Escribe y lee; con otra clave devuelve `null`, `get_open_error() == ERR_FILE_CORRUPT` y el motor escribe un error ("MD5 sum… does not match"): los tests lo afirman con `assert_engine_error` (D10). La comprobación MD5 cubre los datos, no el relleno del último bloque: un byte cambiado en el relleno no se detecta, pero tampoco cambia el JSON; lo que no sea JSON válido lo para `SaveCodec`/la validación |
 | 2 | Cabecera de un archivo cifrado | ✅ `GDEC` en los 4 primeros bytes. Un archivo sin ella devuelve `null`, `ERR_FILE_UNRECOGNIZED` y otro error del motor: por eso se mira la cabecera antes (D5, D6) |
-| 3 | `DirAccess.rename_absolute()` sobre un destino existente | ✅ en Windows (`OK`, el destino queda reemplazado). ⏳ Android: se comprueba en M2 con un APK debug; si falla, el paso 3 de la escritura segura borra el destino antes de renombrar (el `.bak` ya está a salvo en ese momento) |
+| 3 | `DirAccess.rename_absolute()` sobre un destino existente | ✅ en Windows (`OK`, el destino queda reemplazado). ✅ Android: confirmado en M2 (§5.4); el plan B (borrar el destino antes de renombrar) no hizo falta |
 | 4 | `JSON.stringify(data, indent, sort_keys, full_precision)` | ✅ Existe (`sort_keys` por defecto `true`). Con `full_precision = true`, `73.12345678901235` y `0.1 + 0.2` vuelven exactos; sin él, no (D4) |
 | 5 | Números al parsear | ✅ `JSON.parse_string` y `JSON.parse` devuelven **siempre** `float`, también para `7`; `9007199254740993` vuelve como `9007199254740992.0` (D3, `SaveFields`) |
-| 6 | Cierre de ventana | ✅ `Node.NOTIFICATION_WM_CLOSE_REQUEST` (1006) y `SceneTree.set_auto_accept_quit()` existen. ⏳ Que llegue al autoload con la ventana real: M1 (el test envía la notificación a mano) |
-| 7 | Segundo plano en Android (pregunta 2) | ✅ `Node.NOTIFICATION_APPLICATION_PAUSED` (2015) y `NOTIFICATION_APPLICATION_RESUMED` (2014) existen; la referencia de clases los da como propios de Android e iOS. ⏳ La entrega real en el dispositivo: M2 |
-| 8 | `SceneTree.reload_current_scene()` conserva los autoloads | ⏳ Los autoloads cuelgan de `root`, no de la escena actual; se confirma en M3 |
+| 6 | Cierre de ventana | ✅ `Node.NOTIFICATION_WM_CLOSE_REQUEST` (1006) y `SceneTree.set_auto_accept_quit()` existen. ✅ Llega al autoload con la ventana real: M1 (§5.4) |
+| 7 | Segundo plano en Android (pregunta 2) | ✅ `Node.NOTIFICATION_APPLICATION_PAUSED` (2015) y `NOTIFICATION_APPLICATION_RESUMED` (2014) existen; la referencia de clases los da como propios de Android e iOS. ✅ Llega en el dispositivo: M2 (§5.4) |
+| 8 | `SceneTree.reload_current_scene()` conserva los autoloads | ✅ Los autoloads cuelgan de `root`, no de la escena actual; confirmado en M3 (§5.4): el `player_uuid` no cambia |
 | 9 | `ProjectSettings.get_setting(name, default)` con un ajuste propio | ✅ Lee el valor de `project.godot`; con un nombre que no existe devuelve el valor por defecto |
 | — | `Crypto.generate_random_bytes(8).decode_s64(0)` | ✅ Da un entero de 64 bits (D8) |
 | — | GUT `pre_run_script`, `assert_engine_error`, `assert_push_error` | ✅ En `addons/gut/gut_config.gd:44` y `addons/gut/test.gd:2348, 2389`; `failure_error_types` incluye `engine` y `push_error` (`gut_config.gd:57`) |
@@ -604,12 +603,38 @@ disparan eventos sin arrancar `Main` (`test_zone_loader`, `test_charging_station
 | M3 | PC, build de depuración: el HUD de depuración muestra la semilla; "New world" crea otro Mundo (semilla distinta, robot en la base) y el `player_uuid` del Perfil no cambia. En un export release el HUD de depuración no aparece. | R-010-65, R-010-15, §5.1 punto 8 |
 | M4 | PC: dañar a mano el archivo del Mundo en `user://saves/` → carga la copia; dañar los dos → Mundo nuevo, aviso y los dañados apartados sin borrar. Abrir los archivos con un editor de texto: no se leen como JSON. | R-010-48, 49, 56 |
 
+### 5.4 Resultado de los pasos manuales (T-010-10, 2026-11-17)
+
+Hechos por la persona que revisa en PC (Windows) y en el Android de gama media (APK debug). Resultado según su
+informe: todo pasa.
+
+| Paso | Resultado |
+|---|---|
+| M1 (PC) | ✅ Cerrar la ventana guarda y reabrir conserva el progreso (§5.1 punto 6) |
+| M2 (Android) | ✅ Segundo plano y muerte desde recientes conservan el progreso; sin tirón visible al recargar; el segundo guardado reemplaza el archivo (§5.1 puntos 3 y 7) |
+| M3 (PC) | ✅ Semilla visible, "New world" crea otro Mundo y el `player_uuid` no cambia (§5.1 punto 8) |
+| M4 (PC) | ✅ Con el principal dañado se carga la copia; con los dos dañados, Mundo nuevo y los dañados apartados |
+
+No se anotaron cifras de FPS ni de tiempo de guardado, solo que no hay tirón visible.
+
+**Errores del motor en M4 (esperados).** Abrir un archivo cifrado dañado hace que Godot escriba su propio error
+(`file_access_encrypted.cpp`, `ERR_FILE_CORRUPT`), como dice §5.1 punto 1; no se puede evitar sin descifrar a mano, y
+`LocalSaveStore._read()` lo trata como copia ilegible. Con el principal dañado aparece dos veces, junto al aviso de
+`SaveManager`: al leerlo al cargar y en el primer guardado, cuando el paso 2 de la escritura segura comprueba si el
+principal vale para copia. Esa comprobación es la que impide que el principal dañado
+sustituya a la copia buena (R-010-46); después el principal queda reemplazado por uno válido.
+
+**Desviaciones de implementación.** Las firmas de §3 se cumplen. Añadido en la revisión al implementar, sin tocar
+ningún requisito: una copia del Mundo cuya cabecera tiene un `world_id` distinto del de su archivo cuenta como
+inválida (R-010-18, `test_r_010_18_header_of_another_world_is_not_valid`); y un archivo dañado que no se puede
+apartar nunca se sobrescribe (§7).
+
 ## 6. Check de constitución
 
 | Principio | Cumple | Nota |
 |---|---|---|
 | P1 Spec primero | ✅ | Spec 010 *Aprobado*, sin preguntas abiertas |
-| P2 Una fuente de verdad | ✅ | Sin números de juego nuevos; máximo de batería y ranuras se recalculan desde sus `.tres` (R-010-24); los formatos de objetos caídos y estructuras se reutilizan sin copiarlos. `NEW_WORLD_RULESET_ID` es un id de datos, como `ZonePopulation.FIRST_VISIT`, no un valor de balance. La lectura de pares JSON vive solo en `SaveFields` (D18) |
+| P2 Una fuente de verdad | ✅ | Sin números de juego nuevos; máximo de batería y ranuras se recalculan desde sus `.tres` (R-010-24); los formatos de objetos caídos y estructuras se reutilizan sin copiarlos. El ruleset del Mundo nuevo es un dato del catálogo (`DataCatalog.new_world_ruleset`), no un literal. La lectura de pares JSON vive solo en `SaveFields` (D18) |
 | P3 Lógica separada | ✅ | Documento, validación, migración y códec puros en `scripts/systems/`; el almacén es un servicio; las escenas solo cablean |
 | P4 Estado por jugador | ⚠️ | El estado del robot vive en sus componentes y se guarda por `player_uid`. `SaveManager` guarda el `ProfileData` en memoria (D2): es estado de la cuenta, no de un robot ni de un mundo, y la arquitectura no tiene otro autoload para él. `GameManager` gana `world_id`, nombre y tienda: estado global |
 | P5 Datos como recursos | ✅ | Sin recursos nuevos; se borra `DevWorldConfigData`, que deja de usarse (D9) |
@@ -645,6 +670,19 @@ disparan eventos sin arrancar `Main` (`test_zone_loader`, `test_charging_station
 - **Una señal de hecho con nombre de estado en el futuro.** La convención `*_changed` = estado (D15, D19) se apoya en
   el nombre, pero la regla de R-010-09 se apoya en el significado. → El test de R-010-09 la vigila sea cual sea el
   nombre; la fila de architecture §7 da la convención para las señales nuevas.
+- **Principal que se decodifica pero no valida** (revisión al implementar, 2026-11-17). Se carga la copia (R-010-48),
+  pero para `LocalSaveStore` ese principal es "válido" (paso 2 de §1: solo mira que sea JSON), así que el primer
+  guardado lo rota a copia y la copia buena se pierde hasta el siguiente guardado. → Aceptado: el siguiente guardado
+  deja dos copias válidas; validar el documento en el almacén lo acoplaría al esquema.
+- **Un aviso tapa a otro** en la etiqueta única del HUD (Perfil y Mundo dañados a la vez: solo se lee el del Mundo).
+  → Aceptado hasta el sistema de notificaciones de la Tarea 4.1.
+- **Cierre con guardado fallido.** El juego sale igualmente, así que el aviso `ERR_SAVE_FAILED` no llega a verse; los
+  archivos anteriores siguen intactos (R-010-45). → Aceptado.
+- **Archivo dañado que no se puede apartar** (revisión al implementar). Nunca se escribe encima (R-010-49): el
+  Perfil nuevo queda solo en memoria y el Mundo nuevo se juega sin guardar en esa sesión, con `ERR_SAVE_FAILED`.
+  Una cabecera cuyo `world_id` no es el del archivo se trata como copia no válida (R-010-18). Los dos con test.
+- **D17 sobra en rigor**: las peticiones ya se agrupan al final del fotograma, así que "Fill base" daría un solo
+  guardado sin retención. Se mantiene como defensa barata si `fill_base` deja algún día de ser síncrono.
 - **Descartado**: guardar con `ResourceSaver` (`.tres` en `user://`), por seguridad (architecture §10.2).
 - **Descartado**: un segundo grupo `world_persistent`; un solo grupo y el ámbito por ancestro bastan.
 - **Descartado**: guardar en un hilo. El documento es pequeño; si M2 mide un tirón, se reabre.
