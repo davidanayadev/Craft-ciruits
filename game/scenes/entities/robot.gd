@@ -8,9 +8,14 @@ extends CharacterBody3D
 ## Enemies find it through PLAYER_GROUP and hit it with receive_hit() (spec 006).
 ## It swings its MeleeAttackComponent, pays each swing with battery and earns
 ## the XP of the enemies it kills (spec 007).
+## It asks to throw items and takes its place again after a death, but it does
+## not know the dropped items nor the ruleset (spec 008).
 
 ## A hit landed on this robot. Degradation of pieces connects here (spec 014).
 signal hit_received(damage: float, attacker: Node3D)
+## The player wants quantity of that inventory slot on the ground. Whoever
+## owns the dropped items makes the change (spec 008).
+signal throw_requested(player: Robot, slot_index: int, quantity: int)
 
 ## Group of every player entity; set in robot.tscn. Enemies look their target
 ## up here instead of holding a reference, so co-op needs no change.
@@ -67,6 +72,22 @@ func request_interact() -> void:
 	if battery.is_depleted() or player_input.is_input_blocked():
 		return
 	interactor.interact_with_target(self)
+
+
+## Asks to throw quantity of an inventory slot at its feet. A robot with a
+## depleted battery asks for nothing.
+func request_throw(slot_index: int, quantity: int) -> void:
+	if battery.is_depleted():
+		return
+	throw_requested.emit(self, slot_index, quantity)
+
+
+## Places itself at world_position, standing still, and charges
+## battery_amount points: how a dead robot comes back (spec 008).
+func respawn_at(world_position: Vector3, battery_amount: float) -> void:
+	global_position = world_position
+	velocity = Vector3.ZERO
+	battery.add(battery_amount)
 
 
 ## Takes a hit: damage battery points, 1:1 (BALANCE §3.1), then hit_received.

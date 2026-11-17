@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-16) |
+| **Estado** | Hecho (2026-11-16) |
 | **Tarea(s) ACTION_PLAN** | 1.5 |
 | **Fuentes** | ACTION_PLAN.md Tarea 1.5 (y 2.1, 2.3, 3.1, 4.1, 4.3, 4.4 para los límites) · PMV.md §2.1, §2.3, §2.4, §3.2, §4.5 ganchos 2, 4 y 7, §10 (cajas y viaje, combate) · BALANCE.md §1.1, §2.1, §3.1, §7.2, §8.1, §11 · SPECS.md §27 (Hardcore, v1.1) · architecture.md §3, §5, §6, §7, §8, §9.1, §9.3, §10.1, §10.2, §10.3, §11 · Constitución P2, P3, P4, P6, P9, P10, P11, P12, P13, P14 |
 | **Depende de** | 003 (`BatteryComponent`, game over provisional), 004 (`FarmZone`, cajas, `SeededRng`, `InteractableComponent`), 005 (`InventoryComponent`, `UIManager`, pantalla de inventario), 006 (zombies, `ZombieSpawner`, número de visita, `ObjectPool`), 007 (`EventBus`, `player_uid`, `ExperienceComponent`; debe estar *Hecho* antes de implementar esta) |
@@ -55,7 +55,7 @@ zombies y para tirar items del inventario.
 | ID | Requisito | Fuente |
 |---|---|---|
 | R-008-10 | THE game SHALL have a dropped object (`DroppedItem`) that holds one or more `ItemStack`s, a `uid`, its `(zone_id, local position)` and the time it was dropped. | ACTION_PLAN 1.5, PMV §4.5 gancho 2, architecture §10.3 — pregunta 3 |
-| R-008-11 | THE dropped object SHALL keep the item, quantity, durability and `uid` of every stack unchanged: dropping and picking up never create or lose items. | architecture §9.3 |
+| R-008-11 | THE dropped object SHALL keep the item, quantity, durability and `uid` of every stack unchanged: dropping and picking up never create or lose items. (`ItemStack` gains durability and `uid` in spec 014; until then only item and quantity can be checked, and spec 014 must carry them through `InventoryRules`.) | architecture §9.3 |
 | R-008-12 | THE dropped object SHALL be interactable through `InteractableComponent`, with a pick-up prompt whose text comes only from translation keys in ES and EN. | architecture §9.1, Constitución P11 |
 | R-008-13 | WHEN a player interacts with a dropped object, THE player's `InventoryComponent` SHALL take every stack that fits, in slot order. | ACTION_PLAN 1.5 — pregunta 3 |
 | R-008-14 | WHEN a dropped object is left with no stacks, THE dropped object SHALL disappear and go back to its pool. | architecture §11 |
@@ -88,7 +88,7 @@ zombies y para tirar items del inventario.
 | R-008-31 | WHEN the transfer ends, THE robot SHALL reappear at the respawn point with the battery of BALANCE §1.1 and its input unblocked, and THE game SHALL emit `EventBus.player_respawned(player_uid)` once. | ACTION_PLAN 1.5, BALANCE §1.1, architecture §7 — pregunta 1 |
 | R-008-32 | WHEN a robot that already reappeared dies again, THE game SHALL create a new dropped object with its own drop time, leaving the earlier ones untouched. | PMV §2.4 |
 | R-008-33 | THE game SHALL no longer show the provisional game over screen nor reload the scene when the battery is depleted (replaces R-003-12). | Spec 003 §4 |
-| R-008-34 | THE battery, inventory, XP and death position of a player SHALL live in its entity or in the dropped object; `GameManager` SHALL hold only the ruleset and the visit counters. | PMV §4.5 gancho 7, Constitución P4 |
+| R-008-34 | THE battery, inventory, XP and death position of a player SHALL live in its entity or in the dropped object; `GameManager` SHALL hold only world state (seed, ruleset, visit counters) and the time service. | PMV §4.5 gancho 7, Constitución P4 |
 
 ### 3.6 Material de los zombies
 
@@ -102,7 +102,7 @@ zombies y para tirar items del inventario.
 
 | ID | Requisito | Fuente |
 |---|---|---|
-| R-008-38 | WHEN the player taps a stack in the inventory screen, THE screen SHALL select it and show a quantity selector (− / + and a slider) that goes from 1 to the size of the stack and starts at the whole stack. | PMV §10 — preguntas 7 y 11 |
+| R-008-38 | WHEN the player taps a stack in the inventory screen, THE screen SHALL select it and show a quantity selector (− / + and a slider) that goes from 1 to the size of the stack and starts at the whole stack (replaces the "display only" cells of plan 005). | PMV §10 — preguntas 7 y 11 |
 | R-008-39 | WHEN the player presses the throw button with a stack selected, THE robot's inventory SHALL lose the chosen quantity from that slot, the rest SHALL stay in it, and a dropped object holding the thrown quantity SHALL appear at the robot's position. | ACTION_PLAN 1.5, PMV §10 — preguntas 7 y 11 |
 | R-008-40 | THE rule that splits a stack (what leaves, what stays, invalid quantities rejected with no change) SHALL be pure code, so the transfer screen of the chests spec can reuse it. | Constitución P2, P3 — pregunta 11 |
 | R-008-41 | IF no stack is selected, THEN THE throw button SHALL be disabled and nothing SHALL change. | Constitución §2 (errores) — pregunta 7 |

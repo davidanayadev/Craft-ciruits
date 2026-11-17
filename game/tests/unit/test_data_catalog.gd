@@ -287,3 +287,76 @@ func test_r_006_04_every_enemy_file_in_catalog() -> void:
 		var enemy: EnemyData = load(ENEMIES_DIR.path_join(file)) as EnemyData
 		assert_not_null(enemy, "%s is an EnemyData" % file)
 		assert_true(catalog.enemies.has(enemy), "%s is listed in the catalog" % file)
+
+
+# --- Rulesets (spec 008, R-008-01) ------------------------------------------
+
+const RULESETS_DIR := "res://resources/rulesets"
+
+
+func _new_ruleset(id: StringName) -> RulesetData:
+	var ruleset: RulesetData = RulesetData.new()
+	ruleset.id = id
+	return ruleset
+
+
+func _new_ruleset_catalog(ids: Array[StringName]) -> DataCatalog:
+	var catalog: DataCatalog = DataCatalog.new()
+	for id: StringName in ids:
+		catalog.rulesets.append(_new_ruleset(id))
+	return catalog
+
+
+func test_r_008_01_get_ruleset_by_id() -> void:
+	var catalog: DataCatalog = _new_ruleset_catalog([&"alpha", &"beta"])
+	assert_eq(catalog.build_index().size(), 0, "a valid catalog has no problems")
+	assert_true(catalog.has_ruleset(&"beta"), "beta is in the catalog")
+	assert_false(catalog.has_ruleset(&"gamma"), "gamma is not in the catalog")
+	assert_same(catalog.get_ruleset(&"beta"), catalog.rulesets[1], "get_ruleset returns the listed one")
+	assert_false(catalog.has_item(&"beta"), "a ruleset is not an item")
+	assert_false(catalog.has_enemy(&"beta"), "a ruleset is not an enemy")
+
+
+func test_r_008_01_unknown_ruleset_reports_error() -> void:
+	var catalog: DataCatalog = _new_ruleset_catalog([&"alpha"])
+	catalog.build_index()
+	assert_null(catalog.get_ruleset(&"gamma"), "an unknown id returns null")
+	assert_push_error("gamma")
+
+
+func test_r_008_01_every_ruleset_file_in_catalog() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	var checked: int = 0
+	for file: String in DirAccess.get_files_at(RULESETS_DIR):
+		if not file.ends_with(".tres"):
+			continue
+		checked += 1
+		var ruleset: RulesetData = load(RULESETS_DIR.path_join(file)) as RulesetData
+		assert_not_null(ruleset, "%s is a RulesetData" % file)
+		assert_true(catalog.rulesets.has(ruleset), "%s is listed in the catalog" % file)
+	assert_gt(checked, 0, "there is at least one ruleset file")
+	var problems: PackedStringArray = catalog.build_index()
+	assert_eq(problems.size(), 0, "catalog problems: %s" % problems)
+
+
+func test_r_008_01_repeated_or_empty_ruleset_ids_reported() -> void:
+	var repeated: DataCatalog = _new_ruleset_catalog([&"alpha", &"beta", &"alpha"])
+	var repeated_problems: PackedStringArray = repeated.build_index()
+	assert_eq(repeated_problems.size(), 1, "one problem for the repeated id")
+	if repeated_problems.size() == 1:
+		assert_eq(repeated_problems[0], "rulesets[2] repeats the id 'alpha'")
+	var empty_id: DataCatalog = _new_ruleset_catalog([&"alpha", &""])
+	var empty_problems: PackedStringArray = empty_id.build_index()
+	assert_eq(empty_problems.size(), 1, "one problem for the empty id")
+	if empty_problems.size() == 1:
+		assert_string_contains(empty_problems[0], "rulesets[1] (")
+		assert_string_contains(empty_problems[0], ") has no id")
+	var missing: DataCatalog = _new_ruleset_catalog([&"alpha"])
+	missing.rulesets.append(null)
+	var missing_problems: PackedStringArray = missing.build_index()
+	assert_eq(missing_problems.size(), 1, "one problem for the empty slot")
+	if missing_problems.size() == 1:
+		assert_eq(missing_problems[0], "rulesets[1] is empty")

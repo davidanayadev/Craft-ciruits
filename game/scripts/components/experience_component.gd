@@ -38,5 +38,14 @@ func reward_kill(
 	add_xp(catalog.get_enemy(enemy_id).xp_reward)
 
 
+## Total back to 0, for a ruleset that does not keep the XP on death (spec
+## 008). xp_changed only if it changed.
+func reset() -> void:
+	if _total == 0:
+		return
+	_total = 0
+	xp_changed.emit(_total)
+
+
 func get_total() -> int:
 	return _total

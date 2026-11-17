@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/farm_zone/farm_zone_green.tscn" id="2_zone"]
@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="5_touch"]
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_hud.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_game_hud"]
-[ext_resource type="PackedScene" path="res://scenes/ui/game_over_screen.tscn" id="8_game_over"]
+[ext_resource type="PackedScene" path="res://scenes/ui/transfer_screen.tscn" id="8_transfer"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ui_manager.tscn" id="9_ui_manager"]
 [ext_resource type="Resource" path="res://resources/ui/screens.tres" id="10_screens"]
 [ext_resource type="Script" path="res://scripts/components/object_pool.gd" id="11_pool"]
@@ -15,6 +15,10 @@
 [ext_resource type="PackedScene" path="res://scenes/effects/impact_sparks.tscn" id="13_sparks"]
 [ext_resource type="Script" path="res://scenes/feedback/combat_feedback.gd" id="14_feedback"]
 [ext_resource type="Resource" path="res://resources/config/combat_feedback.tres" id="15_feedback_config"]
+[ext_resource type="PackedScene" path="res://scenes/entities/dropped_item.tscn" id="16_dropped_item"]
+[ext_resource type="Script" path="res://scenes/entities/dropped_item_spawner.gd" id="17_dropped_items"]
+[ext_resource type="Resource" path="res://resources/config/dropped_items.tres" id="18_dropped_config"]
+[ext_resource type="Script" path="res://scenes/death/death_controller.gd" id="19_death"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -37,6 +41,17 @@ unique_name_in_owner = true
 script = ExtResource("11_pool")
 scene = ExtResource("13_sparks")
 
+[node name="DroppedItemPool" type="Node" parent="World"]
+unique_name_in_owner = true
+script = ExtResource("11_pool")
+scene = ExtResource("16_dropped_item")
+
+[node name="DroppedItems" type="Node3D" parent="World" node_paths=PackedStringArray("pool")]
+unique_name_in_owner = true
+script = ExtResource("17_dropped_items")
+pool = NodePath("../DroppedItemPool")
+config = ExtResource("18_dropped_config")
+
 [node name="Players" type="Node3D" parent="World"]
 
 [node name="Robot" parent="World/Players" instance=ExtResource("3_robot")]
@@ -48,6 +63,11 @@ script = ExtResource("14_feedback")
 config = ExtResource("15_feedback_config")
 impact_pool = NodePath("../World/ImpactPool")
 effects_root = NodePath("../World")
+
+[node name="DeathController" type="Node" parent="." node_paths=PackedStringArray("dropped_items")]
+unique_name_in_owner = true
+script = ExtResource("19_death")
+dropped_items = NodePath("../World/DroppedItems")
 
 [node name="CameraRig" parent="." instance=ExtResource("4_camera")]
 unique_name_in_owner = true
@@ -67,5 +87,5 @@ unique_name_in_owner = true
 [node name="DebugHud" parent="UI" instance=ExtResource("6_hud")]
 unique_name_in_owner = true
 
-[node name="GameOverScreen" parent="UI" instance=ExtResource("8_game_over")]
+[node name="TransferScreen" parent="UI" instance=ExtResource("8_transfer")]
 unique_name_in_owner = true

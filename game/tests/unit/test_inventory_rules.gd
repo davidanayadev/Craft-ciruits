@@ -200,3 +200,77 @@ func test_item_stack_copy_is_independent() -> void:
 	assert_eq(original.quantity, 7, "changing the copy leaves the original alone")
 	original.quantity = 9
 	assert_eq(copy.quantity, 1, "and the other way round")
+
+
+# --- Splitting a stack (spec 008, R-008-40) -----------------------------------
+
+
+func test_r_008_40_split_whole() -> void:
+	var item: ItemData = _item(&"scrap", 10)
+	var slots: Array[ItemStack] = _slots(item, [4, 7, 0])
+	var taken: ItemStack = InventoryRules.split(slots, 1, 7)
+	assert_not_null(taken, "a stack comes out")
+	if taken == null:
+		return
+	assert_same(taken.item, item, "same item")
+	assert_eq(taken.quantity, 7, "the whole quantity")
+	assert_null(slots[1], "the slot becomes empty")
+	assert_eq(slots.size(), 3, "the slot count does not change")
+	assert_eq(_quantities(slots), [4, 0, 0] as Array[int], "other slots untouched")
+
+
+func test_r_008_40_split_part() -> void:
+	var item: ItemData = _item(&"scrap", 10)
+	var slots: Array[ItemStack] = _slots(item, [4, 9, 0])
+	var taken: ItemStack = InventoryRules.split(slots, 1, 3)
+	assert_not_null(taken, "a stack comes out")
+	if taken == null:
+		return
+	assert_same(taken.item, item, "same item")
+	assert_eq(taken.quantity, 3, "the quantity asked")
+	assert_not_null(slots[1], "the slot keeps the rest")
+	assert_eq(slots[1].quantity, 6, "9 - 3 stay")
+	assert_same(slots[1].item, item, "same item in the slot")
+	assert_not_same(slots[1], taken, "the stack that came out is a separate object")
+	assert_eq(_quantities(slots), [4, 6, 0] as Array[int], "other slots untouched")
+	assert_eq(taken.quantity + slots[1].quantity, 9, "nothing created or lost")
+
+
+func test_r_008_40_invalid_quantities_change_nothing() -> void:
+	var item: ItemData = _item(&"scrap", 10)
+	var cases: Array[Vector2i] = [
+		Vector2i(0, 0),
+		Vector2i(0, -1),
+		Vector2i(0, 6),
+		Vector2i(1, 0),
+		Vector2i(1, 1),
+		Vector2i(-1, 1),
+		Vector2i(3, 1),
+		Vector2i(4, 1),
+	]
+	for request: Vector2i in cases:
+		var slots: Array[ItemStack] = _slots(item, [5, 0, 5])
+		var taken: ItemStack = InventoryRules.split(slots, request.x, request.y)
+		assert_null(taken, "slot %d, quantity %d returns null" % [request.x, request.y])
+		assert_eq(_quantities(slots), [5, 0, 5] as Array[int], "slot %d, quantity %d: no change" % [request.x, request.y])
+	assert_push_error_count(0)
+
+
+func test_r_008_40_can_split_matches_split() -> void:
+	var item: ItemData = _item(&"scrap", 10)
+	var valid: Array[Vector2i] = [Vector2i(0, 1), Vector2i(0, 5), Vector2i(2, 3)]
+	var invalid: Array[Vector2i] = [
+		Vector2i(0, 0),
+		Vector2i(0, -1),
+		Vector2i(0, 6),
+		Vector2i(1, 1),
+		Vector2i(-1, 1),
+		Vector2i(3, 1),
+	]
+	var slots: Array[ItemStack] = _slots(item, [5, 0, 3])
+	for request: Vector2i in valid:
+		assert_true(InventoryRules.can_split(slots, request.x, request.y), "slot %d, quantity %d" % [request.x, request.y])
+	for request: Vector2i in invalid:
+		assert_false(InventoryRules.can_split(slots, request.x, request.y), "slot %d, quantity %d" % [request.x, request.y])
+	assert_eq(_quantities(slots), [5, 0, 3] as Array[int], "can_split changes nothing")
+	assert_push_error_count(0)

@@ -3,26 +3,35 @@ extends GutTest
 ## camera.tres, rigid follow, one directional light with shadows and a sky,
 ## with the architecture §6 skeleton in place. The node paths asserted here
 ## are the executable spec of that skeleton. Spec 003 adds the HUD bound to the
-## robot's battery (R-003-11) and the provisional game over (R-003-12).
-## Restarting reloads the current scene, which under GUT is the test runner,
-## so the restart itself is a manual step (plan 003 §5).
+## robot's battery (R-003-11); its provisional game over (R-003-12) is replaced
+## by the death of spec 008.
 ## Spec 005: interacting with a box opens the loot screen (R-005-16), taking
 ## moves the loot to the robot (R-005-19, R-005-20), the storage button and
 ## action toggle the inventory screen (R-005-24), a screen blocks the robot
-## without pausing the game (R-005-27) and game over closes them (R-005-29).
+## without pausing the game (R-005-27) and a death closes them (R-005-29).
 ## Spec 006: the zombies of the first visit are in the zone from the start
 ## (R-006-26), taken from a prewarmed pool under World, and they keep acting
 ## while a screen is open (R-006-19).
+## Spec 008 (the transfer is driven by advance(), never by real time): visit
+## counter and repopulation (R-008-06, -09), dropped items of the zone
+## (R-008-15, -16, -23, -24, -35, -39), the transfer screen and the respawn
+## (R-008-29..31, -33) and the whole loop (R-008-44).
+## Manual: the look of the transfer screen and the feel of the wait (plan 008 §5).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+## Any fixed time: the tests move the fake clock from here.
+const FAKE_NOW := 1_700_000_000
 const MAIN_ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const CAMERA_PATH := "res://resources/config/camera.tres"
+const OTHER_ZONE_ID := Vector2i(7, 7)
 
 var _main: Node
 var _config: CameraConfigData
 
 
 func before_each() -> void:
+	# First: Main reads the visit counter of its zone in _ready.
+	GameManager.clear_visit_counts()
 	_config = load(CAMERA_PATH) as CameraConfigData
 	_main = MAIN_SCENE.instantiate()
 	add_child_autofree(_main)
@@ -32,6 +41,7 @@ func after_each() -> void:
 	for action: StringName in [&"move_forward", &"interact"]:
 		Input.action_release(action)
 	_send_open_storage(false)
+	GameManager.clear_visit_counts()
 
 
 func _rig() -> CameraRig:
@@ -107,31 +117,88 @@ func test_r_003_11_hud_bound_to_robot() -> void:
 	assert_eq(label.text, "70", "the HUD follows the robot's battery")
 
 
-func test_r_003_12_depletion_opens_game_over_and_freezes_world() -> void:
-	var screen: GameOverScreen = _main.get_node("UI/GameOverScreen") as GameOverScreen
-	assert_not_null(screen, "GameOverScreen exists under UI")
-	if screen == null:
-		return
-	assert_false(screen.visible, "no game over while the battery has charge")
-	assert_connected(screen, _main, "restart_requested")
+func _transfer() -> TransferScreen:
+	return _main.get_node("UI/TransferScreen") as TransferScreen
+
+
+func _world() -> Node:
+	return _main.get_node("World")
+
+
+func _spawner() -> DroppedItemSpawner:
+	return _main.get_node("World/DroppedItems") as DroppedItemSpawner
+
+
+## Empties the robot's battery and lets the deferred calls of Main run.
+func _die() -> void:
 	var robot: Robot = _robot()
-	# Leaves less than one physics frame of passive drain, so the robot's own
-	# tick depletes the battery: the same path as in the game.
+	robot.battery.consume(robot.battery.get_current())
+	await wait_process_frames(2)
+
+
+## The path of the game: the robot's own physics tick empties the battery, so
+## the repopulation and the freeze are queued from inside a physics step.
+func test_r_008_29_death_inside_a_physics_step() -> void:
+	var robot: Robot = _robot()
+	var zone: FarmZone = _zone()
+	robot.inventory.add(&"scrap", 2)
 	var one_frame_drain: float = (
 		robot.battery.drain_per_second(LocomotionSystem.Gait.IDLE) / Engine.physics_ticks_per_second
 	)
 	robot.battery.consume(robot.battery.get_current() - one_frame_drain / 2.0)
 	assert_false(robot.battery.is_depleted(), "still alive before the next tick")
 	await wait_physics_frames(3)
-	assert_true(robot.battery.is_depleted(), "the next tick depletes the battery")
-	assert_true(screen.visible, "depletion opens the game over screen")
-	var world: Node = _main.get_node("World")
-	assert_eq(world.process_mode, Node.PROCESS_MODE_DISABLED, "the world stops processing")
+	assert_true(robot.battery.is_depleted(), "its own tick depleted the battery")
+	assert_true(_transfer().is_playing(), "the transfer plays")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_DISABLED, "the world is frozen")
+	assert_eq(_spawner().get_items().size(), 1, "its inventory is on the ground")
+	var expected: FarmZone = _reference_zone_of_visit(1)
+	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "the enemies of visit 1")
+	for box: LootBox in zone.get_boxes():
+		assert_false(box.is_opened(), "every box is closed")
+
+
+func _finish_transfer() -> void:
+	var screen: TransferScreen = _transfer()
+	screen.advance(screen.config.transfer_duration_s)
+
+
+func test_r_008_33_no_game_over_and_no_reload() -> void:
+	assert_null(_main.get_node_or_null("UI/GameOverScreen"), "there is no game over screen")
+	await _die()
+	assert_true(_robot().battery.is_depleted(), "the robot is dead")
+	assert_true(is_instance_valid(_main), "Main was not freed")
+	assert_true(_main.is_inside_tree(), "nor taken out of the tree")
+	assert_null(_main.get_node_or_null("UI/GameOverScreen"), "still no game over screen")
+	assert_true(_transfer().is_playing(), "the transfer screen is what plays")
+	assert_true(_transfer().visible, "and it is visible")
+
+
+func test_r_008_30_robot_frozen_during_transfer() -> void:
+	await _go_to_first_box()
+	var robot: Robot = _robot()
+	await _die()
+	assert_true(_transfer().is_playing(), "the transfer is playing")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_DISABLED, "the world stops processing")
+	watch_signals(robot.melee)
+	watch_signals(robot)
 	var frozen_position: Vector3 = robot.global_position
+	var battery_before: float = robot.battery.get_current()
 	Input.action_press(&"move_forward")
+	_hud().attack_held_changed.emit(true)
 	await wait_physics_frames(10)
 	Input.action_release(&"move_forward")
-	assert_eq(robot.global_position, frozen_position, "the robot no longer moves")
+	_hud().attack_held_changed.emit(false)
+	assert_eq(robot.global_position, frozen_position, "the robot does not move")
+	assert_signal_not_emitted(robot.melee, "swing_started", "nor swing")
+	robot.request_interact()
+	# The box it stood next to was replaced by the repopulation.
+	for box: LootBox in _zone().get_boxes():
+		assert_false(box.is_opened(), "nor interact")
+	assert_false(_ui_manager().is_modal_open(), "no screen opens")
+	robot.receive_hit(5.0, robot)
+	assert_signal_not_emitted(robot, "hit_received", "nor take hits")
+	assert_eq(robot.battery.get_current(), battery_before, "the battery does not change")
 
 
 func _zone() -> FarmZone:
@@ -172,7 +239,7 @@ func test_r_004_05_zone_generated_from_world_seed() -> void:
 		load("res://scenes/farm_zone/farm_zone_green.tscn") as PackedScene
 	).instantiate() as FarmZone
 	add_child_autofree(reference)
-	reference.generate(GameManager.get_world_seed())
+	reference.generate(GameManager.get_world_seed(), ZonePopulation.FIRST_VISIT)
 	var expected: Array[Vector3] = []
 	for box: LootBox in reference.get_boxes():
 		expected.append(box.position)
@@ -219,17 +286,18 @@ func test_r_004_14_interact_action_opens_box_in_main() -> void:
 	assert_true(box.is_opened(), "the interact action opens the box")
 
 
-func test_r_004_16_no_interaction_after_game_over() -> void:
+func test_r_004_16_no_interaction_during_transfer() -> void:
 	var button: Button = _main.get_node("UI/Hud").get_node("%InteractButton") as Button
-	var box: LootBox = await _go_to_first_box()
-	var robot: Robot = _robot()
-	robot.battery.consume(robot.battery.get_current())
-	await wait_physics_frames(2)
+	await _go_to_first_box()
+	await _die()
+	assert_true(_transfer().is_playing(), "the transfer is playing")
 	button.pressed.emit()
 	Input.action_press(&"interact")
 	await wait_physics_frames(2)
 	Input.action_release(&"interact")
-	assert_false(box.is_opened(), "a depleted robot opens nothing")
+	for box: LootBox in _zone().get_boxes():
+		assert_false(box.is_opened(), "a dead robot opens no box")
+	assert_false(_ui_manager().is_modal_open(), "and no screen opens")
 
 
 func _ui_manager() -> UIManager:
@@ -421,13 +489,15 @@ func test_r_005_27_robot_still_battery_drains() -> void:
 	assert_ne(robot.global_position, start_position, "with the screen closed the robot moves again")
 
 
-func test_r_005_29_game_over_closes_and_blocks_screens() -> void:
+func test_r_005_29_death_closes_and_blocks_screens_during_transfer() -> void:
 	_storage_button().pressed.emit()
 	assert_true(_ui_manager().is_modal_open(), "the inventory screen is open")
 	var robot: Robot = _robot()
 	robot.battery.consume(robot.battery.get_current())
 	assert_true(robot.battery.is_depleted(), "the battery is depleted")
-	assert_false(_ui_manager().is_modal_open(), "game over closes every screen")
+	assert_false(_ui_manager().is_modal_open(), "death closes every screen")
+	await wait_process_frames(2)
+	assert_true(_transfer().is_playing(), "the transfer is playing")
 	_storage_button().pressed.emit()
 	assert_false(_ui_manager().is_modal_open(), "and the storage button opens none")
 	_send_open_storage(true)
@@ -466,7 +536,7 @@ func test_r_006_26_main_passes_first_visit() -> void:
 	var expected_pool: ObjectPool = ObjectPool.new()
 	expected_pool.scene = pool.scene
 	add_child_autofree(expected_pool)
-	expected.spawn_enemies(GameManager.get_world_seed(), ZombieSpawner.FIRST_VISIT, expected_pool)
+	expected.spawn_enemies(GameManager.get_world_seed(), ZonePopulation.FIRST_VISIT, expected_pool)
 	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "world seed and visit 0")
 
 
@@ -552,3 +622,291 @@ func test_r_007_28_robot_kills_a_zone_zombie() -> void:
 	await wait_physics_frames(2)
 	assert_eq(zone.get_enemies().size(), enemies_before - 1, "and the zombie left the zone")
 	assert_false(robot.battery.is_depleted(), "the robot survived the fight")
+
+
+# --- Spec 008 -----------------------------------------------------------------
+
+
+## "item id → quantity" of every dropped item of the zone, summed.
+func _held_on_ground() -> Dictionary[StringName, int]:
+	var held: Dictionary[StringName, int] = {}
+	for dropped: DroppedItem in _spawner().get_items():
+		var contents: Dictionary[StringName, int] = _held(dropped.get_contents())
+		for id: StringName in contents:
+			held[id] = held.get(id, 0) + contents[id]
+	return held
+
+
+func _slot_of(inventory: InventoryComponent, item_id: StringName) -> int:
+	var slots: Array[ItemStack] = inventory.get_slots()
+	for index: int in slots.size():
+		if slots[index] != null and slots[index].item.id == item_id:
+			return index
+	return -1
+
+
+func _stack(item_id: StringName, quantity: int) -> Array[ItemStack]:
+	var stacks: Array[ItemStack] = [ItemStack.new(DataRegistry.get_item(item_id), quantity)]
+	return stacks
+
+
+## Puts a fake clock on the spawner, set at the real time (Main repopulation
+## reads the real one).
+func _use_fake_clock() -> FakeTimeService:
+	var fake: FakeTimeService = FakeTimeService.new()
+	fake.now = FAKE_NOW
+	_spawner().time_service = fake
+	return fake
+
+
+func _reference_zone_of_visit(visit: int) -> FarmZone:
+	var expected: FarmZone = MAIN_ZONE_SCENE.instantiate() as FarmZone
+	add_child_autofree(expected)
+	var expected_pool: ObjectPool = ObjectPool.new()
+	expected_pool.scene = _zombie_pool().scene
+	add_child_autofree(expected_pool)
+	expected.spawn_enemies(GameManager.get_world_seed(), visit, expected_pool)
+	return expected
+
+
+func test_r_008_06_generating_does_not_count_a_visit() -> void:
+	var zone: FarmZone = _zone()
+	assert_eq(GameManager.get_visit_count(zone.data.zone_id), 0, "Main generated the zone: no visit")
+	var reference: FarmZone = MAIN_ZONE_SCENE.instantiate() as FarmZone
+	add_child_autofree(reference)
+	reference.generate(GameManager.get_world_seed(), ZonePopulation.FIRST_VISIT)
+	assert_eq(GameManager.get_visit_count(zone.data.zone_id), 0, "generating another one neither")
+
+
+func test_r_008_09_visit_change_repopulates_loaded_zone() -> void:
+	var zone: FarmZone = _zone()
+	await _go_to_first_box()
+	_robot().request_interact()
+	_ui_manager().close_all()
+	assert_true(zone.get_boxes()[0].is_opened(), "test setup: a box was opened")
+	GameManager.increment_visit_count(zone.data.zone_id)
+	await wait_process_frames(2)
+	var expected: FarmZone = _reference_zone_of_visit(1)
+	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "the enemies of visit 1")
+	assert_gt(zone.get_boxes().size(), 0, "the zone still has its boxes")
+	for box: LootBox in zone.get_boxes():
+		assert_false(box.is_opened(), "every box is closed again")
+
+
+func test_r_008_09_other_zone_visit_does_nothing() -> void:
+	var zone: FarmZone = _zone()
+	var boxes: Array[LootBox] = zone.get_boxes().duplicate()
+	var enemies: Array[Zombie] = zone.get_enemies().duplicate()
+	GameManager.increment_visit_count(OTHER_ZONE_ID)
+	await wait_process_frames(2)
+	assert_eq(zone.get_boxes(), boxes, "the same boxes")
+	assert_eq(zone.get_enemies(), enemies, "the same enemies")
+
+
+func test_r_008_15_full_inventory_shows_notice() -> void:
+	_fill_robot_inventory()
+	var robot: Robot = _robot()
+	var fake: FakeTimeService = _use_fake_clock()
+	var dropped: DroppedItem = _spawner().drop_stacks(_stack(&"scrap", 3), robot.global_position)
+	assert_not_null(dropped, "test setup: the item fell")
+	if dropped == null:
+		return
+	var dropped_at: int = dropped.dropped_at_unix
+	fake.now += 10
+	await wait_physics_frames(4)
+	robot.request_interact()
+	var message: Label = _hud().get_node("%MessageLabel") as Label
+	assert_true(message.visible, "the HUD says the inventory is full")
+	assert_eq(message.text, String(InventoryComponent.MSG_INVENTORY_FULL), "with its key")
+	await wait_process_frames(2)
+	var expected: Dictionary[StringName, int] = {&"scrap": 3}
+	assert_eq(_held_on_ground(), expected, "what did not fit stays on the ground")
+	assert_eq(_spawner().get_items().size(), 1, "in the same dropped item")
+	assert_eq(dropped.dropped_at_unix, dropped_at, "with its original drop time")
+
+
+func test_r_008_16_dropped_items_survive_repopulation() -> void:
+	var zone: FarmZone = _zone()
+	var dropped: DroppedItem = _spawner().drop_stacks(
+		_stack(&"scrap", 4), zone.get_spawn_position() + Vector3(2.0, 0.0, 0.0)
+	)
+	GameManager.increment_visit_count(zone.data.zone_id)
+	await wait_process_frames(2)
+	GameManager.increment_visit_count(zone.data.zone_id)
+	await wait_process_frames(2)
+	var items: Array[DroppedItem] = [dropped]
+	assert_eq(_spawner().get_items(), items, "the dropped item is still there")
+	var expected: Dictionary[StringName, int] = {&"scrap": 4}
+	assert_eq(_held_on_ground(), expected, "with its stacks")
+
+
+func test_r_008_23_repopulation_discards_expired() -> void:
+	var zone: FarmZone = _zone()
+	var fake: FakeTimeService = _use_fake_clock()
+	var lifetime: int = _spawner().config.lifetime_s
+	var at: Vector3 = zone.get_spawn_position() + Vector3(2.0, 0.0, 0.0)
+	_spawner().drop_stacks(_stack(&"scrap", 1), at)
+	fake.now += lifetime
+	var fresh: DroppedItem = _spawner().drop_stacks(_stack(&"iron", 1), at)
+	GameManager.increment_visit_count(zone.data.zone_id)
+	await wait_process_frames(2)
+	var items: Array[DroppedItem] = [fresh]
+	assert_eq(_spawner().get_items(), items, "only the expired one is gone")
+
+
+func test_r_008_24_expires_with_screen_open_and_after_new_visit() -> void:
+	var zone: FarmZone = _zone()
+	var fake: FakeTimeService = _use_fake_clock()
+	var lifetime: int = _spawner().config.lifetime_s
+	var at: Vector3 = zone.get_spawn_position() + Vector3(2.0, 0.0, 0.0)
+	var with_screen: DroppedItem = _spawner().drop_stacks(_stack(&"scrap", 1), at)
+	_storage_button().pressed.emit()
+	assert_true(_ui_manager().is_modal_open(), "the inventory screen is open")
+	_spawner().discard_expired(fake.now + lifetime - 1)
+	var first: Array[DroppedItem] = [with_screen]
+	assert_eq(_spawner().get_items(), first, "before its lifetime it stays")
+	_spawner().discard_expired(fake.now + lifetime)
+	assert_eq(_spawner().get_items().size(), 0, "with the screen open it still expires")
+	_ui_manager().close_all()
+	var after_visit: DroppedItem = _spawner().drop_stacks(_stack(&"scrap", 1), at)
+	GameManager.increment_visit_count(zone.data.zone_id)
+	await wait_process_frames(2)
+	_spawner().discard_expired(fake.now + lifetime - 1)
+	var second: Array[DroppedItem] = [after_visit]
+	assert_eq(_spawner().get_items(), second, "a new visit does not age it")
+	_spawner().discard_expired(fake.now + lifetime)
+	assert_eq(_spawner().get_items().size(), 0, "nor keep it past its lifetime")
+
+
+func test_r_008_29_death_closes_screens_and_shows_transfer() -> void:
+	_storage_button().pressed.emit()
+	assert_true(_ui_manager().is_modal_open(), "the inventory screen is open")
+	await _die()
+	assert_false(_ui_manager().is_modal_open(), "no modal is open")
+	assert_true(_transfer().is_playing(), "the transfer plays")
+	assert_true(_transfer().visible, "and is visible")
+	assert_true(_robot().player_input.is_input_blocked(), "the robot input is blocked")
+
+
+func test_r_008_31_robot_back_at_spawn_with_input() -> void:
+	var zone: FarmZone = _zone()
+	var robot: Robot = _robot()
+	await _go_to_first_box()
+	await _die()
+	watch_signals(EventBus)
+	_finish_transfer()
+	assert_false(_transfer().is_playing(), "the transfer ended")
+	assert_lt(robot.global_position.distance_to(zone.get_spawn_position()), 0.01, "at the spawn point")
+	var expected_battery: float = (
+		robot.battery.get_maximum() * GameManager.get_ruleset().respawn_battery_ratio
+	)
+	assert_almost_eq(robot.battery.get_current(), expected_battery, 0.001, "with the ruleset battery")
+	assert_false(robot.player_input.is_input_blocked(), "input unblocked")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world processes again")
+	assert_signal_emit_count(EventBus, "player_respawned", 1, "respawned once")
+	assert_signal_emitted_with_parameters(EventBus, "player_respawned", [robot.player_uid])
+
+
+func test_r_008_35_loot_becomes_dropped_item_where_it_died() -> void:
+	var zone: FarmZone = _zone()
+	var at: Vector3 = zone.get_spawn_position() + Vector3(3.0, 0.0, 1.0)
+	zone.enemy_loot_dropped.emit(_stack(&"scrap", 2), at)
+	var items: Array[DroppedItem] = _spawner().get_items()
+	assert_eq(items.size(), 1, "one dropped item appeared")
+	if items.size() != 1:
+		return
+	assert_lt(items[0].global_position.distance_to(at), 0.01, "where the enemy died")
+	var expected: Dictionary[StringName, int] = {&"scrap": 2}
+	assert_eq(_held(items[0].get_contents()), expected, "holding the loot")
+
+
+func test_r_008_39_throw_whole_stack() -> void:
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 5)
+	var slot: int = _slot_of(robot.inventory, &"scrap")
+	robot.request_throw(slot, 5)
+	assert_null(robot.inventory.get_slots()[slot], "the slot is empty")
+	var items: Array[DroppedItem] = _spawner().get_items()
+	assert_eq(items.size(), 1, "a dropped item appeared")
+	if items.size() != 1:
+		return
+	assert_lt(items[0].global_position.distance_to(robot.global_position), 0.01, "at the robot")
+	var thrown: Dictionary[StringName, int] = {&"scrap": 5}
+	assert_eq(_held(items[0].get_contents()), thrown, "holding what was thrown")
+	await wait_physics_frames(4)
+	robot.request_interact()
+	assert_eq(_held(robot.inventory), thrown, "picking it up restores the total")
+	await wait_process_frames(2)
+	assert_eq(_spawner().get_items().size(), 0, "and the dropped item is gone")
+
+
+func test_r_008_39_throw_part_keeps_rest() -> void:
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 5)
+	var slot: int = _slot_of(robot.inventory, &"scrap")
+	robot.request_throw(slot, 2)
+	var stack: ItemStack = robot.inventory.get_slots()[slot]
+	assert_not_null(stack, "the rest stays in the slot")
+	if stack != null:
+		assert_eq(stack.quantity, 3, "exactly 3 stay")
+	var items: Array[DroppedItem] = _spawner().get_items()
+	assert_eq(items.size(), 1, "a dropped item appeared")
+	if items.size() != 1:
+		return
+	assert_lt(items[0].global_position.distance_to(robot.global_position), 0.01, "at the robot")
+	var thrown: Dictionary[StringName, int] = {&"scrap": 2}
+	assert_eq(_held(items[0].get_contents()), thrown, "holding the thrown 2")
+	await wait_physics_frames(4)
+	robot.request_interact()
+	var total: Dictionary[StringName, int] = {&"scrap": 5}
+	assert_eq(_held(robot.inventory), total, "picking it up restores the total")
+
+
+func test_r_008_39_invalid_throw_creates_nothing() -> void:
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 5)
+	var slot: int = _slot_of(robot.inventory, &"scrap")
+	robot.request_throw(slot, 6)
+	assert_push_error("could not throw")
+	assert_eq(_spawner().get_items().size(), 0, "no dropped item")
+	var total: Dictionary[StringName, int] = {&"scrap": 5}
+	assert_eq(_held(robot.inventory), total, "and the inventory is untouched")
+
+
+func test_r_008_44_die_respawn_and_recover() -> void:
+	var zone: FarmZone = _zone()
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 3)
+	robot.inventory.add(&"cables", 4)
+	robot.inventory.add(&"iron", 2)
+	robot.experience.add_xp(7)
+	var carried: Dictionary[StringName, int] = _held(robot.inventory)
+	var slot_count: int = robot.inventory.get_slot_count()
+	await _go_to_first_box()
+	var death_position: Vector3 = robot.global_position
+	await _die()
+	_finish_transfer()
+	var ruleset: RulesetData = GameManager.get_ruleset()
+	assert_almost_eq(
+		robot.battery.get_current(),
+		robot.battery.get_maximum() * ruleset.respawn_battery_ratio,
+		0.001,
+		"battery as the ruleset says"
+	)
+	assert_true(robot.inventory.is_empty(), "the inventory is empty")
+	assert_eq(robot.inventory.get_slot_count(), slot_count, "with the same slots")
+	assert_eq(robot.experience.get_total(), 7, "and the same XP")
+	var expected: FarmZone = _reference_zone_of_visit(1)
+	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "the enemies of visit 1")
+	var items: Array[DroppedItem] = _spawner().get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() != 1:
+		return
+	assert_lt(items[0].global_position.distance_to(death_position), 0.01, "where it died")
+	assert_eq(_held(items[0].get_contents()), carried, "holding what it carried")
+	robot.global_position = death_position
+	await wait_physics_frames(4)
+	robot.request_interact()
+	assert_eq(_held(robot.inventory), carried, "the same stacks are back")
+	await wait_process_frames(2)
+	assert_eq(_spawner().get_items().size(), 0, "and the dropped item is gone")

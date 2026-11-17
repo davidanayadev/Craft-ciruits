@@ -13,6 +13,8 @@ const SLOT_SCENE := preload("res://scenes/ui/inventory_slot.tscn")
 
 var _inventory: InventoryComponent = null
 var _cells: Array[InventorySlotView] = []
+## -1 = none.
+var _selected_index: int = -1
 
 
 ## Paints now and on every inventory_changed.
@@ -22,6 +24,14 @@ func bind(inventory: InventoryComponent) -> void:
 	_inventory = inventory
 	_inventory.inventory_changed.connect(_refresh)
 	_refresh()
+
+
+## Marks one cell as selected; -1 = none. Only the look: the screen decides
+## what a selection means.
+func set_selected_index(index: int) -> void:
+	_selected_index = index
+	for i: int in _cells.size():
+		_cells[i].set_selected(i == index)
 
 
 func _refresh() -> void:
@@ -39,6 +49,7 @@ func _set_cell_count(count: int) -> void:
 		var cell: InventorySlotView = SLOT_SCENE.instantiate() as InventorySlotView
 		add_child(cell)
 		cell.set_interactive(interactive)
+		cell.set_selected(_cells.size() == _selected_index)
 		cell.pressed.connect(_on_cell_pressed.bind(_cells.size()))
 		_cells.append(cell)
 

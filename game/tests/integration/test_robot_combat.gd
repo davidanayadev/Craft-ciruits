@@ -17,6 +17,7 @@ const SLOW_PATH := "res://resources/enemies/zombie_slow.tres"
 const HEX_PATTERN := "^[0-9a-f]{32}$"
 const TARGET_HP := 1000
 const BRAIN_SEED := 7
+const DROP_SEED := 4321
 ## Far from the origin, where the other tests put their robots.
 const FAR := Vector3(60.0, 0.0, 60.0)
 ## Frames for a new or moved hurtbox to be where the physics server sees it.
@@ -281,7 +282,7 @@ func test_r_007_20_kill_adds_xp() -> void:
 	var zombie: Zombie = ZOMBIE_SCENE.instantiate() as Zombie
 	add_child_autofree(zombie)
 	# Inside its attack range, so it stands still in front of the robot.
-	zombie.activate(slow, FAR + Vector3(0.0, 0.0, -slow.ai.attack_range * 0.9), BRAIN_SEED)
+	zombie.activate(slow, FAR + Vector3(0.0, 0.0, -slow.ai.attack_range * 0.9), BRAIN_SEED, DROP_SEED)
 	watch_signals(EventBus)
 	watch_signals(_robot.experience)
 	await wait_physics_frames(SETTLE_FRAMES)

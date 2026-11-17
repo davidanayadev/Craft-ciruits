@@ -14,6 +14,7 @@ const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const SLOW_PATH := "res://resources/enemies/zombie_slow.tres"
 const FAST_PATH := "res://resources/enemies/zombie_fast.tres"
 const BRAIN_SEED := 7
+const DROP_SEED := 4321
 const HOME := Vector3(40.0, 0.0, 40.0)
 ## Technical budget of plan 006 §5 (R-006-28): 8 zombies fit in PMV §3.2.
 const MAX_TRIANGLES := 2000
@@ -44,7 +45,7 @@ func _new_zombie() -> Zombie:
 
 func _active_zombie(data: EnemyData, home: Vector3 = HOME) -> Zombie:
 	var zombie: Zombie = _new_zombie()
-	zombie.activate(data, home, BRAIN_SEED)
+	zombie.activate(data, home, BRAIN_SEED, DROP_SEED)
 	return zombie
 
 
@@ -136,7 +137,7 @@ func test_r_006_10_inactive_until_activated() -> void:
 func test_r_006_10_activate_without_data_reports_error() -> void:
 	var zombie: Zombie = _new_zombie()
 	zombie.name = "Broken"
-	zombie.activate(null, HOME, BRAIN_SEED)
+	zombie.activate(null, HOME, BRAIN_SEED, DROP_SEED)
 	assert_push_error("Broken")
 	assert_false(zombie.is_physics_processing(), "it stays inactive")
 
@@ -154,7 +155,7 @@ func test_r_006_13_moves_toward_player_at_data_speed() -> void:
 	# A second life: the speed must be the one of the new data, not of the
 	# slow zombie this instance was before (R-006-22).
 	var zombie: Zombie = _active_zombie(_slow, start)
-	zombie.activate(_fast, start, BRAIN_SEED)
+	zombie.activate(_fast, start, BRAIN_SEED, DROP_SEED)
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_eq(zombie.get_state(), EnemyBrain.State.CHASE, "a player in vision is chased")
 	var from: Vector3 = zombie.global_position
@@ -244,7 +245,7 @@ func test_r_006_22_reused_zombie_is_reset() -> void:
 	var robot: Robot = _new_robot(HOME + Vector3(_slow.ai.attack_range * 0.9, 0.0, 0.0))
 	var zombie: Zombie = pool.acquire() as Zombie
 	holder.add_child(zombie)
-	zombie.activate(_slow, HOME, BRAIN_SEED)
+	zombie.activate(_slow, HOME, BRAIN_SEED, DROP_SEED)
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_eq(zombie.get_state(), EnemyBrain.State.ATTACK, "first life: attacking")
 	zombie.get_health().take_damage(_slow.hp_max)
@@ -254,7 +255,7 @@ func test_r_006_22_reused_zombie_is_reset() -> void:
 	var reused: Zombie = pool.acquire() as Zombie
 	assert_same(reused, zombie, "the pool gives the same instance back")
 	holder.add_child(reused)
-	reused.activate(_fast, other_home, BRAIN_SEED + 1)
+	reused.activate(_fast, other_home, BRAIN_SEED + 1, DROP_SEED)
 	assert_same(reused.get_data(), _fast, "it takes the new EnemyData")
 	assert_false(reused.get_health().is_dead(), "alive again")
 	assert_eq(reused.get_health().get_current(), _fast.hp_max, "full HP of the new kind")
@@ -328,14 +329,14 @@ func test_r_007_23_reused_zombie_is_clean() -> void:
 	var holder: Node3D = add_child_autofree(Node3D.new()) as Node3D
 	var zombie: Zombie = pool.acquire() as Zombie
 	holder.add_child(zombie)
-	zombie.activate(_slow, HOME, BRAIN_SEED)
+	zombie.activate(_slow, HOME, BRAIN_SEED, DROP_SEED)
 	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	assert_true(zombie.get_health().is_dead(), "first life: killed")
 	pool.release(zombie)
 	var reused: Zombie = pool.acquire() as Zombie
 	assert_same(reused, zombie, "the pool gives the same instance back")
 	holder.add_child(reused)
-	reused.activate(_fast, HOME, BRAIN_SEED + 1)
+	reused.activate(_fast, HOME, BRAIN_SEED + 1, DROP_SEED)
 	var flash: HitFlashComponent = reused.get_node("%HitFlash") as HitFlashComponent
 	var body: MeshInstance3D = reused.get_node("Model/Body") as MeshInstance3D
 	assert_eq(reused.get_health().get_current(), _fast.hp_max, "full HP")
@@ -346,3 +347,108 @@ func test_r_007_23_reused_zombie_is_clean() -> void:
 	watch_signals(EventBus)
 	reused.get_health().take_damage(_fast.hp_max)
 	assert_signal_not_emitted(EventBus, "enemy_killed", "the kill of its first life is not repeated")
+
+
+## Spec 008: a zombie killed by a player rolls its drop table once (R-008-35).
+const DROP_SEED_SEARCH := 1000
+
+
+func _rolled(data: EnemyData, drop_seed: int) -> Array[ItemStack]:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = drop_seed
+	return LootSystem.roll(data.drop_table, rng)
+
+
+## First seed whose roll gives something (or nothing), or -1.
+func _find_drop_seed(data: EnemyData, gives_loot: bool) -> int:
+	for drop_seed: int in DROP_SEED_SEARCH:
+		if _rolled(data, drop_seed).is_empty() != gives_loot:
+			return drop_seed
+	return -1
+
+
+func _seeded_zombie(data: EnemyData, drop_seed: int) -> Zombie:
+	var zombie: Zombie = _new_zombie()
+	zombie.activate(data, HOME, BRAIN_SEED, drop_seed)
+	return zombie
+
+
+func test_r_008_35_killed_zombie_rolls_once() -> void:
+	var loot_seed: int = _find_drop_seed(_slow, true)
+	var empty_seed: int = _find_drop_seed(_slow, false)
+	assert_ne(loot_seed, -1, "a seed rolls loot")
+	assert_ne(empty_seed, -1, "a seed rolls nothing")
+	if loot_seed == -1 or empty_seed == -1:
+		return
+	var expected: Array[ItemStack] = _rolled(_slow, loot_seed)
+	var zombie: Zombie = _seeded_zombie(_slow, loot_seed)
+	watch_signals(zombie)
+	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
+	zombie.get_hurtbox().receive_attack(1, UID_B)
+	assert_signal_emit_count(zombie, "loot_dropped", 1, "one roll per life")
+	var parameters: Array = get_signal_parameters(zombie, "loot_dropped")
+	var stacks: Array[ItemStack] = parameters[0]
+	var at: Vector3 = parameters[1]
+	assert_eq(stacks.size(), expected.size(), "the stacks of the seeded roll")
+	for i: int in mini(stacks.size(), expected.size()):
+		assert_eq(stacks[i].item.id, expected[i].item.id, "same item")
+		assert_eq(stacks[i].quantity, expected[i].quantity, "same quantity")
+	assert_eq(at, zombie.global_position, "where the zombie died")
+	var quiet: Zombie = _seeded_zombie(_slow, empty_seed)
+	watch_signals(quiet)
+	quiet.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
+	assert_signal_not_emitted(quiet, "loot_dropped", "a roll that gives nothing creates nothing")
+	assert_signal_emit_count(quiet, "defeated", 1, "but it is defeated all the same")
+
+
+func test_r_008_35_no_killer_no_loot() -> void:
+	var loot_seed: int = _find_drop_seed(_slow, true)
+	assert_ne(loot_seed, -1, "a seed rolls loot")
+	if loot_seed == -1:
+		return
+	var zombie: Zombie = _seeded_zombie(_slow, loot_seed)
+	watch_signals(zombie)
+	zombie.get_health().take_damage(_slow.hp_max)
+	assert_signal_emit_count(zombie, "defeated", 1, "it died")
+	assert_signal_not_emitted(zombie, "loot_dropped", "a death nobody dealt drops nothing")
+
+
+func test_r_008_35_no_table_no_loot() -> void:
+	var loot_seed: int = _find_drop_seed(_slow, true)
+	assert_ne(loot_seed, -1, "a seed rolls loot")
+	if loot_seed == -1:
+		return
+	var bare: EnemyData = _slow.duplicate() as EnemyData
+	bare.drop_table = null
+	var zombie: Zombie = _seeded_zombie(bare, loot_seed)
+	watch_signals(zombie)
+	zombie.get_hurtbox().receive_attack(bare.hp_max, UID_A)
+	assert_signal_emit_count(zombie, "defeated", 1, "it died")
+	assert_signal_not_emitted(zombie, "loot_dropped", "an enemy without a drop table drops nothing")
+	assert_push_error_count(0)
+
+
+func test_r_008_35_reused_zombie_rolls_with_new_seed() -> void:
+	var loot_seed: int = _find_drop_seed(_slow, true)
+	var empty_seed: int = _find_drop_seed(_slow, false)
+	assert_ne(loot_seed, -1, "a seed rolls loot")
+	assert_ne(empty_seed, -1, "a seed rolls nothing")
+	if loot_seed == -1 or empty_seed == -1:
+		return
+	var pool: ObjectPool = ObjectPool.new()
+	pool.scene = ZOMBIE_SCENE
+	add_child_autofree(pool)
+	var holder: Node3D = add_child_autofree(Node3D.new()) as Node3D
+	var zombie: Zombie = pool.acquire() as Zombie
+	holder.add_child(zombie)
+	watch_signals(zombie)
+	zombie.activate(_slow, HOME, BRAIN_SEED, empty_seed)
+	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
+	assert_signal_not_emitted(zombie, "loot_dropped", "first life: its seed rolls nothing")
+	pool.release(zombie)
+	var reused: Zombie = pool.acquire() as Zombie
+	assert_same(reused, zombie, "the pool gives the same instance back")
+	holder.add_child(reused)
+	reused.activate(_slow, HOME, BRAIN_SEED, loot_seed)
+	reused.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
+	assert_signal_emit_count(reused, "loot_dropped", 1, "second life: rolls with its new seed")

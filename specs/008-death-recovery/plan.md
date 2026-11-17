@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | **Spec** | [spec.md](spec.md) (debe estar *Aprobado*) |
-| **Estado** | Borrador (2026-11-16) |
+| **Estado** | Planificado (2026-11-16) |
 
 > Escrito contra el código de la spec 007 tal como está en el árbol de trabajo (`EventBus`, `Robot.player_uid`,
 > `ExperienceComponent`, `HurtboxComponent`). La 007 debe estar *Hecho* antes de implementar; si cambia antes de
@@ -514,6 +514,22 @@ headless:
    asignarlo a una variable tipada, con `unsafe_property_access` como error. Si no compila limpio, se escribe la
    tercera función específica y la unificación se queda fuera.
 
+### 5.1 Resultado de los puntos (verificar) (T-008-01, 2026-11-16)
+
+Script de prueba en headless con Godot 4.7.2, fuera del repo.
+
+| # | Resultado |
+|---|---|
+| 1 | `Time.get_unix_time_from_system()` devuelve `float` con decimales; `int()` lo trunca a segundos. ✅ |
+| 2 | `HSlider` con `min_value = 1`, `step = 1`, `rounded`: admite `min_value == max_value` (valor 1, sin señal). `value` se recorta al rango y emite `value_changed` también al asignar el mismo valor; `set_value_no_signal` no emite. Bajar `max_value` por debajo del valor lo recorta **sin** emitir: el selector lee el valor del deslizador, no de la última señal. ✅ |
+| 3 | Un `Area3D` añadido al árbol se ve en el paso de física siguiente; quitado en diferido deja de verse en el paso siguiente; añadido otra vez en otro sitio solo se ve allí. ✅ |
+| 4 | `World` de `DISABLED` a `INHERIT`: un `Timer` hijo no da ni un tic mientras está desactivado y sigue después; mover un `CharacterBody3D` mientras está desactivado surte efecto al reanudar; las áreas siguen detectando. ✅ |
+| 5 | `queue_free` de un `StaticBody3D` y alta de otro en el mismo sitio en el mismo fotograma, con el mundo congelado: sin errores. ✅ |
+| 6 | No se pudo simular el clic con `push_input` en el script suelto. Se comprueba con `test_r_008_29_consumes_touches`, con el mismo método que usaba el test de `GameOverScreen`. ⏳ (T-008-11) |
+| 7 | `resource.get(&"id")` asignado a una variable `StringName` compila con los avisos del proyecto como error; una propiedad que no existe da `null`. ✅ El indexado común del catálogo es viable. |
+
+Ningún punto obliga a cambiar el plan.
+
 ## 6. Check de constitución
 
 | Principio | Cumple | Nota |
@@ -550,7 +566,7 @@ headless:
   reloj. Ninguno es estado de un jugador, que es lo que protege el requisito. Propuesta: que el spec diga "solo
   estado del mundo (semilla, ruleset, contadores de visitas) y el servicio de tiempo".
 - **Fila de `GameManager` en architecture §5** → añadir "contadores de visitas por zona, acceso a `ITimeService`".
-  Es un cambio de un documento de gobierno: lo decides tú.
+  Es un cambio de un documento de gobierno: lo decides tú. **Aprobado y aplicado (2026-11-16).**
 - **Contenido de las cajas de la visita 0** → cambia respecto a hoy por la derivación nueva. Sin partidas guardadas
   ni tests que lo fijen; se nota solo si alguien recordaba qué daba cada caja con la semilla de desarrollo.
 - **Estado del `GameManager` entre tests** → es un autoload: una muerte en un test deja la visita en 1 para el
@@ -574,6 +590,25 @@ headless:
   atrás, llega con el HUD (pregunta 9).
 - **Tests con el reloj real** → solo `test_r_008_19_local_reads_device_clock` lee `Time`, y compara con un margen
   entre dos lecturas, no con un valor fijo.
+- **Ajustes durante la implementación (revisión de `architecture-guardian`, 2026-11-16)** → cambian §3 en esto:
+  - `DeathController` no tiene `zone_id`: lee la zona del spawner (`DroppedItemSpawner.get_zone_id()`), para que
+    la zona cargada se fije en un solo sitio (`bind_zone`) y la 009 no tenga que actualizar dos (P2).
+  - `FloatingJoystick.cancel()` (nuevo): al morir, `Main` suelta el joystick y el botón de ataque. La pantalla de
+    transferencia se queda con la suelta del dedo y, sin esto, el robot andaría o golpearía solo al reaparecer.
+    Antes lo tapaba la recarga de la escena. Se comprueba en el móvil (T-008-15).
+  - `ZombieSpawner` desconecta `loot_dropped` junto a `defeated` al devolver un zombie al pool.
+  - `DroppedItemSpawner.is_checking_expiry()` (nuevo, solo lectura) para comprobar R-008-22 sin tocar el `Timer`.
+    El `Timer` lo crea el script, con su intervalo en la constante `EXPIRY_CHECK_INTERVAL_S` (valor técnico, no
+    de BALANCE), en lugar de vivir en una escena: el spawner no tiene `.tscn` propio.
+  - `DeathController.respawn` devuelve `bool`: si se rechaza (`push_error`), `Main` no reanuda el mundo con un
+    robot muerto.
+  - `DroppedItemSpawner.discard_expired_now()` (nuevo): descarta con el reloj del propio spawner, el mismo con el
+    que se apuntó la hora de caída. `Main` lo llama al poblar y al repoblar, así hay un solo camino al reloj y los
+    tests de `Main` usan una hora fija con `FakeTimeService`.
+  - `drop_from_slot` devuelve al pool el objeto si no llegó a entrar nada, y la devolución diferida de un objeto
+    vaciado comprueba su `uid` (el mismo nodo puede estar ya en uso como otra caída).
+  - `test_game_manager.gd` también limpia los contadores (`clear_visit_counts()`), y las suites que instancian
+    `main.tscn` lo hacen **antes** de instanciar, porque `Main._ready` lee el contador.
 - **Tres saltos de señal para el drop del zombie** (`Zombie` → `ZombieSpawner` → `FarmZone` → `Main`) → es el mismo
   patrón que `box_opened`. La alternativa, un evento en `EventBus`, abriría la lista cerrada para algo que solo
   interesa a quien carga la zona.

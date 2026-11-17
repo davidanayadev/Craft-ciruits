@@ -90,7 +90,7 @@ Lista cerrada. Añadir uno requiere cambiar este documento.
 |---|---|---|
 | `EventBus` | Señales de hechos globales (§7) | Guardar estado |
 | `DataRegistry` | Catálogo de datos por id (§8) | Cargar partidas |
-| `GameManager` | Estado global de la partida: mundo, ruleset, zona actual | Guardar estado de un jugador (PMV §4.5 gancho 7) |
+| `GameManager` | Estado global de la partida: mundo, ruleset, zona actual, contadores de visitas por zona; acceso a `ITimeService` | Guardar estado de un jugador (PMV §4.5 gancho 7) |
 | `SaveManager` | Orquestar guardado y carga (§6) | Saber cómo se serializa cada componente |
 | `AudioManager` | SFX y música con pool de reproductores | Decidir cuándo suena algo (escucha eventos) |
 | `TutorialManager` | Guía básica (ACTION_PLAN 5.4) | Bloquear el juego fuera de sus pasos |

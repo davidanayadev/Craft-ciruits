@@ -85,13 +85,13 @@ plan a *Planificado*.
 | [005](005-inventory/spec.md) | Inventario (`InventoryComponent`, UI) y loot al jugador | 1.2 | Hecho |
 | [006](006-zombies/spec.md) | Zombies: `HealthComponent`, IA, spawner con pool | 1.3 | Hecho |
 | [007](007-melee-combat/spec.md) | Combate cuerpo a cuerpo y XP por muerte | 1.4 | Hecho |
-| [008](008-death-recovery/spec.md) | Muerte, `RulesetData`, objetos caídos y recuperación | 1.5 | Aprobado (plan en borrador) |
+| [008](008-death-recovery/spec.md) | Muerte, `RulesetData`, objetos caídos y recuperación | 1.5 | Hecho |
 | [009](009-base-placement-charging/spec.md) | Escena de base, viaje entre zonas, colocación libre y estación de carga | 2.1, 2.8, 2.2 | Borrador |
 | [010](010-save-profile-world/spec.md) | Guardado Perfil/Mundo, `IStore` | 2.3 | Borrador |
 | 011 | Crafteo y `RecipeData` | 2.4 | Por crear |
 | 012 | Generador eólico y cofres | 2.5, 2.6 | Por crear |
 | 013 | Nivel de chasis | 2.7 | Por crear |
-| 014 | Piezas, ranuras y degradación | 3.1, 3.2 | Por crear |
+| 014 | Piezas, ranuras y degradación | 3.1, 3.2 | Por crear. Condición de entrada (spec 008, R-008-11): la durabilidad y el `uid` de `ItemStack` pasan por `InventoryRules` y `copy()`, para que el objeto caído los conserve |
 | 015 | Robot hostil y drops | 3.3 | Por crear |
 | 016+ | Fases 4-6 (HUD, menús, audio, feedback, guía, export) | 4.x-6.x | Por crear |
 

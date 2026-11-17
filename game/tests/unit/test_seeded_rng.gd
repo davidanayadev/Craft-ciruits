@@ -80,3 +80,65 @@ func test_r_004_09_known_answer() -> void:
 		5202283440625251761,
 		"negative seed and coordinate, non-zero index"
 	)
+
+
+## Spec 008 (R-008-08): the seed of a repopulation also depends on the visit
+## number and an index, so each visit rolls other drops and other zombies.
+func test_r_008_08_visit_and_index_change_the_seed() -> void:
+	var stream: StringName = SeededRng.STREAM_BOX_LOOT
+	var base: int = SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, stream, 1, 1)
+	assert_eq(
+		SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, stream, 1, 1),
+		base,
+		"same inputs, same seed"
+	)
+	assert_ne(SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, stream, 2, 1), base, "other visit")
+	assert_ne(SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, stream, 1, 2), base, "other index")
+	assert_ne(
+		SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, SeededRng.STREAM_BOX_PLACEMENT, 1, 1),
+		base,
+		"other stream"
+	)
+	assert_ne(
+		SeededRng.derive_seed_for_visit(WORLD_SEED, Vector2i(1, 0), stream, 1, 1),
+		base,
+		"other zone"
+	)
+	assert_ne(
+		SeededRng.derive_seed_for_visit(WORLD_SEED + 1, ZONE, stream, 1, 1),
+		base,
+		"other world seed"
+	)
+	assert_ne(
+		SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, stream, 1, 2),
+		SeededRng.derive_seed_for_visit(WORLD_SEED, ZONE, stream, 2, 1),
+		"(visit 1, index 2) differs from (visit 2, index 1)"
+	)
+
+
+func test_r_008_08_equals_chained_derive_seed() -> void:
+	var stream: StringName = SeededRng.STREAM_BOX_LOOT
+	var zone := Vector2i(2, -1)
+	var by_visit: int = SeededRng.derive_seed(WORLD_SEED, zone, stream, 3)
+	var expected: int = SeededRng.derive_seed(by_visit, zone, stream, 4)
+	var actual: int = SeededRng.derive_seed_for_visit(WORLD_SEED, zone, stream, 3, 4)
+	assert_eq(actual, expected, "equals the chained derive_seed")
+
+
+## Pins the derivation, computed outside Godot like the one above.
+func test_r_008_08_known_answer() -> void:
+	assert_eq(
+		SeededRng.derive_seed_for_visit(12345, Vector2i(0, 0), &"box_loot", 0, 0),
+		1348050340092042885,
+		"zero zone, first visit, index 0"
+	)
+	assert_eq(
+		SeededRng.derive_seed_for_visit(-7, Vector2i(3, -2), &"enemy_drop", 2, 5),
+		-6912647865979212241,
+		"negative seed and coordinate"
+	)
+
+
+func test_r_008_36_enemy_drop_stream_name() -> void:
+	var stream: StringName = SeededRng.STREAM_ENEMY_DROP
+	assert_eq(stream, &"enemy_drop", "the enemy drop stream name is fixed")

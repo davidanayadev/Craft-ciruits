@@ -68,6 +68,26 @@ static func remove(slots: Array[ItemStack], item_id: StringName, quantity: int) 
 			slots[i] = null
 
 
+## Whether quantity can leave slot_index: an occupied slot and 1..its quantity.
+static func can_split(slots: Array[ItemStack], slot_index: int, quantity: int) -> bool:
+	if slot_index < 0 or slot_index >= slots.size() or slots[slot_index] == null:
+		return false
+	return quantity >= 1 and quantity <= slots[slot_index].quantity
+
+
+## Takes quantity out of slot_index and returns it as a new stack; the slot
+## keeps the rest, or becomes null when nothing is left. A request can_split()
+## rejects → null and no change.
+static func split(slots: Array[ItemStack], slot_index: int, quantity: int) -> ItemStack:
+	if not can_split(slots, slot_index, quantity):
+		return null
+	var stack: ItemStack = slots[slot_index]
+	stack.quantity -= quantity
+	if stack.quantity == 0:
+		slots[slot_index] = null
+	return ItemStack.new(stack.item, quantity)
+
+
 static func _fill_partial_stacks(slots: Array[ItemStack], item: ItemData, quantity: int) -> int:
 	var remaining: int = quantity
 	for stack: ItemStack in slots:

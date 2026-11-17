@@ -209,3 +209,37 @@ func test_r_007_13_swing_does_not_turn_owner() -> void:
 	assert_almost_eq(
 		_melee.get_hitbox_transform().basis.get_euler().y, 1.0, 0.0001, "the box follows its facing"
 	)
+
+
+# --- Spec 008: cancel_swing (a dead robot does not strike) -----------------------
+
+
+func test_r_008_25_cancel_drops_pending_impact() -> void:
+	_tick(1, true)
+	assert_true(_melee.is_impact_pending(), "setup: the impact is on its way")
+	_melee.cancel_swing()
+	assert_false(_melee.is_impact_pending(), "the impact is gone")
+	_tick(4, false)
+	assert_false(_melee.is_impact_pending(), "and does not come back past the impact time")
+	assert_signal_not_emitted(_melee, "hit_dealt", "nothing was hit")
+
+
+func test_r_008_25_cancel_keeps_the_swing_interval() -> void:
+	_tick(1, true)
+	assert_signal_emit_count(_melee, "swing_started", 1)
+	_melee.cancel_swing()
+	# The cost stays paid: a new swing waits the normal interval (0.5 s = 4 steps).
+	_tick(3, true)
+	assert_signal_emit_count(_melee, "swing_started", 1, "still inside the interval")
+	_tick(1, true)
+	assert_signal_emit_count(_melee, "swing_started", 2, "a new swing at the normal interval")
+	assert_true(_melee.is_impact_pending(), "and its impact is pending again")
+
+
+func test_r_008_25_cancel_with_nothing_pending_is_noop() -> void:
+	_melee.cancel_swing()
+	assert_false(_melee.is_impact_pending())
+	assert_signal_not_emitted(_melee, "swing_started")
+	assert_push_error_count(0)
+	_tick(1, true)
+	assert_signal_emit_count(_melee, "swing_started", 1, "the first swing still starts at once")

@@ -5,18 +5,22 @@ extends Node3D
 ## never reads the seed itself, so whoever loads it (main.gd now, ZoneLoader
 ## in spec 009) decides the world, and tests can generate it with any seed.
 ## Positions are local to the zone, whose origin is the centre of its grid cell.
-## Enemies are apart from generate(): they depend on the visit and the boxes
-## do not (BALANCE §7.2), so spawn_enemies() takes the visit and a pool that
-## outlives the zone (spec 006).
+## Where the boxes are never changes; what they hold and which enemies there
+## are depend on the visit (BALANCE §7.2). Enemies come from a pool that
+## outlives the zone (spec 006). repopulate() starts a new visit (spec 008).
 
 ## A box of this zone was interacted with while it held items (spec 005).
 ## Relayed here so whoever loads the zone connects one signal, not every box.
 signal box_opened(box: LootBox, opener: Node3D)
+## An enemy of this zone left loot where it died (spec 008).
+signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
 @export var data: ZoneData
 @export var box_scene: PackedScene
 
 var _boxes: Array[LootBox] = []
+## Marker of each box, in the same order as _boxes.
+var _box_marker_indices: Array[int] = []
 var _generated: bool = false
 
 @onready var _spawn_point: Marker3D = %SpawnPoint
@@ -26,11 +30,16 @@ var _generated: bool = false
 @onready var _zombie_spawner: ZombieSpawner = %ZombieSpawner
 
 
+func _ready() -> void:
+	_zombie_spawner.enemy_loot_dropped.connect(_on_enemy_loot_dropped)
+
+
 ## Places the boxes once (second call → push_error, no change). How many and
-## on which markers comes from the box_placement stream; the contents of each
-## box from the box_loot stream and its marker index, so they depend neither
-## on the opening order nor on how many boxes there are.
-func generate(world_seed: int) -> void:
+## on which markers comes from the box_placement stream, without the visit;
+## the contents of each box from the box_loot stream, the visit and its marker
+## index, so they depend neither on the opening order nor on how many boxes
+## there are (R-008-08).
+func generate(world_seed: int, visit: int) -> void:
 	if _generated:
 		push_error("FarmZone '%s': generate() was already called." % name)
 		return
@@ -46,7 +55,29 @@ func generate(world_seed: int) -> void:
 		markers.size(), data.box_count_min, data.box_count_max, rng
 	)
 	for marker_index: int in picked:
-		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed)
+		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed, visit)
+
+
+## Starts a new visit (R-008-09): the enemies are replaced by those of that
+## visit and every box by a closed one on the same marker with the contents of
+## that visit; what was left inside goes with the old box. Before generate() →
+## push_error, no change.
+func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
+	if not _generated:
+		push_error("FarmZone '%s': repopulate() needs generate() first." % name)
+		return
+	despawn_enemies()
+	spawn_enemies(world_seed, visit, pool)
+	# Replaced, not reset: a new box is cheaper to get right than undoing the
+	# roll of an old one, and this runs once per death, behind the transfer screen.
+	var markers: Array[Node] = _box_markers.get_children()
+	var marker_indices: Array[int] = _box_marker_indices
+	for box: LootBox in _boxes:
+		box.queue_free()
+	_boxes = []
+	_box_marker_indices = []
+	for marker_index: int in marker_indices:
+		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed, visit)
 
 
 func get_spawn_position() -> Vector3:
@@ -76,7 +107,7 @@ func get_enemies() -> Array[Zombie]:
 	return _zombie_spawner.get_active()
 
 
-func _place_box(marker: Marker3D, marker_index: int, world_seed: int) -> void:
+func _place_box(marker: Marker3D, marker_index: int, world_seed: int, visit: int) -> void:
 	if marker == null:
 		push_error("FarmZone '%s': box marker %d is not a Marker3D." % [name, marker_index])
 		return
@@ -87,11 +118,18 @@ func _place_box(marker: Marker3D, marker_index: int, world_seed: int) -> void:
 	_boxes_root.add_child(box)
 	box.global_transform = marker.global_transform
 	box.setup(
-		SeededRng.derive_seed(world_seed, data.zone_id, SeededRng.STREAM_BOX_LOOT, marker_index)
+		SeededRng.derive_seed_for_visit(
+			world_seed, data.zone_id, SeededRng.STREAM_BOX_LOOT, visit, marker_index
+		)
 	)
 	box.opened.connect(_on_box_opened.bind(box))
 	_boxes.append(box)
+	_box_marker_indices.append(marker_index)
 
 
 func _on_box_opened(opener: Node3D, box: LootBox) -> void:
 	box_opened.emit(box, opener)
+
+
+func _on_enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3) -> void:
+	enemy_loot_dropped.emit(stacks, world_position)

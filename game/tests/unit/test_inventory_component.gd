@@ -608,3 +608,148 @@ func test_find_in_null_when_none() -> void:
 	deep.catalog = _catalog
 	nested.add_child(deep)
 	assert_null(InventoryComponent.find_in(owner_node), "only direct children count")
+
+
+# --- Spec 008: R-008-11 moving part of a stack ---------------------------------
+
+
+## A source with slots [10, 6, 0] of scrap (stack_max 10) and an empty destination.
+func _source_with_two_scrap_stacks() -> InventoryComponent:
+	var source: InventoryComponent = _new_inventory(3)
+	var stacks: Array[ItemStack] = [_stack(&"scrap", 10), _stack(&"scrap", 6)]
+	assert_true(source.add_stacks(stacks).ok, "source setup: [10, 6, 0]")
+	return source
+
+
+func test_r_008_11_take_amount_moves_exactly() -> void:
+	var source: InventoryComponent = _source_with_two_scrap_stacks()
+	var destination: InventoryComponent = _new_inventory(2)
+	var before: int = source.count(&"scrap") + destination.count(&"scrap")
+	watch_signals(source)
+	watch_signals(destination)
+	var result: InventoryAddResult = destination.take_amount_from(source, 0, 4)
+	assert_true(result.ok, "everything fits")
+	assert_eq(result.leftovers.size(), 0, "no leftovers")
+	assert_eq(destination.count(&"scrap"), 4, "the destination gained exactly the quantity")
+	assert_eq(_quantities(source), [6, 6, 0] as Array[int], "the slot lost exactly it and kept the rest")
+	assert_eq(source.count(&"scrap") + destination.count(&"scrap"), before, "no item created or lost")
+	assert_signal_emit_count(destination, "inventory_changed", 1)
+	assert_signal_emit_count(source, "inventory_changed", 1)
+	assert_signal_not_emitted(destination, "overflowed")
+
+
+func test_r_008_11_take_amount_whole_stack_empties_slot() -> void:
+	var source: InventoryComponent = _source_with_two_scrap_stacks()
+	var destination: InventoryComponent = _new_inventory(2)
+	var result: InventoryAddResult = destination.take_amount_from(source, 1, 6)
+	assert_true(result.ok)
+	assert_eq(_quantities(source), [10, 0, 0] as Array[int], "the whole stack left the slot")
+	assert_null(source.get_slots()[1], "the emptied slot is null")
+	assert_eq(source.get_slot_count(), 3, "the slot count does not change")
+	assert_eq(destination.count(&"scrap"), 6)
+
+
+func test_r_008_11_take_amount_keeps_other_items_apart() -> void:
+	var source: InventoryComponent = _new_inventory(2)
+	_fill(source, &"scrap", 4)
+	_fill(source, &"iron", 3)
+	var destination: InventoryComponent = _new_inventory(2)
+	assert_true(destination.take_amount_from(source, 1, 2).ok)
+	assert_eq(destination.count(&"iron"), 2, "only the chosen item moved")
+	assert_eq(destination.count(&"scrap"), 0)
+	assert_eq(source.count(&"iron"), 1)
+	assert_eq(source.count(&"scrap"), 4, "the other slot is untouched")
+
+
+func test_r_008_11_take_amount_only_part_fits() -> void:
+	var source: InventoryComponent = _new_inventory(2)
+	_fill(source, &"scrap", 10)
+	var destination: InventoryComponent = _new_inventory(1)
+	_fill(destination, &"scrap", 7)
+	watch_signals(source)
+	watch_signals(destination)
+	var result: InventoryAddResult = destination.take_amount_from(source, 0, 5)
+	# Room in destination: 3. Two stay in the source.
+	assert_false(result.ok, "not everything fit")
+	assert_eq(result.error_key, InventoryComponent.MSG_INVENTORY_FULL)
+	assert_eq(_total(result.leftovers), 2, "2 did not fit")
+	assert_eq(destination.count(&"scrap"), 10, "what fits entered")
+	assert_eq(_quantities(source), [7, 0] as Array[int], "the source keeps what did not enter")
+	assert_signal_emit_count(destination, "overflowed", 1)
+	assert_signal_emit_count(destination, "inventory_changed", 1)
+	assert_signal_emit_count(source, "inventory_changed", 1)
+
+
+func test_r_008_11_take_amount_invalid_requests() -> void:
+	var source: InventoryComponent = _source_with_two_scrap_stacks()
+	var destination: InventoryComponent = _new_inventory(2)
+	watch_signals(source)
+	watch_signals(destination)
+	var requests: Array[Callable] = [
+		destination.take_amount_from.bind(null, 0, 1),
+		source.take_amount_from.bind(source, 0, 1),
+		destination.take_amount_from.bind(source, -1, 1),
+		destination.take_amount_from.bind(source, 3, 1),
+		destination.take_amount_from.bind(source, 2, 1),
+		destination.take_amount_from.bind(source, 0, 0),
+		destination.take_amount_from.bind(source, 0, -2),
+		destination.take_amount_from.bind(source, 0, 11),
+	]
+	for request: Callable in requests:
+		var result: InventoryAddResult = request.call()
+		assert_push_error("take_amount_from")
+		assert_false(result.ok)
+		assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	assert_eq(_quantities(source), [10, 6, 0] as Array[int], "source unchanged")
+	assert_true(destination.is_empty(), "destination unchanged")
+	assert_signal_not_emitted(source, "inventory_changed")
+	assert_signal_not_emitted(destination, "inventory_changed")
+	assert_signal_not_emitted(destination, "overflowed")
+
+
+# --- Spec 008: R-008-18 clear ---------------------------------------------------
+
+
+func test_r_008_18_clear_empties_and_resizes() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 14)
+	watch_signals(inventory)
+	var grown: ActionResult = inventory.clear(5)
+	assert_true(grown.ok)
+	assert_true(inventory.is_empty(), "no stacks")
+	assert_eq(inventory.get_slot_count(), 5, "exactly the slots asked")
+	assert_eq(_quantities(inventory), [0, 0, 0, 0, 0] as Array[int])
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+	_fill(inventory, &"iron", 5)
+	var shrunk: ActionResult = inventory.clear(1)
+	assert_true(shrunk.ok, "shrinking is allowed for clear")
+	assert_true(inventory.is_empty(), "no stacks after shrinking")
+	assert_eq(inventory.get_slot_count(), 1, "exactly the slots asked, also when fewer")
+	var none: ActionResult = inventory.clear(0)
+	assert_true(none.ok)
+	assert_eq(inventory.get_slot_count(), 0, "zero slots")
+	assert_true(inventory.is_empty())
+
+
+func test_r_008_18_clear_with_contents_emits_once() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 14)
+	_fill(inventory, &"iron", 3)
+	watch_signals(inventory)
+	inventory.clear(3)
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+	assert_true(inventory.is_empty())
+	assert_eq(inventory.get_slot_count(), 3)
+
+
+func test_r_008_18_clear_negative_rejected() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 14)
+	watch_signals(inventory)
+	var result: ActionResult = inventory.clear(-1)
+	assert_push_error("clear")
+	assert_false(result.ok)
+	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	assert_eq(inventory.get_slot_count(), 3, "slot count unchanged")
+	assert_eq(_quantities(inventory), [10, 4, 0] as Array[int], "contents unchanged")
+	assert_signal_not_emitted(inventory, "inventory_changed")

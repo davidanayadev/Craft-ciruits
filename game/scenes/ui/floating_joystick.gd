@@ -38,6 +38,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_mouse(event)
 
 
+## Lets go of the finger it tracks, as if it had lifted: for when something
+## covers the screen and the real release never arrives here (spec 008).
+func cancel() -> void:
+	if _touch_index != NO_TOUCH:
+		_release()
+
+
 func _handle_touch(touch: InputEventScreenTouch) -> void:
 	if touch.pressed:
 		_try_grab(touch.index, touch.position)

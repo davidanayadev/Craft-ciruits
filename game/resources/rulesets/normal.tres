@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RulesetData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ruleset_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"normal"
+drops_inventory = true
+keeps_xp = true
+keeps_core = true
+respawn_battery_ratio = 1.0
