@@ -42,8 +42,15 @@ func _new_pool() -> ObjectPool:
 	return pool
 
 
+## These tests check who spawns and what drops, never movement. Several of
+## these zones coexist at the same place, and their identical navmeshes in one
+## navigation map raise edge-merge errors when the map syncs, so the region is
+## removed before the zone enters the tree (disabling it in the tree is not
+## enough: the region still reaches the map).
 func _spawned_zone(world_seed: int, visit: int, pool: ObjectPool) -> FarmZone:
-	var zone: FarmZone = _new_zone()
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	zone.get_node("%Navigation").free()
+	add_child_autofree(zone)
 	zone.spawn_enemies(world_seed, visit, pool)
 	return zone
 
