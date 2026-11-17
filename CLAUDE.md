@@ -88,7 +88,7 @@ Delegate to save cost: cheap models for mechanical work, fresh eyes at review ga
 | Definition of Done | `godot-runner`, `i18n-auditor` and `balance-auditor` in parallel, then `architecture-guardian` once |
 | A fix attempt failed, or the bug is intermittent or unclear | `deep-debugger` |
 | Wide search across many files | built-in `Explore` |
-| Closing a spec, after the Definition of Done checks | `system-documenter spec NNN` (updates `docs/systems/`) |
+| Closing a spec, after the auditors and before marking it `Hecho` | `system-documenter spec NNN` (updates `docs/systems/`) |
 
 Do not delegate tasks of 1–3 tool calls, commit messages or PRs (the main session knows why the code changed), or
 work another subagent already reported on. Run Opus agents (`architecture-guardian`, `deep-debugger`) only at the

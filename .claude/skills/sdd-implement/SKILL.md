@@ -25,7 +25,8 @@ Implement spec: $ARGUMENTS
 6. Tasks marked **(usuario)** are for the user: explain what to do and wait.
 7. When all tasks are done, run in parallel the `godot-runner`, `i18n-auditor` and `balance-auditor` subagents,
    then `architecture-guardian` once on the branch diff. Fix what they find or report it to the user.
-8. Walk through the Definition of Done (constitution §4) with those reports, set the spec to `Hecho` in
+8. Run the `system-documenter` subagent with `spec NNN` and tell it to update the index in
+   `docs/systems/README.md`, so the pages land in the same PR that closes the spec. Fix the discrepancies it finds
+   between code and spec or plan, or report them to the user.
+9. Walk through the Definition of Done (constitution §4) with those reports, set the spec to `Hecho` in
    `spec.md` and `specs/README.md §6`, and report what was verified and what was not (e.g. not tested on Android).
-9. Run the `system-documenter` subagent with `spec NNN` and tell it to update the index in
-   `docs/systems/README.md`. Report the discrepancies it finds between code and spec or plan.

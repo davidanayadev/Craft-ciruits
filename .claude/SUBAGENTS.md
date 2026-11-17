@@ -70,7 +70,7 @@ Otras reglas de gasto:
 - **Cuándo no:** después de cada commit, ni para buscar bugs genéricos (para eso está `/code-review`).
 
 ### `system-documenter`
-- **Cuándo:** al cerrar un spec, con `spec NNN`: actualiza solo las páginas de los sistemas que tocó ese spec.
+- **Cuándo:** al cerrar un spec, tras los auditores y antes de marcarlo `Hecho`, con `spec NNN`: actualiza solo las páginas de los sistemas que tocó ese spec.
 - **Cuándo no:** durante la implementación (el código aún cambia) ni para cambios pequeños fuera de un spec.
 - **Por qué Sonnet y no Haiku:** explicar el porqué exige cruzar spec, plan y código; Haiku tiende a parafrasear
   y a rellenar huecos. El gasto se acota porque solo toca los sistemas del spec que se cierra.
@@ -112,7 +112,7 @@ Las skills `/sdd-spec`, `/sdd-plan` y `/sdd-implement` ya invocan estos agentes 
 | `/sdd-implement`, por tarea | `gut-test-writer` (test primero) → sesión principal implementa → `godot-runner` |
 | Bug que no cede | `deep-debugger` |
 | Definición de hecho | En paralelo: `godot-runner`, `i18n-auditor`, `balance-auditor`. Después, una vez: `architecture-guardian` |
-| Cierre del spec | `system-documenter spec NNN` |
+| Tras los auditores, antes de marcar `Hecho` | `system-documenter spec NNN` |
 | Antes del PR | `/code-review` (nivel bajo o medio) si el cambio es grande |
 | Commit y PR | Sesión principal |
 
