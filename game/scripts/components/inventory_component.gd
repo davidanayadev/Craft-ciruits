@@ -118,6 +118,27 @@ func remove(item_id: StringName, quantity: int) -> ActionResult:
 	return ActionResult.success()
 
 
+## Several items at once, all or nothing (paying a recipe, spec 009): every
+## id known and every quantity > 0, otherwise push_error, ERR_INVALID_REQUEST
+## and no change; any amount not held → ERR_NOT_ENOUGH_ITEMS and no change.
+## One inventory_changed.
+func remove_many(amounts: Dictionary[StringName, int]) -> ActionResult:
+	for item_id: StringName in amounts:
+		if not _knows(item_id) or amounts[item_id] <= 0:
+			push_error(
+				"InventoryComponent '%s': cannot remove %s (unknown item or quantity <= 0)."
+				% [name, amounts]
+			)
+			return ActionResult.failure(ERR_INVALID_REQUEST)
+	if not InventoryRules.can_remove_many(_slots, amounts):
+		return ActionResult.failure(ERR_NOT_ENOUGH_ITEMS)
+	if amounts.is_empty():
+		return ActionResult.success()
+	InventoryRules.remove_many(_slots, amounts)
+	inventory_changed.emit()
+	return ActionResult.success()
+
+
 ## amounts[i] leaves slot i; size must equal the slot count and each amount must be
 ## within 0..that slot's quantity, otherwise push_error, ERR_INVALID_REQUEST and no
 ## change. One signal.

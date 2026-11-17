@@ -264,3 +264,70 @@ func test_r_008_10_spawner_without_time_service_reports_error() -> void:
 	assert_null(no_clock.drop_stacks(one, Vector3.ZERO), "no clock")
 	assert_push_error("needs a pool, a time service and a bound zone")
 	assert_eq(no_clock.get_items().size(), 0, "nothing created")
+
+
+const OTHER_ZONE := Vector2i(0, -1)
+
+
+func test_r_009_04_unbind_returns_items_to_pool() -> void:
+	_spawner.drop_inventory(_source_with_loot(), ZONE_ORIGIN + Vector3(1.0, 0.0, 1.0))
+	_spawner.drop_stacks([_stack(&"cables", 3)], ZONE_ORIGIN + Vector3(-2.0, 0.0, 0.5))
+	var free_before: int = _pool.get_free_count()
+	_spawner.unbind_zone()
+	assert_eq(_spawner.get_items().size(), 0, "no active item left")
+	assert_eq(_pool.get_free_count(), free_before + 2, "both went back to the pool")
+	assert_false(_spawner.is_checking_expiry(), "nothing left to expire")
+
+
+func test_r_009_17_unbind_stores_and_rebind_restores() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(
+		_source_with_loot(), ZONE_ORIGIN + Vector3(1.0, 0.0, 2.0)
+	)
+	var before: Array[Dictionary] = _spawner.to_data()
+	var uid: String = item.uid
+	_spawner.unbind_zone()
+	var other_root: Node3D = Node3D.new()
+	_world.add_child(other_root)
+	_spawner.bind_zone(OTHER_ZONE, other_root)
+	assert_eq(_spawner.get_items().size(), 0, "another zone does not get them")
+	_spawner.unbind_zone()
+	# The zone comes back somewhere else in the world: the item follows it.
+	var new_root: Node3D = Node3D.new()
+	new_root.position = ZONE_ORIGIN + Vector3(5.0, 0.0, 0.0)
+	_world.add_child(new_root)
+	_spawner.bind_zone(ZONE, new_root)
+	assert_eq(_spawner.to_data(), before, "same uid, zone, local position, time and stacks")
+	assert_eq(_spawner.get_items().size(), 1, "one item back")
+	if _spawner.get_items().size() != 1:
+		return
+	var restored: DroppedItem = _spawner.get_items()[0]
+	assert_eq(restored.uid, uid, "same uid")
+	assert_eq(
+		restored.global_position, new_root.to_global(restored.local_position), "lies in its zone"
+	)
+	assert_true(_spawner.is_checking_expiry(), "expiry runs again")
+	var picked: InventoryComponent = _pick_up(restored)
+	assert_eq(picked.count(&"scrap"), 6, "its scrap can be picked up")
+	assert_eq(picked.count(&"iron"), 2, "and its iron")
+
+
+func test_r_009_17_expired_discarded_on_rebind() -> void:
+	_spawner.drop_inventory(_source_with_loot(), ZONE_ORIGIN)
+	_clock.now = START_TIME + 10
+	_spawner.drop_stacks([_stack(&"cables", 1)], ZONE_ORIGIN + Vector3(2.0, 0.0, 0.0))
+	_spawner.unbind_zone()
+	# Unloaded zones do not expire; the first item's lifetime ends meanwhile.
+	_clock.now = START_TIME + _config.lifetime_s
+	_spawner.bind_zone(ZONE, _zone_root)
+	assert_eq(_spawner.get_items().size(), 1, "the expired one is discarded on rebind")
+	if _spawner.get_items().size() == 1:
+		assert_eq(_spawner.get_items()[0].get_contents().count(&"cables"), 1, "the newer one stays")
+
+
+func test_r_009_17_rebind_twice_restores_once() -> void:
+	_spawner.drop_inventory(_source_with_loot(), ZONE_ORIGIN)
+	_spawner.unbind_zone()
+	_spawner.bind_zone(ZONE, _zone_root)
+	_spawner.unbind_zone()
+	_spawner.bind_zone(ZONE, _zone_root)
+	assert_eq(_spawner.get_items().size(), 1, "stored items are restored once, not duplicated")

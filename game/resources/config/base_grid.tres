@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BuildGridData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/build_grid_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+cell_size_m = 1.0
+area_size_cells = Vector2i(12, 8)
+area_origin_local = Vector3(-6, 0, -5)
+reserved_cells = Array[Vector2i]([Vector2i(5, 0), Vector2i(6, 0), Vector2i(3, 7), Vector2i(8, 7)])

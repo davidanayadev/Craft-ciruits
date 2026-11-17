@@ -44,3 +44,35 @@ func get_ruleset(id: StringName) -> RulesetData:
 		push_error("DataRegistry: no catalog loaded; cannot return ruleset '%s'." % id)
 		return null
 	return _catalog.get_ruleset(id)
+
+
+## Unknown zone_id → push_error and null.
+func get_zone(zone_id: Vector2i) -> ZoneData:
+	if _catalog == null:
+		push_error("DataRegistry: no catalog loaded; cannot return zone %s." % zone_id)
+		return null
+	return _catalog.get_zone(zone_id)
+
+
+## The only BASE zone of the catalog.
+func get_base_zone() -> ZoneData:
+	if _catalog == null:
+		push_error("DataRegistry: no catalog loaded; cannot return the base zone.")
+		return null
+	return _catalog.get_base_zone()
+
+
+## Unknown id → push_error and null.
+func get_structure(id: StringName) -> StructureData:
+	if _catalog == null:
+		push_error("DataRegistry: no catalog loaded; cannot return structure '%s'." % id)
+		return null
+	return _catalog.get_structure(id)
+
+
+## Unknown id → push_error and null.
+func get_recipe(id: StringName) -> RecipeData:
+	if _catalog == null:
+		push_error("DataRegistry: no catalog loaded; cannot return recipe '%s'." % id)
+		return null
+	return _catalog.get_recipe(id)

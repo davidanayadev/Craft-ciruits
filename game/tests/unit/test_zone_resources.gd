@@ -3,8 +3,11 @@ extends GutTest
 ## cell of the global grid (R-004-03) and gets the box count of BALANCE §7.1
 ## (R-004-21) and its zombies (R-006-23). The expected values mirror BALANCE.md
 ## §7 and §7.1; update both together.
+## Spec 009: every zone has a kind and a scene, and the base is zone (0, -1)
+## (R-009-01, architecture §14).
 
 const GREEN_ZONE_PATH := "res://resources/zones/green_zone.tres"
+const BASE_ZONE_PATH := "res://resources/zones/base.tres"
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
 
 var _zone: ZoneData
@@ -73,3 +76,47 @@ func test_r_006_23_enemy_spawns_match_balance() -> void:
 		assert_true(DataRegistry.get_catalog().has_enemy(entry.enemy.id), "catalog enemy")
 	var expected: Array[StringName] = [&"zombie_slow", &"zombie_fast"]
 	assert_eq(ids, expected, "slow and fast zombies")
+
+
+func test_r_009_01_zone_kinds_and_scenes() -> void:
+	var base: ZoneData = load(BASE_ZONE_PATH) as ZoneData
+	if _zone == null or base == null:
+		fail_test("green_zone.tres or base.tres is missing")
+		return
+	assert_eq(_zone.kind, ZoneData.Kind.FARM, "the green zone is a farm zone")
+	assert_eq(_zone.scene_path, "res://scenes/farm_zone/farm_zone_green.tscn", "green zone scene")
+	assert_true(_zone.counts_visits(), "a farm zone counts visits")
+	assert_eq(base.kind, ZoneData.Kind.BASE, "the base is a BASE zone")
+	assert_eq(base.scene_path, "res://scenes/base/base.tscn", "base scene")
+	assert_false(base.counts_visits(), "the base counts no visits (question 12)")
+
+
+func test_r_009_01_base_zone_id_from_architecture() -> void:
+	var base: ZoneData = load(BASE_ZONE_PATH) as ZoneData
+	if base == null or _grid == null:
+		fail_test("base.tres or world_grid.tres is missing")
+		return
+	assert_eq(base.zone_id, Vector2i(0, -1), "the base is zone (0, -1) (architecture §14)")
+	assert_eq(base.size_m, Vector2(20.0, 20.0), "base size (BALANCE §5.6)")
+	assert_lte(base.size_m.x, _grid.cell_size_m, "width fits in one cell")
+	assert_eq(base.box_count_max, 0, "no boxes in the base")
+	assert_eq(base.enemy_count_max, 0, "no enemies in the base (safe zone)")
+	assert_eq(base.enemy_spawns.size(), 0, "no enemy spawns in the base")
+
+
+func test_r_009_01_scene_root_matches_kind_and_data() -> void:
+	for zone: ZoneData in DataRegistry.get_catalog().zones:
+		assert_true(ResourceLoader.exists(zone.scene_path), "%s exists" % zone.scene_path)
+		var scene: PackedScene = load(zone.scene_path) as PackedScene
+		if scene == null:
+			fail_test("%s is not a scene" % zone.scene_path)
+			continue
+		var root: Node = scene.instantiate()
+		var root_zone: Zone = root as Zone
+		assert_not_null(root_zone, "%s: the root is a Zone" % zone.scene_path)
+		if root_zone != null:
+			var is_farm: bool = zone.kind == ZoneData.Kind.FARM
+			assert_eq(root_zone is FarmZone, is_farm, "%s: FarmZone for FARM" % zone.scene_path)
+			assert_eq(root_zone is BaseZone, not is_farm, "%s: BaseZone for BASE" % zone.scene_path)
+			assert_same(root_zone.data, zone, "%s: its data is the same ZoneData" % zone.scene_path)
+		root.free()

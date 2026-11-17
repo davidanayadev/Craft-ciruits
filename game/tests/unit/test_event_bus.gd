@@ -92,3 +92,36 @@ func test_r_008_31_player_respawned_signature() -> void:
 	watch_signals(EventBus)
 	EventBus.player_respawned.emit(KILLER_UID)
 	assert_signal_emitted_with_parameters(EventBus, "player_respawned", [KILLER_UID])
+
+
+## Spec 009: zone_changed (R-009-03), structure_built (R-009-35) and
+## player_recharged (R-009-49), architecture §7.
+func _assert_one_arg_signal(signal_name: String, arg_name: String, arg_type: int) -> void:
+	var info: Dictionary = _signal_info_of(signal_name)
+	assert_false(info.is_empty(), "EventBus declares %s" % signal_name)
+	if info.is_empty():
+		return
+	var args: Array = info["args"]
+	assert_eq(args.size(), 1, "%s has one argument" % signal_name)
+	if args.size() != 1:
+		return
+	var first: Dictionary = args[0]
+	var first_name: String = first["name"]
+	var first_type: int = first["type"]
+	assert_eq(first_name, arg_name, "%s: argument name" % signal_name)
+	assert_eq(first_type, arg_type, "%s: argument type" % signal_name)
+
+
+func test_r_009_03_zone_changed_signature() -> void:
+	_assert_one_arg_signal("zone_changed", "zone_id", TYPE_VECTOR2I)
+	watch_signals(EventBus)
+	EventBus.zone_changed.emit(Vector2i(0, -1))
+	assert_signal_emitted_with_parameters(EventBus, "zone_changed", [Vector2i(0, -1)])
+
+
+func test_r_009_35_structure_built_signature() -> void:
+	_assert_one_arg_signal("structure_built", "structure_uid", TYPE_STRING)
+
+
+func test_r_009_49_player_recharged_signature() -> void:
+	_assert_one_arg_signal("player_recharged", "player_uid", TYPE_STRING)

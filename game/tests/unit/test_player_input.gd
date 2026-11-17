@@ -6,6 +6,9 @@ extends GutTest
 ## nothing is reported while blocked (R-007-09), and it comes only from events
 ## no control consumed or from the HUD attack button, never from the action
 ## state alone, which a click on any HUD button also sets (R-007-15).
+## Spec 009: input is blocked for reasons (a screen, a death, a travel); each
+## one blocks on its own and blocked_changed only reports when "any reason
+## active" changes (R-009-07, R-009-57).
 
 const ACTIONS: Array[StringName] = [&"move_forward", &"run", &"interact", &"attack"]
 ## Frames for a parsed event to reach _unhandled_input.
@@ -43,12 +46,12 @@ func test_r_005_27_blocked_ignores_movement_and_interact() -> void:
 	assert_ne(_input.get_direction(), Vector2.ZERO, "the keyboard gives a direction")
 	assert_true(_input.is_run_intent(), "and the run intent")
 	assert_true(_input.is_interact_just_pressed(), "and the interact press")
-	_input.set_input_blocked(true)
+	_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	assert_true(_input.is_input_blocked(), "blocked")
 	assert_eq(_input.get_direction(), Vector2.ZERO, "no direction while blocked")
 	assert_false(_input.is_run_intent(), "no run intent while blocked")
 	assert_false(_input.is_interact_just_pressed(), "no interact while blocked")
-	_input.set_input_blocked(false)
+	_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_ne(_input.get_direction(), Vector2.ZERO, "the direction comes back when unblocked")
 	assert_true(_input.is_run_intent(), "and the run intent")
 
@@ -56,10 +59,10 @@ func test_r_005_27_blocked_ignores_movement_and_interact() -> void:
 func test_r_005_27_blocked_ignores_joystick() -> void:
 	_input.set_joystick_sample(_joystick_sample())
 	assert_eq(_input.get_direction(), Vector2.RIGHT, "the joystick gives a direction")
-	_input.set_input_blocked(true)
+	_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	assert_eq(_input.get_direction(), Vector2.ZERO, "no joystick direction while blocked")
 	assert_false(_input.is_run_intent(), "no joystick run intent while blocked")
-	_input.set_input_blocked(false)
+	_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_eq(_input.get_direction(), Vector2.RIGHT, "the joystick comes back when unblocked")
 
 
@@ -104,18 +107,18 @@ func test_r_007_07_button_held_keeps_attacking() -> void:
 
 func test_r_007_09_blocked_reports_no_attack() -> void:
 	_input.set_attack_button_held(true)
-	_input.set_input_blocked(true)
+	_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	assert_false(_input.poll_attack(), "no attack while blocked, even with the button held")
-	_input.set_input_blocked(false)
+	_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_true(_input.poll_attack(), "the held button counts again when unblocked")
 
 
 func test_r_007_09_press_while_blocked_not_kept() -> void:
-	_input.set_input_blocked(true)
+	_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	_input._unhandled_input(_attack_action(true))
 	_input._unhandled_input(_attack_action(false))
 	assert_false(_input.poll_attack(), "no attack while blocked")
-	_input.set_input_blocked(false)
+	_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_false(_input.poll_attack(), "and the press is gone when the screen closes")
 
 
@@ -157,3 +160,36 @@ func test_r_007_15_not_stuck_after_release() -> void:
 	assert_false(_input.poll_attack(), "the attack does not stay stuck")
 	Input.action_press(&"attack")
 	assert_false(_input.poll_attack(), "and a later click on the HUD does not bring it back")
+
+
+func test_r_009_07_reasons_block_independently() -> void:
+	watch_signals(_input)
+	_input.set_input_blocked(true, PlayerInput.REASON_TRAVEL)
+	assert_true(_input.is_input_blocked(), "a travel blocks")
+	assert_signal_emit_count(_input, "blocked_changed", 1, "unblocked -> blocked")
+	assert_signal_emitted_with_parameters(_input, "blocked_changed", [true])
+	_input.set_input_blocked(true, PlayerInput.REASON_DEATH)
+	assert_signal_emit_count(_input, "blocked_changed", 1, "a second reason is no change")
+	_input.set_input_blocked(false, PlayerInput.REASON_TRAVEL)
+	assert_true(_input.is_input_blocked(), "the death still blocks after the travel ends")
+	assert_signal_emit_count(_input, "blocked_changed", 1, "one of two reasons gone is no change")
+	_input.set_input_blocked(false, PlayerInput.REASON_DEATH)
+	assert_false(_input.is_input_blocked(), "no reason left")
+	assert_signal_emit_count(_input, "blocked_changed", 2, "blocked -> unblocked")
+	assert_signal_emitted_with_parameters(_input, "blocked_changed", [false])
+
+
+func test_r_009_07_same_reason_twice_counts_once() -> void:
+	_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
+	_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
+	_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
+	assert_false(_input.is_input_blocked(), "a reason is on or off, not counted")
+	watch_signals(_input)
+	_input.set_input_blocked(false, PlayerInput.REASON_TRAVEL)
+	assert_signal_not_emitted(_input, "blocked_changed", "removing an absent reason changes nothing")
+
+
+func test_r_009_07_empty_reason_rejected() -> void:
+	_input.set_input_blocked(true, &"")
+	assert_false(_input.is_input_blocked(), "a block needs a reason")
+	assert_push_error("reason")

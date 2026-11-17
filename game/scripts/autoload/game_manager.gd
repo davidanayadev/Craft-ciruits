@@ -1,7 +1,7 @@
 extends Node
 ## Autoload "GameManager": global state of the current game (architecture §5):
-## the world seed, its ruleset and the visit counter of each zone, plus access
-## to the clock. Never per-player state (PMV §4.5 hook 7). No class_name: it
+## the world seed, its ruleset, the visit counter of each zone and the zone
+## that is loaded (spec 009), plus access to the clock. Never per-player state (PMV §4.5 hook 7). No class_name: it
 ## would clash with the autoload name.
 ## Nothing here is saved yet: spec 010 reads the seed, the ruleset id and the
 ## counters from the World file.
@@ -17,6 +17,9 @@ var _ruleset: RulesetData
 ## Zones that are missing are on their first visit.
 var _visit_counts: Dictionary[Vector2i, int] = {}
 var _time_service: ITimeService = LocalTimeService.new()
+## Set only by ZoneLoader, when a travel ends (R-009-09).
+var _current_zone_id: Vector2i = Vector2i.ZERO
+var _has_current_zone: bool = false
 
 
 func _ready() -> void:
@@ -58,3 +61,19 @@ func increment_visit_count(zone_id: Vector2i) -> int:
 ## A new world starts with no visits (spec 010); tests isolate with it.
 func clear_visit_counts() -> void:
 	_visit_counts.clear()
+
+
+## False until the first travel ends.
+func has_current_zone() -> bool:
+	return _has_current_zone
+
+
+## Meaningless before has_current_zone().
+func get_current_zone_id() -> Vector2i:
+	return _current_zone_id
+
+
+## Only ZoneLoader calls it (a test guards it). Counts no visit.
+func set_current_zone(zone_id: Vector2i) -> void:
+	_current_zone_id = zone_id
+	_has_current_zone = true

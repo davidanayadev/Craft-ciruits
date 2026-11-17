@@ -9,6 +9,9 @@ extends GutTest
 ## hides while a screen is open (R-005-27); the "inventory full" message shows
 ## on overflowed and hides when its timer ends (R-005-20); keys in ES and EN
 ## (R-005-30).
+## Spec 009: an "Edit base" button, hidden unless the base is loaded, that
+## emits edit_base_pressed (R-009-59); the interact button also hides while a
+## travel or a death blocks the robot (R-009-07).
 
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -201,16 +204,16 @@ func test_r_005_27_interact_button_hidden_while_modal() -> void:
 	_hud.bind(_robot)
 	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_OPEN"))
 	assert_true(_interact_button.visible, "shown with a target and no screen open")
-	_hud.set_modal_open(true)
+	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	assert_false(_interact_button.visible, "hidden while a screen is open")
 	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_PICK_UP"))
 	assert_false(_interact_button.visible, "a new target does not bring it back while open")
-	_hud.set_modal_open(false)
+	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_true(_interact_button.visible, "shown again when the screen closes")
 	assert_eq(_interact_button.text, "PROMPT_PICK_UP", "with the current target's prompt")
-	_hud.set_modal_open(true)
+	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	_robot.interactor.target_changed.emit(null)
-	_hud.set_modal_open(false)
+	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_false(_interact_button.visible, "no target, no button")
 
 
@@ -282,7 +285,7 @@ func test_r_007_16_emits_attack_held_changed() -> void:
 
 func test_r_007_16_visible_while_modal() -> void:
 	_hud.bind(_robot)
-	_hud.set_modal_open(true)
+	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	assert_true(_attack_button().visible, "the attack button stays; PlayerInput blocks the attack")
 
 
@@ -323,3 +326,38 @@ func test_r_007_25_damage_flash_restarts() -> void:
 	assert_eq(flash.modulate.a, 1.0, "a new hit starts the flash again")
 	_hud.flash_damage(0.0)
 	assert_true(flash.is_flashing(), "a flash without duration is ignored")
+
+
+func test_r_009_59_edit_button_only_in_base() -> void:
+	var button: Button = _hud.get_node("%EditBaseButton") as Button
+	assert_false(button.visible, "hidden until the base is loaded")
+	_hud.set_edit_base_available(true)
+	assert_true(button.visible, "shown in the base")
+	watch_signals(_hud)
+	button.pressed.emit()
+	assert_signal_emit_count(_hud, "edit_base_pressed", 1, "pressing it is a request")
+	_hud.set_edit_base_available(false)
+	assert_false(button.visible, "hidden elsewhere")
+
+
+func test_r_009_59_text_is_key() -> void:
+	var button: Button = _hud.get_node("%EditBaseButton") as Button
+	assert_eq(button.text, "HUD_EDIT_BASE", "a translation key")
+	assert_ne(button.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "translated")
+	for locale: String in SUPPORTED_LOCALES:
+		var text: String = ""
+		for translation: Translation in TranslationServer.find_translations(locale, true):
+			text = translation.get_message(&"HUD_EDIT_BASE")
+			if not text.is_empty():
+				break
+		assert_ne(text, "", "HUD_EDIT_BASE in %s" % locale)
+
+
+func test_r_009_07_interact_hidden_while_travelling() -> void:
+	_hud.bind(_robot)
+	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_TRAVEL"))
+	assert_true(_interact_button.visible, "shown with a target")
+	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_TRAVEL)
+	assert_false(_interact_button.visible, "hidden while travelling")
+	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_TRAVEL)
+	assert_true(_interact_button.visible, "back after the travel")

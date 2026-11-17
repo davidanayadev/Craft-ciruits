@@ -1,0 +1,238 @@
+[gd_scene load_steps=24 format=3]
+
+[ext_resource type="Script" path="res://scenes/base/base_zone.gd" id="1_base"]
+[ext_resource type="Resource" path="res://resources/zones/base.tres" id="2_data"]
+[ext_resource type="Resource" path="res://resources/config/base_grid.tres" id="3_grid"]
+[ext_resource type="MeshLibrary" path="res://resources/zones/green_zone_tiles.tres" id="4_tiles"]
+[ext_resource type="PackedScene" path="res://scenes/zones/exit_point.tscn" id="5_exit"]
+[ext_resource type="Resource" path="res://resources/zones/green_zone.tres" id="6_green"]
+[ext_resource type="PackedScene" path="res://scenes/base/repair_bench.tscn" id="7_bench"]
+[ext_resource type="Script" path="res://scenes/base/build_area.gd" id="8_area"]
+
+[sub_resource type="BoxShape3D" id="wall_shape"]
+size = Vector3(20.6, 4, 0.3)
+
+[sub_resource type="StandardMaterial3D" id="wall_material"]
+albedo_color = Color(0.36, 0.37, 0.4, 1)
+
+[sub_resource type="BoxMesh" id="wall_mesh"]
+material = SubResource("wall_material")
+size = Vector3(20.6, 1.2, 0.3)
+
+[sub_resource type="BoxShape3D" id="crate_shape"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="crate_material"]
+albedo_color = Color(0.5, 0.36, 0.2, 1)
+
+[sub_resource type="BoxMesh" id="crate_mesh"]
+material = SubResource("crate_material")
+size = Vector3(1, 1, 1)
+
+[sub_resource type="CylinderShape3D" id="barrel_shape"]
+height = 1.2
+radius = 0.4
+
+[sub_resource type="StandardMaterial3D" id="barrel_material"]
+albedo_color = Color(0.25, 0.4, 0.55, 1)
+
+[sub_resource type="CylinderMesh" id="barrel_mesh"]
+material = SubResource("barrel_material")
+top_radius = 0.4
+bottom_radius = 0.4
+height = 1.2
+radial_segments = 12
+rings = 1
+
+[sub_resource type="CylinderShape3D" id="lamp_shape"]
+height = 2.5
+radius = 0.15
+
+[sub_resource type="StandardMaterial3D" id="lamp_material"]
+albedo_color = Color(1, 0.9, 0.6, 1)
+emission_enabled = true
+emission = Color(1, 0.85, 0.5, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="CylinderMesh" id="lamp_mesh"]
+material = SubResource("lamp_material")
+top_radius = 0.15
+bottom_radius = 0.15
+height = 2.5
+radial_segments = 8
+rings = 1
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_material"]
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_material")
+
+[sub_resource type="Environment" id="environment"]
+background_mode = 2
+sky = SubResource("sky")
+
+[node name="Base" type="Node3D"]
+script = ExtResource("1_base")
+data = ExtResource("2_data")
+grid = ExtResource("3_grid")
+
+[node name="Ground" type="GridMap" parent="."]
+unique_name_in_owner = true
+mesh_library = ExtResource("4_tiles")
+cell_size = Vector3(2, 1, 2)
+cell_center_x = false
+cell_center_y = false
+cell_center_z = false
+data = {
+"cells": PackedInt32Array(65531, 65531, 1, 65531, 65532, 1, 65531, 65533, 1, 65531, 65534, 1, 65531, 65535, 1, 65531, 0, 1, 65531, 1, 1, 65531, 2, 1, 65531, 3, 1, 65531, 4, 1, 65532, 65531, 1, 65532, 65532, 1, 65532, 65533, 1, 65532, 65534, 1, 65532, 65535, 1, 65532, 0, 1, 65532, 1, 1, 65532, 2, 1, 65532, 3, 1, 65532, 4, 1, 65533, 65531, 1, 65533, 65532, 1, 65533, 65533, 1, 65533, 65534, 1, 65533, 65535, 1, 65533, 0, 1, 65533, 1, 1, 65533, 2, 1, 65533, 3, 1, 65533, 4, 1, 65534, 65531, 1, 65534, 65532, 1, 65534, 65533, 1, 65534, 65534, 1, 65534, 65535, 1, 65534, 0, 1, 65534, 1, 1, 65534, 2, 1, 65534, 3, 1, 65534, 4, 1, 65535, 65531, 1, 65535, 65532, 1, 65535, 65533, 1, 65535, 65534, 1, 65535, 65535, 1, 65535, 0, 1, 65535, 1, 1, 65535, 2, 1, 65535, 3, 1, 65535, 4, 1, 0, 65531, 1, 0, 65532, 1, 0, 65533, 1, 0, 65534, 1, 0, 65535, 1, 0, 0, 1, 0, 1, 1, 0, 2, 1, 0, 3, 1, 0, 4, 1, 1, 65531, 1, 1, 65532, 1, 1, 65533, 1, 1, 65534, 1, 1, 65535, 1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 3, 1, 1, 4, 1, 2, 65531, 1, 2, 65532, 1, 2, 65533, 1, 2, 65534, 1, 2, 65535, 1, 2, 0, 1, 2, 1, 1, 2, 2, 1, 2, 3, 1, 2, 4, 1, 3, 65531, 1, 3, 65532, 1, 3, 65533, 1, 3, 65534, 1, 3, 65535, 1, 3, 0, 1, 3, 1, 1, 3, 2, 1, 3, 3, 1, 3, 4, 1, 4, 65531, 1, 4, 65532, 1, 4, 65533, 1, 4, 65534, 1, 4, 65535, 1, 4, 0, 1, 4, 1, 1, 4, 2, 1, 4, 3, 1, 4, 4, 1)
+}
+
+[node name="Boundaries" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="WallNorth" type="StaticBody3D" parent="Boundaries"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10.15)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Boundaries/WallNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("wall_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Boundaries/WallNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("wall_mesh")
+
+[node name="WallSouth" type="StaticBody3D" parent="Boundaries"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.15)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Boundaries/WallSouth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("wall_shape")
+
+[node name="WallEast" type="StaticBody3D" parent="Boundaries"]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 10.15, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Boundaries/WallEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("wall_shape")
+
+[node name="WallWest" type="StaticBody3D" parent="Boundaries"]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -10.15, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Boundaries/WallWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("wall_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Boundaries/WallWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("wall_mesh")
+
+[node name="Decoration" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="Crate1" type="StaticBody3D" parent="Decoration"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 0, 8)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Decoration/Crate1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("crate_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Decoration/Crate1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("crate_mesh")
+
+[node name="Crate2" type="StaticBody3D" parent="Decoration"]
+transform = Transform3D(0.94, 0, 0.34, 0, 1, 0, -0.34, 0, 0.94, -8.5, 0, -8.5)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Decoration/Crate2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("crate_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Decoration/Crate2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("crate_mesh")
+
+[node name="Barrel1" type="StaticBody3D" parent="Decoration"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 0, 8)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Decoration/Barrel1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("barrel_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Decoration/Barrel1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("barrel_mesh")
+
+[node name="Barrel2" type="StaticBody3D" parent="Decoration"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 0, -8.5)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Decoration/Barrel2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("barrel_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Decoration/Barrel2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("barrel_mesh")
+
+[node name="LampWest" type="StaticBody3D" parent="Decoration"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 0, -2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Decoration/LampWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+shape = SubResource("lamp_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Decoration/LampWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("lamp_mesh")
+
+[node name="LampEast" type="StaticBody3D" parent="Decoration"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 0, -2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Decoration/LampEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+shape = SubResource("lamp_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Decoration/LampEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("lamp_mesh")
+
+[node name="SpawnPoint" type="Marker3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0, 5)
+
+[node name="ExitPoint" parent="." instance=ExtResource("5_exit")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0, 5)
+destination = ExtResource("6_green")
+
+[node name="RepairBench" parent="." instance=ExtResource("7_bench")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6.5)
+
+[node name="BuildArea" type="Node3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -5)
+script = ExtResource("8_area")
+grid = ExtResource("3_grid")
+
+[node name="Structures" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="PreviewRoot" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707, 0.5417, -0.4546, 0, 0.643, 0.766, 0.707, -0.5417, 0.4546, 0, 10, 0)
+shadow_enabled = true
+
+[node name="LampLightWest" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 2.8, -2)
+light_color = Color(1, 0.85, 0.55, 1)
+omni_range = 8.0
+
+[node name="LampLightEast" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 2.8, -2)
+light_color = Color(1, 0.85, 0.55, 1)
+omni_range = 8.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("environment")

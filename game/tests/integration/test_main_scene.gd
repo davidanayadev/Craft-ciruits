@@ -17,6 +17,10 @@ extends GutTest
 ## (R-008-15, -16, -23, -24, -35, -39), the transfer screen and the respawn
 ## (R-008-29..31, -33) and the whole loop (R-008-44).
 ## Manual: the look of the transfer screen and the feel of the wait (plan 008 §5).
+## Spec 009: the game starts in the base (R-009-08), so before_each travels to
+## the green zone and waits for it (_travel_to_green_zone, plan 009 §7); a
+## travel shows the loading screen with the world frozen (R-009-07), exits
+## travel at no cost (R-009-11), and a death ends in the base (R-009-51..53).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 ## Any fixed time: the tests move the fake clock from here.
@@ -24,6 +28,11 @@ const FAKE_NOW := 1_700_000_000
 const MAIN_ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const CAMERA_PATH := "res://resources/config/camera.tres"
 const OTHER_ZONE_ID := Vector2i(7, 7)
+const GREEN_ZONE_ID := Vector2i(0, 0)
+const TRAVEL_TIMEOUT_S := 10.0
+## The robot respawns when the travel ends and the world runs again before the
+## test reads its battery: a few frames of passive drain at most.
+const RESPAWN_BATTERY_TOLERANCE := 0.05
 
 var _main: Node
 var _config: CameraConfigData
@@ -35,6 +44,7 @@ func before_each() -> void:
 	_config = load(CAMERA_PATH) as CameraConfigData
 	_main = MAIN_SCENE.instantiate()
 	add_child_autofree(_main)
+	await _travel_to_green_zone()
 
 
 func after_each() -> void:
@@ -42,6 +52,26 @@ func after_each() -> void:
 		Input.action_release(action)
 	_send_open_storage(false)
 	GameManager.clear_visit_counts()
+
+
+func _loader() -> ZoneLoader:
+	return _main.get_node("%ZoneLoader") as ZoneLoader
+
+
+## Waits for the travel in progress (the start-up one goes to the base).
+func _await_travel() -> void:
+	if _loader().is_travelling():
+		await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+
+
+func _travel_to(zone_id: Vector2i) -> void:
+	await _await_travel()
+	_loader().travel_to(zone_id)
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+
+
+func _travel_to_green_zone() -> void:
+	await _travel_to(GREEN_ZONE_ID)
 
 
 func _rig() -> CameraRig:
@@ -158,9 +188,11 @@ func test_r_008_29_death_inside_a_physics_step() -> void:
 		assert_false(box.is_opened(), "every box is closed")
 
 
+## Ends the transfer and waits for the travel to the base it starts (R-009-51).
 func _finish_transfer() -> void:
 	var screen: TransferScreen = _transfer()
 	screen.advance(screen.config.transfer_duration_s)
+	await _await_travel()
 
 
 func test_r_008_33_no_game_over_and_no_reload() -> void:
@@ -217,7 +249,9 @@ func _go_to_first_box() -> LootBox:
 	return box
 
 
-func test_r_004_05_green_zone_loaded() -> void:
+## Replaces test_r_004_05_green_zone_loaded: the green zone is no longer in
+## ZoneSlot from the start (R-009-08 replaces R-004-05).
+func test_r_009_08_green_zone_loaded_after_travel() -> void:
 	var slot: Node = _main.get_node("World/ZoneSlot")
 	assert_eq(slot.get_child_count(), 1, "one zone loaded in ZoneSlot")
 	var zone: FarmZone = _zone()
@@ -229,7 +263,7 @@ func test_r_004_05_green_zone_loaded() -> void:
 		zone.get_boxes().size(),
 		zone.data.box_count_min,
 		zone.data.box_count_max,
-		"Main generated its boxes"
+		"its boxes were generated"
 	)
 
 
@@ -517,7 +551,7 @@ func _describe_enemies(zone: FarmZone) -> PackedStringArray:
 
 
 func test_r_006_26_main_passes_first_visit() -> void:
-	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var zone: FarmZone = _zone()
 	var pool: ObjectPool = _zombie_pool()
 	assert_not_null(pool, "the zombie pool lives under World, outside the zone")
 	if pool == null:
@@ -541,7 +575,7 @@ func test_r_006_26_main_passes_first_visit() -> void:
 
 
 func test_r_006_23_no_zombie_sees_the_robot_at_start() -> void:
-	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var zone: FarmZone = _zone()
 	await wait_physics_frames(10)
 	# Zombies must enter the scene on their markers: one that enters on top of
 	# the robot and jumps away drags it along.
@@ -551,7 +585,7 @@ func test_r_006_23_no_zombie_sees_the_robot_at_start() -> void:
 
 
 func test_r_006_19_zombies_act_with_screen_open() -> void:
-	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var zone: FarmZone = _zone()
 	var robot: Robot = _robot()
 	var zombie: Zombie = zone.get_enemies()[0]
 	# The navigation map needs a few physics frames before it gives paths.
@@ -587,7 +621,7 @@ func test_r_007_28_main_wires_combat() -> void:
 	assert_not_null(debug_hud, "DebugHud exists under UI")
 	if feedback == null or impact_pool == null or debug_hud == null:
 		return
-	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var zone: FarmZone = _zone()
 	assert_eq(impact_pool.get_free_count(), zone.data.enemy_count_max, "prewarmed for every enemy")
 	assert_same(feedback.impact_pool, impact_pool, "the feedback uses that pool")
 	assert_same(feedback.effects_root, _main.get_node("World"), "and plays its sparks under World")
@@ -606,7 +640,7 @@ func test_r_007_28_main_wires_combat() -> void:
 
 func test_r_007_28_robot_kills_a_zone_zombie() -> void:
 	var robot: Robot = _robot()
-	var zone: FarmZone = _main.get_node("%GreenZone") as FarmZone
+	var zone: FarmZone = _zone()
 	var zombie: Zombie = zone.get_enemies()[0]
 	var enemy: EnemyData = zombie.get_data()
 	var enemies_before: int = zone.get_enemies().size()
@@ -788,19 +822,25 @@ func test_r_008_29_death_closes_screens_and_shows_transfer() -> void:
 	assert_true(_robot().player_input.is_input_blocked(), "the robot input is blocked")
 
 
+## The respawn point of spec 008 is the base's spawn point now (R-009-51).
 func test_r_008_31_robot_back_at_spawn_with_input() -> void:
-	var zone: FarmZone = _zone()
 	var robot: Robot = _robot()
 	await _go_to_first_box()
 	await _die()
 	watch_signals(EventBus)
-	_finish_transfer()
+	await _finish_transfer()
 	assert_false(_transfer().is_playing(), "the transfer ended")
-	assert_lt(robot.global_position.distance_to(zone.get_spawn_position()), 0.01, "at the spawn point")
+	var base: BaseZone = _loader().get_current_zone() as BaseZone
+	assert_not_null(base, "the robot is in the base")
+	if base == null:
+		return
+	assert_lt(robot.global_position.distance_to(base.get_spawn_position()), 0.01, "at the spawn point")
 	var expected_battery: float = (
 		robot.battery.get_maximum() * GameManager.get_ruleset().respawn_battery_ratio
 	)
-	assert_almost_eq(robot.battery.get_current(), expected_battery, 0.001, "with the ruleset battery")
+	assert_almost_eq(
+		robot.battery.get_current(), expected_battery, RESPAWN_BATTERY_TOLERANCE, "with the ruleset battery"
+	)
 	assert_false(robot.player_input.is_input_blocked(), "input unblocked")
 	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world processes again")
 	assert_signal_emit_count(EventBus, "player_respawned", 1, "respawned once")
@@ -874,7 +914,6 @@ func test_r_008_39_invalid_throw_creates_nothing() -> void:
 
 
 func test_r_008_44_die_respawn_and_recover() -> void:
-	var zone: FarmZone = _zone()
 	var robot: Robot = _robot()
 	robot.inventory.add(&"scrap", 3)
 	robot.inventory.add(&"cables", 4)
@@ -885,17 +924,21 @@ func test_r_008_44_die_respawn_and_recover() -> void:
 	await _go_to_first_box()
 	var death_position: Vector3 = robot.global_position
 	await _die()
-	_finish_transfer()
+	await _finish_transfer()
 	var ruleset: RulesetData = GameManager.get_ruleset()
 	assert_almost_eq(
 		robot.battery.get_current(),
 		robot.battery.get_maximum() * ruleset.respawn_battery_ratio,
-		0.001,
+		RESPAWN_BATTERY_TOLERANCE,
 		"battery as the ruleset says"
 	)
 	assert_true(robot.inventory.is_empty(), "the inventory is empty")
 	assert_eq(robot.inventory.get_slot_count(), slot_count, "with the same slots")
 	assert_eq(robot.experience.get_total(), 7, "and the same XP")
+	assert_true(_loader().get_current_zone() is BaseZone, "it came back in the base (R-009-51)")
+	# Back to the zone where it died (spec 009): the visit after the death.
+	await _travel_to_green_zone()
+	var zone: FarmZone = _zone()
 	var expected: FarmZone = _reference_zone_of_visit(1)
 	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "the enemies of visit 1")
 	var items: Array[DroppedItem] = _spawner().get_items()
@@ -910,3 +953,315 @@ func test_r_008_44_die_respawn_and_recover() -> void:
 	assert_eq(_held(robot.inventory), carried, "the same stacks are back")
 	await wait_process_frames(2)
 	assert_eq(_spawner().get_items().size(), 0, "and the dropped item is gone")
+
+
+# --- Spec 009: start in the base, travel, death with a base, building --------
+
+const BASE_ZONE_PATH := "res://resources/zones/base.tres"
+const RECIPE_PATH := "res://resources/recipes/charging_station.tres"
+const PLACE_CELL := Vector2i(9, 2)
+
+
+func _loading() -> LoadingScreen:
+	return _main.get_node("UI/LoadingScreen") as LoadingScreen
+
+
+func _structures() -> BaseStructures:
+	return _main.get_node("World/BaseStructures") as BaseStructures
+
+
+func _base() -> BaseZone:
+	return _loader().get_current_zone() as BaseZone
+
+
+func _travel_to_base() -> void:
+	await _travel_to(DataRegistry.get_base_zone().zone_id)
+
+
+## Interacts with the exit point of the loaded zone, as the player does.
+func _use_exit() -> void:
+	var exit: Node3D = _loader().get_current_zone().get_node("%ExitPoint") as Node3D
+	_robot().global_position = exit.global_position + Vector3(0.0, 0.0, 1.0)
+	await wait_physics_frames(4)
+	_robot().request_interact()
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+
+
+func _open_placement() -> PlacementScreen:
+	var recipe: RecipeData = load(RECIPE_PATH) as RecipeData
+	_robot().request_build(recipe)
+	for child: Node in _ui_manager().get_children():
+		var screen: PlacementScreen = child as PlacementScreen
+		if screen != null and not screen.is_queued_for_deletion():
+			return screen
+	return null
+
+
+func test_r_009_08_zone_slot_empty_in_scene() -> void:
+	var state: SceneState = MAIN_SCENE.get_state()
+	for index: int in state.get_node_count():
+		var path: String = String(state.get_node_path(index))
+		assert_false(path.begins_with("./World/ZoneSlot/"), "no zone placed in ZoneSlot: %s" % path)
+
+
+func test_r_009_08_starts_in_base_spawn() -> void:
+	var fresh: Node = MAIN_SCENE.instantiate()
+	add_child_autofree(fresh)
+	var loader: ZoneLoader = fresh.get_node("%ZoneLoader") as ZoneLoader
+	var robot: Robot = fresh.get_node("World/Players/Robot") as Robot
+	# Read when the travel ends: this second Main shares the physics space with
+	# the one of before_each, whose zombies may push its robot afterwards.
+	var arrival: Array[Vector3] = []
+	var record: Callable = func(_zone_id: Vector2i) -> void: arrival.append(robot.global_position)
+	loader.travel_finished.connect(record)
+	assert_true(loader.is_travelling(), "the game starts by travelling")
+	await wait_for_signal(loader.travel_finished, TRAVEL_TIMEOUT_S)
+	var base: BaseZone = loader.get_current_zone() as BaseZone
+	assert_not_null(base, "to the base")
+	if base == null or arrival.is_empty():
+		return
+	assert_lt(arrival[0].distance_to(base.get_spawn_position()), 0.01, "on its spawn point")
+	assert_eq(base.get_structures_root().get_child_count(), 0, "a new world has no structures")
+	assert_eq(GameManager.get_visit_count(GREEN_ZONE_ID), ZonePopulation.FIRST_VISIT, "no visit yet")
+
+
+func test_r_009_07_loading_screen_while_travelling() -> void:
+	assert_false(_loading().is_showing(), "hidden while playing")
+	_loader().travel_to(DataRegistry.get_base_zone().zone_id)
+	assert_true(_loading().is_showing(), "shown as soon as the travel starts")
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+	assert_false(_loading().is_showing(), "hidden when it ends")
+
+
+func test_r_009_07_world_frozen_and_input_blocked() -> void:
+	var robot: Robot = _robot()
+	var seen: Dictionary[String, bool] = {}
+	var record: Callable = func(_zone: Zone) -> void:
+		seen["frozen"] = _world().process_mode == Node.PROCESS_MODE_DISABLED
+		seen["blocked"] = robot.player_input.is_input_blocked()
+	_loader().zone_loaded.connect(record)
+	_loader().travel_to(DataRegistry.get_base_zone().zone_id)
+	assert_true(robot.player_input.is_input_blocked(), "input blocked at once")
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+	_loader().zone_loaded.disconnect(record)
+	var was_frozen: bool = seen.get("frozen", false)
+	var was_blocked: bool = seen.get("blocked", false)
+	assert_true(was_frozen, "the world was frozen while the zone loaded")
+	assert_true(was_blocked, "and the input blocked")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world runs again")
+	assert_false(robot.player_input.is_input_blocked(), "input back")
+
+
+func test_r_009_11_exit_travels_without_battery_cost() -> void:
+	await _use_exit()
+	assert_not_null(_base(), "the green zone's exit leads to the base")
+	var robot: Robot = _robot()
+	var before: float = robot.battery.get_current()
+	var exit: Node3D = _base().get_node("%ExitPoint") as Node3D
+	robot.global_position = exit.global_position + Vector3(0.0, 0.0, 1.0)
+	await wait_physics_frames(4)
+	var at_exit: float = robot.battery.get_current()
+	robot.request_interact()
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+	assert_true(_loader().get_current_zone() is FarmZone, "back in the green zone")
+	assert_almost_eq(robot.battery.get_current(), at_exit, 0.01, "the travel costs no battery")
+	assert_lte(robot.battery.get_current(), before, "only the usual drain")
+
+
+func test_r_009_11_two_round_trips_in_a_row() -> void:
+	for trip: int in 2:
+		await _use_exit()
+		assert_true(_loader().get_current_zone() is BaseZone, "trip %d: in the base" % trip)
+		await _use_exit()
+		assert_true(_loader().get_current_zone() is FarmZone, "trip %d: in the green zone" % trip)
+	assert_eq(GameManager.get_visit_count(GREEN_ZONE_ID), 2, "each exit from the farm counted once")
+
+
+func test_r_009_51_death_in_zone_respawns_in_base() -> void:
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 2)
+	await _go_to_first_box()
+	await _die()
+	await _finish_transfer()
+	var base: BaseZone = _base()
+	assert_not_null(base, "the robot came back in the base")
+	if base == null:
+		return
+	assert_lt(robot.global_position.distance_to(base.get_spawn_position()), 0.01, "on its spawn point")
+	assert_almost_eq(
+		robot.battery.get_current(),
+		robot.battery.get_maximum() * GameManager.get_ruleset().respawn_battery_ratio,
+		RESPAWN_BATTERY_TOLERANCE,
+		"with the battery of BALANCE §1.1"
+	)
+	assert_false(robot.player_input.is_input_blocked(), "and its input")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world runs")
+
+
+func test_r_009_52_death_in_base() -> void:
+	await _travel_to_base()
+	var robot: Robot = _robot()
+	robot.inventory.add(&"iron", 3)
+	robot.global_position = _base().get_spawn_position() + Vector3(2.0, 0.0, -3.0)
+	await wait_physics_frames(2)
+	var death_position: Vector3 = robot.global_position
+	await _die()
+	assert_eq(GameManager.get_visit_count(DataRegistry.get_base_zone().zone_id), 0, "no visit counted")
+	await _finish_transfer()
+	var base: BaseZone = _base()
+	assert_not_null(base, "back in the base")
+	if base == null:
+		return
+	assert_lt(robot.global_position.distance_to(base.get_spawn_position()), 0.01, "on its spawn point")
+	var items: Array[DroppedItem] = _spawner().get_items()
+	assert_eq(items.size(), 1, "the dropped item stays in the base after reloading it")
+	if items.size() == 1:
+		assert_lt(items[0].global_position.distance_to(death_position), 0.01, "where it died")
+
+
+func test_r_009_53_death_while_placing_cancels() -> void:
+	await _travel_to_base()
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 4)
+	var screen: PlacementScreen = _open_placement()
+	assert_not_null(screen, "placement is open")
+	if screen == null:
+		return
+	screen.select_cell(PLACE_CELL)
+	var scrap_before: int = robot.inventory.count(&"scrap")
+	await _die()
+	assert_false(_ui_manager().is_modal_open(), "the death closed placement")
+	assert_eq(_structures().to_data().size(), 0, "nothing placed")
+	assert_eq(_spawner().get_items().size(), 1, "what it carried fell, uncharged")
+	if _spawner().get_items().size() == 1:
+		var dropped: Dictionary[StringName, int] = _held(_spawner().get_items()[0].get_contents())
+		var dropped_scrap: int = dropped.get(&"scrap", 0)
+		assert_eq(dropped_scrap, scrap_before, "all the scrap is there")
+
+
+func test_r_009_53_death_while_moving_keeps_cells() -> void:
+	await _travel_to_base()
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 4)
+	var recipe: RecipeData = load(RECIPE_PATH) as RecipeData
+	assert_true(_structures().place(robot, recipe, PLACE_CELL).ok, "test setup: a station")
+	var before: Array[Dictionary] = _structures().to_data()
+	_hud().get_node("%EditBaseButton").emit_signal(&"pressed")
+	var screen: PlacementScreen = null
+	for child: Node in _ui_manager().get_children():
+		if child is PlacementScreen:
+			screen = child as PlacementScreen
+	assert_not_null(screen, "edit mode is open")
+	if screen == null:
+		return
+	screen.select_cell(PLACE_CELL)
+	screen.select_cell(Vector2i(1, 1))
+	await _die()
+	assert_false(_ui_manager().is_modal_open(), "the death closed edit mode")
+	assert_eq(_structures().to_data(), before, "the station stayed on its cell")
+
+
+func test_r_009_57_robot_still_and_draining_while_placing() -> void:
+	await _travel_to_base()
+	var robot: Robot = _robot()
+	robot.inventory.add(&"scrap", 4)
+	assert_not_null(_open_placement(), "placement is open")
+	var position: Vector3 = robot.global_position
+	var battery: float = robot.battery.get_current()
+	Input.action_press(&"move_forward")
+	await wait_physics_frames(20)
+	Input.action_release(&"move_forward")
+	assert_eq(robot.global_position, position, "the robot does not move")
+	assert_lt(robot.battery.get_current(), battery, "the battery keeps draining")
+
+
+func test_r_009_59_edit_button_toggles() -> void:
+	var button: Button = _hud().get_node("%EditBaseButton") as Button
+	assert_false(button.visible, "hidden in the green zone")
+	await _travel_to_base()
+	assert_true(button.visible, "shown in the base")
+	button.pressed.emit()
+	assert_true(_ui_manager().is_open(PlacementScreen.SCREEN_ID), "edit mode opens")
+	assert_true(_robot().player_input.is_input_blocked(), "the robot waits")
+	button.pressed.emit()
+	assert_false(_ui_manager().is_modal_open(), "and closes")
+	assert_false(_robot().player_input.is_input_blocked(), "the robot moves again")
+
+
+func test_r_009_64_bench_opens_build_screen() -> void:
+	await _travel_to_base()
+	var bench: Node3D = _base().get_node("%RepairBench") as Node3D
+	_robot().global_position = bench.global_position + Vector3(0.0, 0.0, 1.5)
+	await wait_physics_frames(4)
+	_robot().request_interact()
+	assert_true(_ui_manager().is_open(BuildScreen.SCREEN_ID), "the bench opens the build screen")
+
+
+func test_r_009_06_respawn_travel_failure_respawns_in_place() -> void:
+	var robot: Robot = _robot()
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	var base: ZoneData = DataRegistry.get_base_zone()
+	var real_path: String = base.scene_path
+	await _die()
+	base.scene_path = "res://scenes/main_test_missing_base.tscn"
+	_transfer().advance(_transfer().config.transfer_duration_s)
+	await wait_for_signal(_loader().travel_failed, TRAVEL_TIMEOUT_S)
+	base.scene_path = real_path
+	assert_push_error("failed")
+	assert_engine_error("Cannot open file")
+	assert_engine_error("Failed loading resource")
+	assert_true(_loader().get_current_zone() is FarmZone, "the zone stays loaded")
+	assert_false(robot.battery.is_depleted(), "the robot came back anyway")
+	assert_lt(
+		robot.global_position.distance_to(_zone().get_spawn_position()), 0.01, "on the zone's spawn point"
+	)
+	assert_false(robot.player_input.is_input_blocked(), "with its input")
+	assert_not_null(catalog, "the catalog is still there")
+
+
+## Uses the exit and dies in the same step, as when the robot's own physics
+## step interacts and then drains the last battery (architecture review 009).
+func _exit_and_die() -> void:
+	var robot: Robot = _robot()
+	var exit: Node3D = _zone().get_node("%ExitPoint") as Node3D
+	robot.global_position = exit.global_position + Vector3(0.0, 0.0, 1.0)
+	await wait_physics_frames(4)
+	robot.request_interact()
+	robot.battery.consume(robot.battery.get_current())
+
+
+func test_r_009_51_death_in_exit_step_waits_for_base() -> void:
+	var robot: Robot = _robot()
+	await _exit_and_die()
+	assert_true(_loader().is_travelling(), "the exit started a travel")
+	assert_true(_transfer().is_playing(), "and the death its transfer")
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+	await wait_process_frames(2)
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_DISABLED, "a dead robot keeps the world frozen")
+	assert_true(robot.player_input.is_input_blocked(), "and its input blocked")
+	await _finish_transfer()
+	var base: BaseZone = _base()
+	assert_not_null(base, "it comes back in the base")
+	if base == null:
+		return
+	assert_lt(robot.global_position.distance_to(base.get_spawn_position()), 0.01, "on its spawn point")
+	assert_false(robot.battery.is_depleted(), "alive")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world runs again")
+	assert_false(robot.player_input.is_input_blocked(), "with its input")
+
+
+func test_r_009_51_transfer_ends_during_exit_travel() -> void:
+	var robot: Robot = _robot()
+	await _exit_and_die()
+	_transfer().advance(_transfer().config.transfer_duration_s)
+	assert_true(_loader().is_travelling(), "the exit travel is still loading")
+	await wait_for_signal(_loader().travel_finished, TRAVEL_TIMEOUT_S)
+	await _await_travel()
+	var base: BaseZone = _base()
+	assert_not_null(base, "the robot waited for the base")
+	if base == null:
+		return
+	assert_lt(robot.global_position.distance_to(base.get_spawn_position()), 0.01, "on its spawn point")
+	assert_false(robot.battery.is_depleted(), "alive")
+	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world runs again")
+	assert_false(robot.player_input.is_input_blocked(), "with its input")

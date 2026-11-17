@@ -2,11 +2,12 @@ class_name Hud
 extends Control
 ## In-game HUD: battery bar and number at the top left (spec 003), one
 ## "Interact" button at the bottom right, shown only while the local player
-## has an interaction target and no screen is open (spec 004, R-005-27), a
+## has an interaction target and its input is not blocked (spec 004, R-005-27), a
 ## storage button at the bottom centre and a short "inventory full" message
 ## (spec 005). A large attack button sits at the bottom right, under the
 ## interact button, and the screen edges flash red when the player is hit
-## (spec 007).
+## (spec 007). An "Edit base" button under the battery shows only while the
+## base is loaded (spec 009, R-009-59).
 ## It only listens to the signals of the local player it is bound to and never
 ## reads state in _process (architecture §9.5).
 
@@ -16,9 +17,11 @@ signal interact_pressed
 signal storage_pressed
 ## The HUD attack button went down or up (touch or mouse).
 signal attack_held_changed(held: bool)
+## The player pressed "Edit base" (spec 009).
+signal edit_base_pressed
 
 var _has_target: bool = false
-var _modal_open: bool = false
+var _input_blocked: bool = false
 
 @onready var _battery_bar: ProgressBar = %BatteryBar
 @onready var _battery_label: Label = %BatteryLabel
@@ -28,6 +31,7 @@ var _modal_open: bool = false
 @onready var _message_timer: Timer = %MessageTimer
 @onready var _attack_button: AttackButton = %AttackButton
 @onready var _damage_flash: DamageFlash = %DamageFlash
+@onready var _edit_base_button: Button = %EditBaseButton
 
 
 func _ready() -> void:
@@ -35,6 +39,7 @@ func _ready() -> void:
 	_storage_button.pressed.connect(_on_storage_button_pressed)
 	_attack_button.held_changed.connect(_on_attack_button_held_changed)
 	_message_timer.timeout.connect(_on_message_timer_timeout)
+	_edit_base_button.pressed.connect(_on_edit_base_button_pressed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -52,12 +57,13 @@ func bind(player: Robot) -> void:
 	player.interactor.target_changed.connect(_on_target_changed)
 	_on_target_changed(player.interactor.get_target())
 	player.inventory.overflowed.connect(_on_inventory_overflowed)
+	player.player_input.blocked_changed.connect(_on_input_blocked_changed)
+	_on_input_blocked_changed(player.player_input.is_input_blocked())
 
 
-## With a screen open the robot cannot interact, so the button is not offered.
-func set_modal_open(is_open: bool) -> void:
-	_modal_open = is_open
-	_update_interact_button()
+## The button exists only while the base is the loaded zone (R-009-59).
+func set_edit_base_available(available: bool) -> void:
+	_edit_base_button.visible = available
 
 
 ## Flashes the screen edges red for duration_s seconds (R-007-25).
@@ -86,7 +92,14 @@ func _on_target_changed(target: InteractableComponent) -> void:
 
 
 func _update_interact_button() -> void:
-	_interact_button.visible = _has_target and not _modal_open
+	_interact_button.visible = _has_target and not _input_blocked
+
+
+## A blocked robot cannot interact (a screen, a death, a travel), so the
+## button is not offered.
+func _on_input_blocked_changed(blocked: bool) -> void:
+	_input_blocked = blocked
+	_update_interact_button()
 
 
 func _on_interact_button_pressed() -> void:
@@ -99,6 +112,10 @@ func _on_storage_button_pressed() -> void:
 
 func _on_attack_button_held_changed(held: bool) -> void:
 	attack_held_changed.emit(held)
+
+
+func _on_edit_base_button_pressed() -> void:
+	edit_base_pressed.emit()
 
 
 func _on_inventory_overflowed(_leftovers: Array[ItemStack]) -> void:

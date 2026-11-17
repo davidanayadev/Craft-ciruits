@@ -6,6 +6,7 @@ extends GutTest
 ## (R-005-16). The zone is generated with seeds given here, never
 ## through GameManager.
 ## Spec 008: contents depend on the visit (R-008-08), repopulate() starts a visit (R-008-09).
+## Spec 009: one exit point next to the spawn point, towards the base (R-009-10, R-009-12).
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -410,3 +411,41 @@ func test_r_008_09_repopulate_before_generate_reports_error() -> void:
 	assert_push_error("generate")
 	assert_eq(zone.get_boxes().size(), 0, "no boxes were placed")
 	assert_eq(zone.get_enemies().size(), 0, "no zombies were placed")
+
+
+func test_r_009_10_has_one_exit_point() -> void:
+	var zone: FarmZone = _new_zone()
+	assert_true(zone is Zone, "the green zone is a Zone")
+	var exits: Array[Node] = zone.find_children("*", "", true, false).filter(
+		func(node: Node) -> bool: return node is ExitPoint
+	)
+	assert_eq(exits.size(), 1, "one exit point")
+	if exits.size() != 1:
+		return
+	var exit: ExitPoint = exits[0] as ExitPoint
+	var spawn: Vector3 = zone.get_spawn_position()
+	var distance: float = exit.global_position.distance_to(spawn)
+	assert_lt(distance, 6.0, "next to the spawn point")
+	var reach: float = (load("res://resources/config/controls.tres") as ControlConfigData).interaction_range_m
+	assert_gt(distance, reach, "out of reach from the spawn point, so arriving does not offer leaving")
+
+
+func test_r_009_12_exit_destinations() -> void:
+	var zone: FarmZone = _new_zone()
+	var exit: ExitPoint = zone.get_node("%ExitPoint") as ExitPoint
+	assert_not_null(exit, "the zone has %ExitPoint")
+	if exit == null:
+		return
+	assert_same(exit.destination, DataRegistry.get_base_zone(), "the green zone leads to the base")
+
+
+func test_r_009_10_zone_relays_exit_request() -> void:
+	var zone: FarmZone = _new_zone()
+	var traveller: Node3D = Node3D.new()
+	add_child_autofree(traveller)
+	watch_signals(zone)
+	(zone.get_node("%ExitPoint").get_node("Interactable") as InteractableComponent).interact(traveller)
+	assert_signal_emit_count(zone, "exit_requested", 1, "the zone relays its exit point")
+	assert_signal_emitted_with_parameters(
+		zone, "exit_requested", [DataRegistry.get_base_zone(), traveller]
+	)

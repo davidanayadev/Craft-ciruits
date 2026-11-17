@@ -3,6 +3,8 @@ extends GutTest
 ## from a UIScreenCatalog. modal_state_changed only on none <-> some
 ## (R-005-27), the pause action and the Android back request close the top
 ## screen (R-005-28), and a screen that emits close_requested is closed.
+## Spec 009: the top screen may keep itself open on "back" (handle_back) and
+## every closing path calls on_closed once (R-009-56); is_open() by id.
 ## The screens are probes packed in memory: the real ones have their own tests.
 
 const UI_MANAGER_SCENE := preload("res://scenes/ui/ui_manager.tscn")
@@ -19,11 +21,21 @@ class ProbeScreen:
 	var context: Dictionary = {}
 	var setup_calls: int = 0
 	var was_in_tree_at_setup: bool = false
+	var keeps_on_back: bool = false
+	var back_calls: int = 0
+	var closed_calls: int = 0
 
 	func setup(p_context: Dictionary) -> void:
 		context = p_context
 		setup_calls += 1
 		was_in_tree_at_setup = is_inside_tree()
+
+	func handle_back() -> bool:
+		back_calls += 1
+		return keeps_on_back
+
+	func on_closed() -> void:
+		closed_calls += 1
 
 
 ## Asks to be closed as soon as it is set up, like the loot screen of an empty box.
@@ -234,10 +246,62 @@ func test_real_catalog_lists_both_screens() -> void:
 	assert_not_null(catalog, "screens.tres exists and is a UIScreenCatalog")
 	if catalog == null:
 		return
-	for screen_id: StringName in [InventoryScreen.SCREEN_ID, LootScreen.SCREEN_ID]:
+	for screen_id: StringName in [
+		InventoryScreen.SCREEN_ID, LootScreen.SCREEN_ID, BuildScreen.SCREEN_ID, PlacementScreen.SCREEN_ID
+	]:
 		assert_true(catalog.screens.has(screen_id), "'%s' is registered" % screen_id)
 		if not catalog.screens.has(screen_id):
 			continue
 		var screen: Node = catalog.screens[screen_id].instantiate()
 		assert_true(screen is UIScreen, "'%s' is a UIScreen" % screen_id)
 		screen.free()
+
+
+func test_r_009_56_handle_back_keeps_screen() -> void:
+	_manager.open(SCREEN_A)
+	var screen: ProbeScreen = _open_screens()[0]
+	screen.keeps_on_back = true
+	_manager.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	assert_eq(screen.back_calls, 1, "the top screen was asked")
+	assert_true(_manager.is_open(SCREEN_A), "and it stays open")
+	_send_action(&"pause", true)
+	await wait_process_frames(INPUT_FRAMES)
+	assert_eq(screen.back_calls, 2, "Escape asks it too")
+	assert_true(_manager.is_open(SCREEN_A), "still open")
+	assert_eq(_pause_probe.pauses, 0, "the manager consumed the action")
+	screen.keeps_on_back = false
+	_manager.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	assert_false(_manager.is_open(SCREEN_A), "closed when the screen lets it")
+
+
+func test_r_009_56_on_closed_called_on_close_all() -> void:
+	_manager.open(SCREEN_A)
+	_manager.open(SCREEN_B)
+	var screens: Array[ProbeScreen] = _open_screens()
+	_manager.close_all()
+	for screen: ProbeScreen in screens:
+		assert_eq(screen.closed_calls, 1, "on_closed once for each screen")
+
+
+func test_r_009_56_on_closed_called_on_every_path() -> void:
+	_manager.open(SCREEN_A)
+	var by_request: ProbeScreen = _open_screens()[0]
+	by_request.close_requested.emit()
+	assert_eq(by_request.closed_calls, 1, "its own request")
+	_manager.open(SCREEN_A)
+	var by_top: ProbeScreen = _open_screens()[0]
+	_manager.close_top()
+	assert_eq(by_top.closed_calls, 1, "close_top")
+	_manager.open(SCREEN_A)
+	var by_back: ProbeScreen = _open_screens()[0]
+	_manager.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	assert_eq(by_back.closed_calls, 1, "back")
+
+
+func test_r_009_59_is_open_by_id() -> void:
+	assert_false(_manager.is_open(SCREEN_A), "nothing open")
+	_manager.open(SCREEN_A)
+	assert_true(_manager.is_open(SCREEN_A), "A is open")
+	assert_false(_manager.is_open(SCREEN_B), "B is not")
+	_manager.close_top()
+	assert_false(_manager.is_open(SCREEN_A), "closed")

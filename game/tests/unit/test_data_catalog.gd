@@ -6,6 +6,8 @@ extends GutTest
 ## items (R-004-22), and none has a broken entry (R-004-26). Every loot entry
 ## fits in one slot (R-005-17) and every item has an icon (R-005-31).
 ## Enemies are listed and returned by id the same way (spec 006, R-006-04).
+## Spec 009: zones indexed by zone_id with one BASE zone (R-009-01), structures
+## (R-009-24) and recipes whose references exist (R-009-61).
 ## The expected values mirror BALANCE.md §2 and §2.1; update both together.
 
 const ITEMS_DIR := "res://resources/items"
@@ -360,3 +362,156 @@ func test_r_008_01_repeated_or_empty_ruleset_ids_reported() -> void:
 	assert_eq(missing_problems.size(), 1, "one problem for the empty slot")
 	if missing_problems.size() == 1:
 		assert_eq(missing_problems[0], "rulesets[1] is empty")
+
+
+# --- Zones, structures and recipes (spec 009) --------------------------------
+
+const ZONES_DIR := "res://resources/zones"
+const STRUCTURES_DIR := "res://resources/structures"
+const RECIPES_DIR := "res://resources/recipes"
+
+
+func _new_zone(zone_id: Vector2i, kind: ZoneData.Kind) -> ZoneData:
+	var zone: ZoneData = ZoneData.new()
+	zone.zone_id = zone_id
+	zone.kind = kind
+	return zone
+
+
+## Every .tres of directory loaded as a Resource of class_name; other files skipped.
+func _resources_in(directory: String, script_class: StringName) -> Array[Resource]:
+	var found: Array[Resource] = []
+	for file: String in DirAccess.get_files_at(directory):
+		if not file.ends_with(".tres"):
+			continue
+		var resource: Resource = load(directory.path_join(file))
+		var script: Script = resource.get_script() as Script
+		if script != null and script.get_global_name() == script_class:
+			found.append(resource)
+	return found
+
+
+func test_r_009_01_zones_indexed_by_zone_id() -> void:
+	var catalog: DataCatalog = DataCatalog.new()
+	catalog.zones.append(_new_zone(Vector2i(0, 0), ZoneData.Kind.FARM))
+	catalog.zones.append(_new_zone(Vector2i(0, -1), ZoneData.Kind.BASE))
+	assert_eq(catalog.build_index().size(), 0, "a valid zone list has no problems")
+	assert_true(catalog.has_zone(Vector2i(0, 0)), "the farm zone is found by zone_id")
+	assert_false(catalog.has_zone(Vector2i(5, 5)), "an unlisted zone_id is not found")
+	assert_same(catalog.get_zone(Vector2i(0, -1)), catalog.zones[1], "get_zone returns the listed one")
+	assert_same(catalog.get_base_zone(), catalog.zones[1], "get_base_zone returns the BASE zone")
+	var repeated: DataCatalog = DataCatalog.new()
+	repeated.zones.append(_new_zone(Vector2i(0, -1), ZoneData.Kind.BASE))
+	repeated.zones.append(_new_zone(Vector2i(0, -1), ZoneData.Kind.FARM))
+	var problems: PackedStringArray = repeated.build_index()
+	assert_eq(problems.size(), 1, "one problem for the repeated zone id")
+	if problems.size() == 1:
+		assert_eq(problems[0], "zones[1] repeats the zone id (0, -1)")
+
+
+func test_r_009_01_unknown_zone_reports_error() -> void:
+	var catalog: DataCatalog = DataCatalog.new()
+	catalog.zones.append(_new_zone(Vector2i(0, -1), ZoneData.Kind.BASE))
+	catalog.build_index()
+	assert_null(catalog.get_zone(Vector2i(9, 9)), "an unknown zone_id returns null")
+	assert_push_error("unknown zone id (9, 9)")
+
+
+func test_r_009_01_exactly_one_base_zone() -> void:
+	var none: DataCatalog = DataCatalog.new()
+	none.zones.append(_new_zone(Vector2i(0, 0), ZoneData.Kind.FARM))
+	var none_problems: PackedStringArray = none.build_index()
+	assert_eq(none_problems.size(), 1, "a zone list without BASE is a problem")
+	if none_problems.size() == 1:
+		assert_eq(none_problems[0], "zones has 0 BASE zones instead of 1")
+	assert_null(none.get_base_zone(), "no base zone → null")
+	assert_push_error("there is no BASE zone")
+	var two: DataCatalog = DataCatalog.new()
+	two.zones.append(_new_zone(Vector2i(0, -1), ZoneData.Kind.BASE))
+	two.zones.append(_new_zone(Vector2i(1, -1), ZoneData.Kind.BASE))
+	assert_eq(two.build_index().size(), 1, "two BASE zones are a problem")
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	var base_count: int = 0
+	for zone: ZoneData in catalog.zones:
+		if zone != null and zone.kind == ZoneData.Kind.BASE:
+			base_count += 1
+	assert_eq(base_count, 1, "the game catalog has exactly one BASE zone")
+	var base: ZoneData = catalog.get_base_zone()
+	assert_not_null(base, "the catalog returns its base")
+	if base != null:
+		assert_eq(base.zone_id, Vector2i(0, -1), "the base is zone (0, -1)")
+
+
+func test_r_009_01_every_zone_tres_listed() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	# zones/ also holds the navmesh and the MeshLibrary: only ZoneData counts.
+	var files: Array[Resource] = _resources_in(ZONES_DIR, &"ZoneData")
+	assert_eq(files.size(), 2, "the green zone and the base")
+	for zone: Resource in files:
+		assert_true(catalog.zones.has(zone), "%s is listed in the catalog" % zone.resource_path)
+	var problems: PackedStringArray = catalog.build_index()
+	assert_eq(problems.size(), 0, "catalog problems: %s" % problems)
+
+
+func test_r_009_01_registry_returns_zones() -> void:
+	var green: ZoneData = DataRegistry.get_zone(Vector2i(0, 0))
+	assert_not_null(green, "DataRegistry returns the green zone")
+	var base: ZoneData = DataRegistry.get_base_zone()
+	assert_not_null(base, "DataRegistry returns the base")
+	if base != null:
+		assert_eq(base.kind, ZoneData.Kind.BASE, "the registry's base is a BASE zone")
+
+
+func test_r_009_24_structures_listed() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	var files: Array[Resource] = _resources_in(STRUCTURES_DIR, &"StructureData")
+	assert_gt(files.size(), 0, "there is at least one structure file")
+	for structure: Resource in files:
+		assert_true(catalog.structures.has(structure), "%s is listed" % structure.resource_path)
+	assert_true(catalog.has_structure(&"charging_station"), "the charging station is listed")
+	assert_same(
+		DataRegistry.get_structure(&"charging_station"),
+		catalog.get_structure(&"charging_station"),
+		"DataRegistry returns the same structure"
+	)
+	assert_null(catalog.get_structure(&"nope"), "an unknown structure id returns null")
+	assert_push_error("unknown structure id 'nope'")
+
+
+func test_r_009_61_recipes_listed_and_refs_exist() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	var files: Array[Resource] = _resources_in(RECIPES_DIR, &"RecipeData")
+	assert_gt(files.size(), 0, "there is at least one recipe file")
+	for file: Resource in files:
+		assert_true(catalog.recipes.has(file), "%s is listed" % file.resource_path)
+	assert_eq(catalog.get_recipes().size(), catalog.recipes.size(), "get_recipes lists every recipe")
+	for recipe: RecipeData in catalog.get_recipes():
+		for ingredient: RecipeIngredientData in recipe.ingredients:
+			assert_not_null(ingredient, "%s has no empty ingredient" % recipe.id)
+			if ingredient == null or ingredient.item == null:
+				fail_test("%s has an ingredient without item" % recipe.id)
+				continue
+			assert_true(catalog.has_item(ingredient.item.id), "%s: catalog item" % recipe.id)
+			assert_gt(ingredient.quantity, 0, "%s: positive quantity" % recipe.id)
+		if recipe.result_structure != null:
+			assert_true(
+				catalog.has_structure(recipe.result_structure.id), "%s: catalog structure" % recipe.id
+			)
+	assert_true(catalog.has_recipe(&"charging_station"), "the station recipe is listed")
+	assert_same(
+		DataRegistry.get_recipe(&"charging_station"),
+		catalog.get_recipe(&"charging_station"),
+		"DataRegistry returns the same recipe"
+	)

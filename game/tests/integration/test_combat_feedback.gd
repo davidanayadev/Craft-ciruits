@@ -4,6 +4,7 @@ extends GutTest
 ## received shakes it with the "hit received" values and flashes the screen
 ## edges (R-007-25), none of it changes battery, HP or XP (R-007-26) and the
 ## sparks come from the pool and go back to it (R-007-27).
+## Spec 009: a travel returns the bursts still playing to the pool (R-009-04).
 ## Values come from combat_feedback.tres; the signals are emitted by hand.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -191,3 +192,16 @@ func test_r_007_26_bind_without_data_reports_error() -> void:
 	broken.name = "Broken"
 	broken.bind(_robot, _rig, _hud)
 	assert_push_error("Broken")
+
+
+func test_r_009_04_release_all_returns_sparks() -> void:
+	_pool.prewarm(2)
+	_robot.melee.hit_dealt.emit(_target)
+	_robot.melee.hit_dealt.emit(_target)
+	assert_eq(_playing_sparks().size(), 2, "two bursts playing")
+	_feedback.release_all()
+	assert_eq(_playing_sparks().size(), 0, "none left in the world")
+	assert_eq(_pool.get_free_count(), 2, "both back in the pool")
+	await wait_process_frames(2)
+	assert_eq(_pool.get_free_count(), 2, "and released once")
+	assert_push_error_count(0)

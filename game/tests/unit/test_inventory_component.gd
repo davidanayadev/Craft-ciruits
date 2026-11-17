@@ -753,3 +753,56 @@ func test_r_008_18_clear_negative_rejected() -> void:
 	assert_eq(inventory.get_slot_count(), 3, "slot count unchanged")
 	assert_eq(_quantities(inventory), [10, 4, 0] as Array[int], "contents unchanged")
 	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+# --- remove_many (spec 009, R-009-62) -----------------------------------------
+
+
+func test_r_009_62_remove_many_removes_all() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 14)
+	_fill(inventory, &"iron", 3)
+	watch_signals(inventory)
+	var amounts: Dictionary[StringName, int] = {&"scrap": 12, &"iron": 3}
+	var result: ActionResult = inventory.remove_many(amounts)
+	assert_true(result.ok)
+	assert_eq(inventory.count(&"scrap"), 2)
+	assert_eq(inventory.count(&"iron"), 0)
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+
+
+func test_r_009_62_remove_many_all_or_nothing() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 8)
+	_fill(inventory, &"iron", 2)
+	var before: Array[int] = _quantities(inventory)
+	watch_signals(inventory)
+	# scrap is enough, iron is not: nothing may leave.
+	var amounts: Dictionary[StringName, int] = {&"scrap": 5, &"iron": 3}
+	var result: ActionResult = inventory.remove_many(amounts)
+	assert_false(result.ok)
+	assert_eq(result.error_key, InventoryComponent.ERR_NOT_ENOUGH_ITEMS)
+	assert_eq(_quantities(inventory), before, "no change at all")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_009_62_remove_many_invalid_request() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 8)
+	var before: Array[int] = _quantities(inventory)
+	watch_signals(inventory)
+	var unknown: Dictionary[StringName, int] = {&"scrap": 2, &"ghost": 1}
+	var result: ActionResult = inventory.remove_many(unknown)
+	assert_push_error_count(1)
+	assert_false(result.ok)
+	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST, "unknown id")
+	var zero: Dictionary[StringName, int] = {&"scrap": 0}
+	result = inventory.remove_many(zero)
+	assert_push_error_count(2)
+	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST, "quantity 0")
+	var negative: Dictionary[StringName, int] = {&"scrap": 2, &"iron": -1}
+	result = inventory.remove_many(negative)
+	assert_push_error_count(3)
+	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST, "negative quantity")
+	assert_eq(_quantities(inventory), before, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
