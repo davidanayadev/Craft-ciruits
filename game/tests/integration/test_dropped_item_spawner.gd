@@ -3,6 +3,9 @@ extends GutTest
 ## (R-008-10), go back to the pool when emptied (R-008-14) and come clean from
 ## it (R-008-18), record the clock when they fall (R-008-20), expire without
 ## giving anything (R-008-22) and are independent of each other (R-008-32).
+## Spec 010: the spawner is saved with the world, as spec 008 describes an item,
+## discards expired items on loading and restores the rest when its zone is bound
+## (R-010-09, R-010-11, R-010-29, R-010-30).
 
 const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
 const CONFIG_PATH := "res://resources/config/dropped_items.tres"
@@ -331,3 +334,182 @@ func test_r_009_17_rebind_twice_restores_once() -> void:
 	_spawner.unbind_zone()
 	_spawner.bind_zone(ZONE, _zone_root)
 	assert_eq(_spawner.get_items().size(), 1, "stored items are restored once, not duplicated")
+
+
+## Spec 010: saving and loading (R-010-09, R-010-11, R-010-29, R-010-30).
+const FARM_ZONE := Vector2i(0, 0)
+const BASE_ZONE := Vector2i(0, -1)
+
+
+func _fresh_spawner() -> DroppedItemSpawner:
+	var spawner: DroppedItemSpawner = DroppedItemSpawner.new()
+	spawner.pool = _pool
+	spawner.config = _config
+	spawner.time_service = _clock
+	_world.add_child(spawner)
+	return spawner
+
+
+func _root() -> Node3D:
+	var root: Node3D = Node3D.new()
+	_world.add_child(root)
+	return root
+
+
+func _entry(uid: String, zone: Vector2i, dropped_at: int, item_id: String = "scrap") -> Dictionary:
+	return {
+		"uid": uid,
+		"zone_id": [zone.x, zone.y],
+		"position": [1.0, 0.0, 2.0],
+		"dropped_at": dropped_at,
+		"stacks": [{"item_id": item_id, "quantity": 2}],
+	}
+
+
+func _uids(data: Dictionary) -> PackedStringArray:
+	var uids: PackedStringArray = PackedStringArray()
+	var items: Array = data["items"]
+	for entry: Variant in items:
+		var item_data: Dictionary = entry
+		var uid: String = item_data["uid"]
+		uids.append(uid)
+	uids.sort()
+	return uids
+
+
+func _sorted_by_uid(items: Array) -> Array:
+	var sorted: Array = items.duplicate()
+	sorted.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			var uid_a: String = a["uid"]
+			var uid_b: String = b["uid"]
+			return uid_a < uid_b
+	)
+	return sorted
+
+
+func test_r_010_09_save_key() -> void:
+	assert_eq(DroppedItemSpawner.SAVE_KEY, &"dropped_items", "constant")
+	assert_eq(_spawner.get_save_key(), &"dropped_items", "method")
+
+
+func test_r_010_29_saved_as_spec_008() -> void:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.bind_zone(FARM_ZONE, _root())
+	var live: DroppedItem = spawner.drop_inventory(_source_with_loot(), Vector3(2.0, 0.0, 3.0))
+	var expected: Array = [live.to_data()]
+	spawner.unbind_zone()
+	spawner.bind_zone(BASE_ZONE, _root())
+	var other: Array[ItemStack] = [_stack(&"cables", 1)]
+	var second: DroppedItem = spawner.drop_stacks(other, Vector3(-1.0, 0.0, 1.0))
+	expected.append(second.to_data())
+	var data: Dictionary = spawner.to_save_data()
+	var items: Array = data["items"]
+	assert_eq(items.size(), 2, "live and stored items")
+	assert_eq(_sorted_by_uid(items), _sorted_by_uid(expected), "each entry equals DroppedItem.to_data()")
+
+
+func test_r_010_09_empty_save_data() -> void:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	assert_eq(spawner.to_save_data(), {"items": []}, "nothing dropped")
+
+
+func test_r_010_09_round_trip_dropped_items() -> void:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.bind_zone(FARM_ZONE, _root())
+	spawner.drop_inventory(_source_with_loot(), Vector3(2.0, 0.0, 3.0))
+	spawner.unbind_zone()
+	spawner.bind_zone(BASE_ZONE, _root())
+	var one: Array[ItemStack] = [_stack(&"cables", 1)]
+	spawner.drop_stacks(one, Vector3(-1.0, 0.0, 1.0))
+	var saved: Dictionary = spawner.to_save_data()
+	var restored: DroppedItemSpawner = _fresh_spawner()
+	restored.from_save_data(saved)
+	restored.bind_zone(BASE_ZONE, _root())
+	var again: Dictionary = restored.to_save_data()
+	var saved_items: Array = saved["items"]
+	var again_items: Array = again["items"]
+	assert_eq(_sorted_by_uid(again_items), _sorted_by_uid(saved_items), "same items")
+	assert_eq(restored.get_items().size(), 1, "the bound zone's item is back")
+	restored.unbind_zone()
+	restored.bind_zone(FARM_ZONE, _root())
+	assert_eq(restored.get_items().size(), 1, "the other zone's item comes back when bound")
+
+
+func test_r_010_09_load_replaces_what_was_stored() -> void:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.bind_zone(FARM_ZONE, _root())
+	spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	spawner.unbind_zone()
+	spawner.from_save_data({"items": [_entry("keep", BASE_ZONE, START_TIME)]})
+	assert_eq(_uids(spawner.to_save_data()), PackedStringArray(["keep"]), "only what was loaded")
+
+
+func test_r_010_09_load_emits_nothing() -> void:
+	watch_signals(EventBus)
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data({"items": [_entry("a", FARM_ZONE, START_TIME)]})
+	spawner.bind_zone(FARM_ZONE, _root())
+	for info: Dictionary in EventBus.get_signal_list():
+		var signal_name: String = info["name"]
+		assert_signal_not_emitted(EventBus, signal_name, "loading emits no %s" % signal_name)
+
+
+func test_r_010_30_expired_on_load() -> void:
+	var lifetime: int = _config.lifetime_s
+	var data: Dictionary = {
+		"items":
+		[
+			_entry("exact", FARM_ZONE, START_TIME - lifetime),
+			_entry("one_second_less", FARM_ZONE, START_TIME - lifetime + 1),
+			_entry("future", FARM_ZONE, START_TIME + 100),
+			_entry("ancient", FARM_ZONE, START_TIME - lifetime * 10),
+		]
+	}
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data(data)
+	var kept: PackedStringArray = _uids(spawner.to_save_data())
+	assert_eq(
+		kept,
+		PackedStringArray(["future", "one_second_less"]),
+		"the exact limit and older expire; younger and future ones stay"
+	)
+	spawner.bind_zone(FARM_ZONE, _root())
+	assert_eq(spawner.get_items().size(), 2, "the survivors are restored")
+
+
+func test_r_010_11_malformed_entries_skipped() -> void:
+	var broken: Dictionary = _entry("broken", FARM_ZONE, START_TIME)
+	broken.erase("stacks")
+	var data: Dictionary = {"items": [broken, _entry("good", FARM_ZONE, START_TIME)]}
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data(data)
+	assert_push_error_count(1)
+	assert_eq(_uids(spawner.to_save_data()), PackedStringArray(["good"]), "only the good one")
+
+
+func test_r_010_11_unknown_zone_skipped() -> void:
+	var data: Dictionary = {
+		"items": [_entry("lost", Vector2i(99, 99), START_TIME), _entry("good", FARM_ZONE, START_TIME)]
+	}
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data(data)
+	assert_push_error_count(1)
+	assert_eq(_uids(spawner.to_save_data()), PackedStringArray(["good"]), "the unknown zone is dropped")
+
+
+func test_r_010_11_unknown_id_skipped() -> void:
+	var data: Dictionary = {
+		"items":
+		[
+			_entry("ghost", FARM_ZONE, START_TIME, "no_such_item"),
+			_entry("good", FARM_ZONE, START_TIME),
+		]
+	}
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data(data)
+	spawner.bind_zone(FARM_ZONE, _root())
+	assert_push_error_count(1)
+	assert_eq(spawner.get_items().size(), 1, "the stack of the unknown item is lost, the rest loads")
+	if spawner.get_items().size() == 1:
+		assert_eq(spawner.get_items()[0].uid, "good", "the other entry")

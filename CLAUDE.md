@@ -8,7 +8,8 @@ Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_P
 (battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1), 005 (inventory, ACTION_PLAN
 Tarea 1.2), 006 (zombies, ACTION_PLAN Tarea 1.3), 007 (melee combat and XP on kill, ACTION_PLAN Tarea 1.4) and
 008 (death, dropped items and recovery, ACTION_PLAN Tarea 1.5) are done and merged. Spec 009 (base scene, travel
-between zones, free placement and charging station, ACTION_PLAN Tareas 2.1, 2.8, 2.2) is done. `game/` has its
+between zones, free placement and charging station, ACTION_PLAN Tareas 2.1, 2.8, 2.2) is done. Spec 010 (save in two
+levels, Profile and World, and `IStore`, ACTION_PLAN Tarea 2.3) is done. `game/` has its
 settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: a persistent `Main` that starts in the base, the green farm zone generated from the world
@@ -43,9 +44,16 @@ a repair bench and a build area on a pure `BuildGrid`. The bench opens the `Buil
 recipe, paid with `CraftingSystem` and `InventoryRules.remove_many`), and the `PlacementScreen` places, or with the
 HUD "Edit base" button moves, structures on the grid with a valid/invalid preview while the robot stands still.
 `BaseStructures` under `World` owns the placed structures. A `ChargingStation` recharges the robot to 100%
-instantly; the base itself does not recharge. Nothing is saved yet: visit counters, dropped items and placed
-structures live in memory. The `EventBus`, `GameManager` and `DataRegistry` autoloads exist. There is no saving,
-chests, full crafting, pieces or chassis levels yet. The next spec is 010.
+instantly; the base itself does not recharge. The game saves (spec 010): the `SaveManager` autoload writes a Profile
+(`player_uuid`, entitlements) and one World (header with seed as text, per-player and world parts) through
+`ISaveStore` / `LocalSaveStore` (encrypted JSON under `user://saves/`, safe write with backup). Every owner of
+persisted state is in the `persistent` group with `get_save_key()` / `to_save_data()` / `from_save_data()`, and
+loading emits state signals only, never fact signals. `SaveFlow` in `Main` loads at start-up and holds saves during a
+travel or a death; saves happen on entering the base, recharging, dying, building or moving, closing and going to the
+background. Tests never touch real saves: a GUT pre-run hook installs a `MemorySaveStore` and tests that start `Main`
+call `SaveTestSupport.start_world()` / `reset()`. `IStore` / `LocalStore` (always demo) come from
+`GameManager.get_store()`. The `EventBus`, `GameManager`, `DataRegistry` and `SaveManager` autoloads exist. There are no
+chests, full crafting, pieces or chassis levels yet. The next spec is 011.
 
 ## Commands
 

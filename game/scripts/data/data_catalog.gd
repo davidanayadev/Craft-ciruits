@@ -7,6 +7,8 @@ extends Resource
 @export var items: Array[ItemData] = []
 @export var enemies: Array[EnemyData] = []
 @export var rulesets: Array[RulesetData] = []
+## The ruleset of a World created by the game (spec 010, R-010-19); one of rulesets.
+@export var new_world_ruleset: RulesetData
 ## Indexed by zone_id, the stable id of a zone (spec 009).
 @export var zones: Array[ZoneData] = []
 @export var structures: Array[StructureData] = []

@@ -5,8 +5,8 @@
 > dueña del estado.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [003](../../specs/003-battery/spec.md),
 > [005](../../specs/005-inventory/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md) ·
-> Última actualización: spec 009
+> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) ·
+> Última actualización: spec 010
 
 ## Piezas
 
@@ -16,12 +16,13 @@
 | `UIScreen` | Clase base | `game/scenes/ui/ui_screen.gd` | `setup(context)`, `close_requested`, `handle_back() -> bool` y `on_closed()` |
 | `UIScreenCatalog` | Recurso | `game/scripts/data/ui_screen_catalog.gd` | Diccionario id → `PackedScene` |
 | `screens.tres` | `.tres` | `game/resources/ui/screens.tres` | Registra `inventory`, `loot`, `build` y `placement` |
-| `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería, botones Interact, almacenamiento, atacar y "Editar base" (solo con la base cargada), aviso de inventario lleno y borde rojo |
+| `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería, botones Interact, almacenamiento, atacar y "Editar base" (solo con la base cargada), aviso corto (`show_notice`: inventario lleno, avisos de guardado, "Partida guardada") y borde rojo |
 | `LoadingScreen` | `Control` | `game/scenes/ui/loading_screen.gd` | Cubre el juego durante un viaje; fuera de `UIManager` ([travel.md](travel.md)) |
 | `BuildScreen`, `PlacementScreen` | Pantallas | [base.md](base.md) | Lista de recetas del banco y modo colocar/editar |
 | `AttackButton` | `Button` | `game/scenes/ui/attack_button.gd` | Botón grande de mantener, abajo a la derecha, visible en PC y móvil; emite `held_changed` |
 | `DamageFlash` | `TextureRect` | `game/scenes/ui/damage_flash.gd` | Borde rojo radial que se desvanece; `flash(duration_s)` |
-| `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS y XP, solo en builds de depuración |
+| `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, semilla del Mundo y botón "New world" (`new_world_requested`), solo en builds de depuración |
+| `NoticeScreen` | `UIScreen` | `game/scenes/ui/notice_screen.gd`, `.tscn` | Aviso a pantalla completa que ni Escape ni atrás cierran; lo abre `SaveFlow` con `MSG_SAVE_NEWER_VERSION` ([save.md](save.md)) |
 | `TransferScreen` | `Control` | `game/scenes/ui/transfer_screen.gd` | "Transferencia de Consciencia" entre la muerte y la reaparición (spec 008) |
 | `QuantitySelector` | `HBoxContainer` | `game/scenes/ui/quantity_selector.gd` | − / + y deslizador de 1 a la cantidad de una pila; emite `value_changed` |
 | `TouchControls` + `FloatingJoystick` | Escena | `game/scenes/ui/touch_controls.gd`, `floating_joystick.gd` | Joystick flotante, solo con pantalla táctil |
@@ -49,6 +50,9 @@ Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `Deb
 5. **HUD.** `Hud.bind(robot)` conecta `battery_changed`, `target_changed` del interactor, `overflowed` del
    inventario y `blocked_changed` de `PlayerInput` (el botón Interact se oculta con cualquier motivo de bloqueo:
    pantalla, muerte o viaje; `set_modal_open` ya no existe), y pinta el estado inicial con los mismos manejadores.
+   `show_notice(clave)` pone una clave de traducción en la etiqueta del aviso corto, con su temporizador, y sustituye al
+   que se vea; lo usan el inventario lleno, `SaveManager.save_notice` (conectado por `SaveFlow`) y `MSG_GAME_SAVED`,
+   que sale solo cuando `game_saved` trae la razón de la estación de carga ([save.md](save.md)).
    Emite `interact_pressed`, `storage_pressed` (botón o acción `open_storage`) y `edit_base_pressed`; `main.gd` y
    `BuildFlow` las enrutan. `set_edit_base_available` muestra el botón solo con la base cargada. No lee estado en
    `_process`.
@@ -121,6 +125,8 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 
 ## Trampas y límites
 
+- `NoticeScreen` no se puede cerrar (`handle_back` devuelve `true`); bloquea el juego hasta que el jugador actualice
+  ([plan 010 §1.1 D11](../../specs/010-save-profile-world/plan.md)).
 - `open()` de un id ya abierto es un error, no una segunda pantalla.
 - `UIManager` solo reacciona a `pause` si hay pantalla abierta; sin ella, esa acción queda libre.
 - `TransferScreen` y `LoadingScreen` heredan de `Control`, no de `UIScreen`: no pasan por `UIManager`.
@@ -150,7 +156,8 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 | `tests/unit/test_loading_screen.gd` | Oculta hasta `show_loading()`, textos como claves, traga toques |
 | `tests/unit/test_transfer_screen.gd` | Título traducido, oculta hasta `play()`, traga toques, duración desde la config, `finished` una vez |
 | `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador |
-| `tests/unit/test_debug_hud.gd` | Muestra la XP |
+| `tests/unit/test_debug_hud.gd` | Muestra la XP, la semilla y `new_world_requested` |
+| `tests/unit/test_notice_screen.gd` | Texto como clave y que no se cierra |
 | `tests/integration/test_hud_attack_input.gd` | Un clic en un botón del HUD no es un golpe |
 | `tests/unit/test_floating_joystick.gd` | Joystick táctil y modo ratón de depuración |
 | `tests/unit/test_player_input.gd` | Entrada bloqueada mientras hay pantalla |

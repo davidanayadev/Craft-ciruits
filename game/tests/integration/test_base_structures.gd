@@ -8,6 +8,8 @@ extends GutTest
 ## anywhere" (R-009-38); stations off while placing (R-009-50); the cells of a
 ## robot are invalid (R-009-58); the bench and the exit point are never
 ## structures (R-009-20, R-009-60).
+## Spec 010: saved as BuildGrid.to_data() (R-010-31), loading skips unknown
+## structures (R-010-11) and announces nothing, moving emits structure_moved.
 
 const BASE_SCENE := preload("res://scenes/base/base.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -243,3 +245,84 @@ func test_r_009_33_nearest_free_cell_to_robot() -> void:
 	var beside: Vector2i = _structures.nearest_free_cell(structure, near)
 	assert_ne(beside, Vector2i(6, 6), "not under a robot")
 	assert_ne(beside, NO_CELL, "but next to it")
+
+
+## Spec 010: save and load (R-010-09, R-010-11, R-010-31).
+func _new_loaded_structures() -> BaseStructures:
+	var other: BaseStructures = BaseStructures.new()
+	other.grid_config = _grid
+	add_child_autofree(other)
+	return other
+
+
+func test_r_010_09_save_key() -> void:
+	assert_eq(BaseStructures.SAVE_KEY, &"structures", "constant")
+	assert_eq(_structures.get_save_key(), &"structures", "method")
+
+
+func test_r_010_31_saved_as_spec_009() -> void:
+	assert_eq(_structures.to_save_data(), {"placed": []}, "nothing placed")
+	_give_scrap(_cost())
+	assert_true(_place(FREE_CELL).ok)
+	var expected: Dictionary = {"placed": _structures.to_data()}
+	assert_eq(_structures.to_save_data(), expected, "the BuildGrid data under placed")
+
+
+func test_r_010_09_round_trip_structures() -> void:
+	_give_scrap(_cost() * 2)
+	assert_true(_place(FREE_CELL).ok)
+	assert_true(_place(OTHER_CELL).ok)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(_structures.to_save_data())) as Dictionary
+	var restored: BaseStructures = _new_loaded_structures()
+	restored.from_save_data(saved)
+	assert_eq(restored.to_save_data(), _structures.to_save_data(), "the same structures on the same cells")
+
+
+func test_r_010_09_load_announces_nothing() -> void:
+	_give_scrap(_cost())
+	assert_true(_place(FREE_CELL).ok)
+	var saved: Dictionary = _structures.to_save_data()
+	var restored: BaseStructures = _new_loaded_structures()
+	watch_signals(EventBus)
+	restored.from_save_data(saved)
+	assert_signal_not_emitted(EventBus, "structure_built", "loading builds nothing")
+	assert_signal_not_emitted(EventBus, "structure_moved", "nor moves anything")
+
+
+func test_r_010_11_unknown_structure_skipped() -> void:
+	_give_scrap(_cost())
+	assert_true(_place(FREE_CELL).ok)
+	var saved: Dictionary = _structures.to_save_data()
+	var placed: Array = saved["placed"]
+	var good: Dictionary = placed[0]
+	var ghost: Dictionary = good.duplicate()
+	ghost["uid"] = "ghost-uid"
+	ghost["structure_id"] = "no_such_structure"
+	ghost["cell"] = [OTHER_CELL.x, OTHER_CELL.y]
+	var restored: BaseStructures = _new_loaded_structures()
+	restored.from_save_data({"placed": [ghost, good]})
+	assert_push_error_count(1)
+	var uid: String = good["uid"]
+	assert_eq(restored.structure_at(FREE_CELL), uid, "the known structure loads")
+	assert_eq(restored.structure_at(OTHER_CELL), "", "the unknown one does not")
+	assert_eq(restored.to_data().size(), 1, "one structure")
+
+
+func test_r_010_31_move_emits_structure_moved() -> void:
+	_give_scrap(_cost())
+	assert_true(_place(FREE_CELL).ok)
+	var uid: String = _structures.structure_at(FREE_CELL)
+	watch_signals(EventBus)
+	assert_true(_structures.move(_robot, uid, OTHER_CELL).ok, "the move works")
+	assert_signal_emit_count(EventBus, "structure_moved", 1)
+	assert_signal_emitted_with_parameters(EventBus, "structure_moved", [uid])
+	assert_signal_not_emitted(EventBus, "structure_built", "a move builds nothing")
+
+
+func test_r_010_31_failed_move_emits_nothing() -> void:
+	_give_scrap(_cost())
+	assert_true(_place(FREE_CELL).ok)
+	var uid: String = _structures.structure_at(FREE_CELL)
+	watch_signals(EventBus)
+	assert_false(_structures.move(_robot, uid, NO_CELL).ok, "an invalid cell is refused")
+	assert_signal_not_emitted(EventBus, "structure_moved", "nothing moved")

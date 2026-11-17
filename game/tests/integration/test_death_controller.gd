@@ -61,7 +61,7 @@ func before_each() -> void:
 	_spawner.time_service = _clock
 	add_child_autofree(_spawner)
 	_spawner.bind_zone(ZONE_ID, _zone_root)
-	_controller = _new_controller(GameManager.get_ruleset())
+	_controller = _new_controller(DataRegistry.get_ruleset(&"normal"))
 
 
 func after_each() -> void:
@@ -298,7 +298,7 @@ func test_r_009_52_base_death_counts_no_visit() -> void:
 	watch_signals(GameManager)
 	_kill_by_consume()
 	assert_eq(GameManager.get_visit_count(base.zone_id), ZonePopulation.FIRST_VISIT, "no visit")
-	assert_signal_not_emitted(GameManager, "zone_visit_changed", "nothing to repopulate")
+	assert_signal_not_emitted(GameManager, "zone_visit_counted", "nothing to repopulate")
 
 
 func test_r_009_52_unknown_zone_counts_nothing_and_reports() -> void:

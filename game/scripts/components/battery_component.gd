@@ -13,6 +13,10 @@ signal battery_low
 ## Emitted once on each arrival at 0.
 signal battery_depleted
 
+## Save contract (spec 010, architecture §10.2).
+const SAVE_KEY := &"battery"
+const _CURRENT_KEY := "current"
+
 @export var config: BatteryConfigData
 ## Walking drain of the equipped legs; StatsComponent replaces it in spec 014.
 @export var legs: MovementStatsData
@@ -80,6 +84,38 @@ func add(amount: float) -> void:
 
 func recharge_full() -> void:
 	_set_current(_maximum)
+
+
+func get_save_key() -> StringName:
+	return SAVE_KEY
+
+
+## The charge only: the maximum comes from the config on load (R-010-24).
+func to_save_data() -> Dictionary:
+	return {_CURRENT_KEY: _current}
+
+
+## battery_changed when the charge changes, never battery_low nor
+## battery_depleted: loading is not something that happened (R-010-09, D15).
+## The low warning is armed as if the charge had come from above. A charge
+## <= 0 or above the maximum → push_error, no change.
+func from_save_data(data: Dictionary) -> void:
+	var value: Variant = data.get(_CURRENT_KEY)
+	if not (value is float or value is int):
+		push_error("BatteryComponent '%s': no saved charge in %s; it stays as it is." % [name, data])
+		return
+	var current: float = value
+	if current <= 0.0 or current > _maximum:
+		push_error(
+			"BatteryComponent '%s': saved charge %f is outside (0, %f]; it stays as it is."
+			% [name, current, _maximum]
+		)
+		return
+	_low_warning_armed = current >= _maximum * config.low_threshold_ratio
+	if current == _current:
+		return
+	_current = current
+	battery_changed.emit(_current, _maximum)
 
 
 ## Single write path, so every change is clamped and reported the same way:

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-17) |
+| **Estado** | Hecho (2026-11-17) |
 | **Tarea(s) ACTION_PLAN** | 2.3 (y la parte de guardado de 2.2 y 2.8) |
 | **Fuentes** | ACTION_PLAN.md Tarea 2.3 (y 1.5, 2.2, 2.5, 2.6, 2.7, 2.8, 3.1, 4.1, 4.2 para los límites) · PMV.md §2.1 (persistencia), §2.3, §3 (guardado local, savegame corrupto), §4.5 ganchos 1, 2, 7 y 8, §10 (cajas y viaje; guardado de la spec 009) · BALANCE.md §5.3, §7, §7.2 · SPECS.md §23, §26, §27 (v1.1) · ONLINE.md "Preparación del código desde el PMV" puntos 1, 4, 7 y 9 · TOOLING.md §3, "Resumen de decisiones por fase" (`IStore` + `LocalStore` en el PMV) · architecture.md §3, §5, §7, §8, §10, §12, §13 · Constitución P2, P3, P4, P9, P10, P11, P13, P14 |
 | **Depende de** | 003 (`BatteryComponent`), 004 (cajas, `ZoneData`, `SeededRng`), 005 (`InventoryComponent`, `ItemStack`, aviso del HUD), 007 (`ExperienceComponent`, `player_uid`, `EventBus`), 008 (contador de visitas, objeto caído, `ITimeService`, regla de caducidad, `RulesetData`), 009 (`ZoneLoader`, base, estructuras colocadas, aviso de recarga); 007, 008 y 009 deben estar *Hecho* antes de implementar esta |
@@ -47,7 +47,7 @@ queda detrás de `IStore` con una implementación local que siempre dice "demo".
 | R-010-06 | Every owner of persisted state (player components and world-state owners) SHALL expose `get_save_key() -> StringName`, `to_save_data() -> Dictionary` and `from_save_data(data: Dictionary) -> void`; the player components SHALL be in the `persistent` group. | architecture §10.2 |
 | R-010-07 | THE game SHALL have a test that fails when a node of the `persistent` group lacks one of the three methods or when two owners share a save key. | architecture §10.2 |
 | R-010-08 | `to_save_data()` SHALL return only JSON types: definitions as stable ids, unique instances by `uid`, positions as `(zone_id, local position)` or `(zone_id, cell)`; never a Godot `Resource`, a node path or a file path. | architecture §8, §10.2, §12 regla 5, PMV §4.5 gancho 2 |
-| R-010-09 | FOR every owner, `from_save_data(to_save_data())` SHALL leave it in the same state and emit its usual change signals, so the HUD and the screens refresh without special code. | architecture §13 (ida y vuelta) |
+| R-010-09 | FOR every owner, `from_save_data(to_save_data())` SHALL leave it in the same state and emit its state signals (those that report a current value, such as `battery_changed`, `inventory_changed` or `xp_changed`), so the HUD and the screens refresh without special code, and SHALL emit none of its fact signals (those that report that something happened: every `EventBus` event, a counted visit, a low or depleted battery, a level up). | architecture §7, §13 (ida y vuelta) — precisado 2026-11-17 al planificar |
 | R-010-10 | IF the saved data lacks the key of an owner, THEN that owner SHALL keep its new-game state and the load SHALL go on. | ACTION_PLAN 2.3 (migración) — pregunta 10 |
 | R-010-11 | IF the saved data names an id that the `DataCatalog` no longer has, THEN the owner SHALL skip that entry, report it with `push_error()` and load the rest. | architecture §8, Constitución §2 (errores) |
 

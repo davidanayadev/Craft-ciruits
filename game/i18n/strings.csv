@@ -33,3 +33,9 @@ PLACEMENT_CANCEL,Cancel,Cancelar
 PLACEMENT_HINT_PLACE,Tap a cell to place the structure,Toca una celda para colocar la estructura
 PLACEMENT_HINT_EDIT,Tap a structure to move it,Toca una estructura para moverla
 HUD_EDIT_BASE,Edit base,Editar base
+ERR_STORE_DEMO,Purchases are not available in the demo,Las compras no están disponibles en la demo
+ERR_SAVE_FAILED,The game could not be saved,No se pudo guardar la partida
+MSG_WORLD_DAMAGED,The saved game was damaged; a new world starts,La partida guardada estaba dañada; empieza un mundo nuevo
+MSG_PROFILE_DAMAGED,The profile was damaged; a new one was created,El perfil estaba dañado; se ha creado uno nuevo
+MSG_SAVE_NEWER_VERSION,This save comes from a newer version of the game. Update it to keep playing.,Esta partida es de una versión más nueva del juego. Actualízalo para seguir jugando.
+MSG_GAME_SAVED,Game saved,Partida guardada

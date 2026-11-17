@@ -6,6 +6,8 @@ extends Node
 ## and populates the new one, puts the players on its spawn point and emits
 ## zone_changed once. It also counts the visit of a farm zone left through its
 ## exit point, and repopulates the loaded zone when its visit counter goes up.
+## A farm zone is populated with the state ZoneMemory kept of its visit, and
+## a saved game arrives at its saved position (spec 010).
 ## Main shows the loading screen and freezes World while a travel runs; this
 ## node hangs from Main, outside World, so it keeps processing meanwhile.
 
@@ -24,9 +26,15 @@ signal travel_failed(zone_id: Vector2i)
 @export var dropped_item_pool: ObjectPool
 @export var dropped_items: DroppedItemSpawner
 @export var base_structures: BaseStructures
+## Without it every visit starts with closed boxes and every enemy (tests of
+## the loader alone).
+@export var zone_memory: ZoneMemory
 
 var _current: Zone = null
 var _target: ZoneData = null
+## Where the players arrive, local to the new zone; the spawn point when false.
+var _has_arrival: bool = false
+var _arrival_local: Vector3 = Vector3.ZERO
 var _travelling: bool = false
 ## The travel started at an exit point: leaving a farm zone counts its visit.
 var _leaving_by_exit: bool = false
@@ -34,7 +42,7 @@ var _leaving_by_exit: bool = false
 
 func _ready() -> void:
 	set_process(false)
-	GameManager.zone_visit_changed.connect(_on_zone_visit_changed)
+	GameManager.zone_visit_counted.connect(_on_zone_visit_counted)
 
 
 ## Unknown zone_id or a travel in progress → push_error, ERR_INVALID_REQUEST
@@ -42,6 +50,17 @@ func _ready() -> void:
 ## it again (a death inside the base).
 func travel_to(zone_id: Vector2i) -> ActionResult:
 	return _start_travel(zone_id, false)
+
+
+## travel_to(), arriving at local_position of the zone instead of its spawn
+## point (a saved game, R-010-34). Whether the position is usable is the
+## caller's to check.
+func travel_to_position(zone_id: Vector2i, local_position: Vector3) -> ActionResult:
+	var started: ActionResult = _start_travel(zone_id, false)
+	if started.ok:
+		_has_arrival = true
+		_arrival_local = local_position
+	return started
 
 
 func is_travelling() -> bool:
@@ -86,6 +105,7 @@ func _start_travel(zone_id: Vector2i, by_exit: bool) -> ActionResult:
 		return ActionResult.failure(InventoryComponent.ERR_INVALID_REQUEST)
 	_travelling = true
 	_leaving_by_exit = by_exit
+	_has_arrival = false
 	travel_started.emit(zone_id)
 	# Deferred, after what travel_started queued (Main freezes World deferred):
 	# even a scene already in cache never loads before the world is frozen.
@@ -120,6 +140,9 @@ func _unload_current() -> void:
 	var leaving: Zone = _current
 	var farm: FarmZone = leaving as FarmZone
 	if farm != null:
+		# Before despawning: the dead enemies of the visit are read from the spawner.
+		if zone_memory != null:
+			zone_memory.unbind_farm()
 		farm.despawn_enemies()
 	dropped_items.unbind_zone()
 	if leaving is BaseZone:
@@ -159,13 +182,19 @@ func _populate(farm: FarmZone) -> void:
 		drops += robot.inventory.get_slot_count() + 1
 	dropped_item_pool.prewarm(drops)
 	var visit: int = GameManager.get_visit_count(farm.data.zone_id)
-	farm.generate(GameManager.get_world_seed(), visit)
-	farm.spawn_enemies(GameManager.get_world_seed(), visit, zombie_pool)
+	var saved_state: Dictionary = {}
+	if zone_memory != null:
+		saved_state = zone_memory.take_state(farm.data.zone_id, visit)
+	farm.populate(GameManager.get_world_seed(), visit, zombie_pool, saved_state)
+	if zone_memory != null:
+		zone_memory.bind_farm(farm)
 
 
 func _finish(zone: Zone) -> void:
+	var arrival: Vector3 = zone.to_global(_arrival_local) if _has_arrival else zone.get_spawn_position()
+	_has_arrival = false
 	for robot: Robot in _players():
-		robot.place_at(zone.get_spawn_position())
+		robot.enter_zone(zone.data.zone_id, zone, arrival)
 	zone_loaded.emit(zone)
 	_travelling = false
 	EventBus.zone_changed.emit(zone.data.zone_id)
@@ -194,7 +223,7 @@ func _on_exit_requested(destination: ZoneData, _traveller: Node3D) -> void:
 
 ## A new visit of the loaded zone: new enemies and closed boxes (R-008-09).
 ## During a travel the zone is about to be replaced: nothing to do.
-func _on_zone_visit_changed(zone_id: Vector2i, visit: int) -> void:
+func _on_zone_visit_counted(zone_id: Vector2i, visit: int) -> void:
 	if _loaded_farm(zone_id) == null:
 		return
 	# Deferred: the signal arrives in the middle of a physics step (a death),

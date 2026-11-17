@@ -2,7 +2,7 @@
 
 > `ZoneLoader` mantiene exactamente una zona cargada en `ZoneSlot`, viaja entre zonas con una pantalla de carga y
 > hace que el estado del mundo (objetos caídos, estructuras, contador de visitas) sobreviva a cada descarga.
-> Specs: [009](../../specs/009-base-placement-charging/spec.md) · Última actualización: spec 009
+> Specs: [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010
 
 ## Piezas
 
@@ -13,7 +13,9 @@
 | `ExitPoint` | Escena | `game/scenes/zones/exit_point.gd`, `.tscn` | `InteractableComponent` con `PROMPT_TRAVEL`; el destino es un `ZoneData` exportado en cada instancia |
 | `ZoneData` | Resource | `game/scripts/data/zone_data.gd` | `kind` (`BASE`/`FARM`), `scene_path`, `counts_visits()` |
 | `LoadingScreen` | `Control` | `game/scenes/ui/loading_screen.gd`, `.tscn` | Cubre el juego durante el viaje; fuera de `UIManager` |
-| `Main` | Escena | `game/scenes/main.gd` | Muestra la pantalla, congela `World` y bloquea la entrada mientras dura el viaje |
+| `Main` | Escena | `game/scenes/main.gd` | Muestra la pantalla, congela `World` y bloquea la entrada mientras dura el viaje; `_travel_to_start` viaja a lo guardado |
+| `ZoneMemory` | Nodo bajo `World` | `game/scenes/zones/zone_memory.gd` | Estado de la visita de la granja: se guarda al descargar y se devuelve al cargar ([world_zones.md](world_zones.md)) |
+| `LocationComponent` | Componente del robot | `game/scripts/components/location_component.gd` | Dónde está el jugador como (`zone_id`, posición local); guarda y restaura |
 | `GameManager` | Autoload | `game/scripts/autoload/game_manager.gd` | Zona actual (`set_current_zone`, `get_current_zone_id`, `has_current_zone`) |
 | `EventBus.zone_changed` | Señal | `game/scripts/autoload/event_bus.gd` | Una vez por viaje terminado, también el de arranque |
 
@@ -21,7 +23,9 @@
 
 1. **Disparo.** Interactuar con el `ExitPoint` emite `travel_requested`; la `Zone` lo reenvía como `exit_requested`;
    `ZoneLoader` lo recibe en `_on_exit_requested` y llama a `_start_travel(destino, por_salida = true)`. `Main`
-   llama a `travel_to` en el arranque y al reaparecer. Nadie más debe llamarlo (lo vigila un test).
+   llama a `travel_to` en el arranque y al reaparecer, o a `travel_to_position(zona, posición_local)` si el guardado
+   trae una ubicación usable (dentro de la zona, `ZoneData.contains_local_position`); si no, a la base. Nadie más debe
+   llamarlos (lo vigila un test).
 2. **Validación.** Viaje en curso, `zone_id` desconocido o petición de carga rechazada: `push_error` y
    `ERR_INVALID_REQUEST`, sin cambios. No se emite `travel_started`.
 3. **Inicio.** `ResourceLoader.load_threaded_request(scene_path)`, `travel_started` y `set_process` en diferido.
@@ -31,21 +35,23 @@
    `travel_failed`, la zona actual queda intacta y `Main` descongela.
 5. **Comprobación.** `_instantiate` exige que la raíz sea la `Zone` de ese mismo `ZoneData` y de la clase de su
    `kind` (`FarmZone` con `FARM`, `BaseZone` con `BASE`); si no, es un fallo como el anterior.
-6. **Descarga.** `_unload_current`: `FarmZone.despawn_enemies()`, `DroppedItemSpawner.unbind_zone()` (guarda y
+6. **Descarga.** `_unload_current`: `ZoneMemory.unbind_farm()` (antes de despawnear, para leer los enemigos muertos),
+   `FarmZone.despawn_enemies()`, `DroppedItemSpawner.unbind_zone()` (guarda y
    devuelve al pool), `BaseStructures.unbind_base()` si era la base, `remove_child` + `queue_free`. Solo entonces,
    si el viaje es una salida y la zona `counts_visits()`, sube su contador de visitas.
 7. **Carga.** `_load`: añade la zona a `ZoneSlot`, `GameManager.set_current_zone`, puebla una `FarmZone`
-   (precalienta `ZombiePool`, `ImpactPool` y `DroppedItemPool`; `generate` y `spawn_enemies` con la visita actual) o
+   (precalienta `ZombiePool`, `ImpactPool` y `DroppedItemPool`; `populate` con la visita actual y el estado de `ZoneMemory.take_state`, y luego `bind_farm`) o
    enlaza la base con `BaseStructures.bind_base`, y `DroppedItemSpawner.bind_zone` restaura y caduca los objetos de
    esa zona. Conecta `exit_requested`.
-8. **Fin.** `_finish`: cada `Robot` de `Players` va a `place_at(spawn)` quieto, `zone_loaded`, `zone_changed` en el
+8. **Fin.** `_finish`: cada `Robot` de `Players` va a `enter_zone(zone_id, zona, llegada)` quieto (la llegada es el
+   punto de `travel_to_position` o el `SpawnPoint`; `enter_zone` es `place_at` más fijar la ubicación que se guarda), `zone_loaded`, `zone_changed` en el
    bus y `travel_finished`. `Main` oculta la pantalla y quita el bloqueo y el congelado de `REASON_TRAVEL`.
 
 `travel_to` hacia la zona ya cargada la recarga (descarga y vuelve a cargar): es el camino de la muerte dentro de la
 base ([death.md](death.md)).
 
 ### Reposición
-`ZoneLoader` escucha `GameManager.zone_visit_changed`; si la zona cuyo contador sube es la `FarmZone` cargada y no
+`ZoneLoader` escucha `GameManager.zone_visit_counted` (un hecho que cargar nunca emite); si la zona cuyo contador sube es la `FarmZone` cargada y no
 hay viaje, la repuebla en diferido (muerte en la zona, [world_zones.md](world_zones.md)). Al salir, el contador sube
 cuando la zona ya no está cargada, así que no hay nada que repoblar; la siguiente carga trae la visita nueva.
 
@@ -70,6 +76,8 @@ cuesta batería ni tiene límite: [BALANCE §1.2](../../BALANCE.md). La pantalla
 | Solo las zonas `FARM` cuentan visitas (`counts_visits()`) | Una sola regla para la salida y la muerte | plan 009 §1 (pregunta 12) |
 | Carga asíncrona y sondeo solo durante el viaje | architecture pide carga en segundo plano; sin `_process` en juego | plan 009 §7, [architecture §6](../../specs/architecture.md) |
 | `LoadingScreen` fuera de `UIManager` | Escape y atrás no deben cerrarla (como `TransferScreen`) | plan 009 §3 |
+| La ubicación se guarda local a la raíz de la zona | Sobrevive a que la zona se cargue en otro sitio | R-010-23, [plan 010](../../specs/010-save-profile-world/plan.md) |
+| Una ubicación guardada inválida cae a la base | Un guardado editado no debe dejar al robot fuera de la zona | R-010-36 |
 | `release_all()` lo llama `Main`, no `ZoneLoader` | Las chispas cuelgan de `World` y el cargador no conoce `CombatFeedback` | plan 009 §5.3 |
 
 ## Relación con otros sistemas
@@ -86,7 +94,9 @@ Usa [world_zones.md](world_zones.md) (`FarmZone`, `generate`, `repopulate`), [ba
   aceptado en [plan 009 §5.3](../../specs/009-base-placement-charging/plan.md).
 - Los objetos caídos guardados de una zona sin cargar no caducan hasta volver a cargarla.
 - La resolución de `scene_path` en el APK exportado (`.remap`) no se probó en headless: queda para T-009-17.
-- Nada se guarda en disco; la spec 010 guardará al entrar en la base con `zone_changed`.
+- Guardar al entrar en la base lo decide `SaveManager` con `zone_changed` ([save.md](save.md)); durante un viaje los
+  guardados esperan (`SaveFlow` retiene de `travel_started` a `travel_finished` o `travel_failed`).
+- `zone_memory` es opcional (`@export`): sin él cada visita empieza con cajas cerradas y todos los enemigos.
 
 ## Cómo extenderlo
 
@@ -103,3 +113,5 @@ y `_load`.
 | `tests/unit/test_loading_screen.gd` | Textos como claves, oculta hasta `show_loading()` |
 | `tests/integration/test_main_scene.gd` | Arranque en la base, pantalla de carga y congelado, viajes seguidos sin coste de batería |
 | `tests/unit/test_game_manager.gd` | Zona actual, solo la escribe `ZoneLoader` |
+| `tests/unit/test_location_component.gd` | Ubicación viva y restaurada, formato |
+| `tests/integration/test_save_load.gd` | Arranque en la posición guardada y caída a la base |

@@ -21,6 +21,13 @@ const STORAGE_KEY := &"HUD_STORAGE"
 const ATTACK_KEY := &"HUD_ATTACK"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const INPUT_FRAMES := 2
+const SAVE_NOTICE_KEYS: Array[StringName] = [
+	&"MSG_GAME_SAVED",
+	&"ERR_SAVE_FAILED",
+	&"MSG_WORLD_DAMAGED",
+	&"MSG_PROFILE_DAMAGED",
+	&"MSG_SAVE_NEWER_VERSION",
+]
 
 var _hud: Hud
 var _robot: Robot
@@ -361,3 +368,61 @@ func test_r_009_07_interact_hidden_while_travelling() -> void:
 	assert_false(_interact_button.visible, "hidden while travelling")
 	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_TRAVEL)
 	assert_true(_interact_button.visible, "back after the travel")
+
+
+func test_r_010_45_notice_shown() -> void:
+	assert_false(_message_label.visible, "no message at the start")
+	_hud.show_notice(SaveManager.ERR_SAVE_FAILED)
+	assert_true(_message_label.visible, "the notice shows")
+	assert_eq(_message_label.text, String(SaveManager.ERR_SAVE_FAILED), "the text is the translation key")
+	assert_ne(
+		_message_label.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "and it is translated"
+	)
+	assert_false(_message_timer.is_stopped(), "on the same timer as the inventory message")
+	_message_timer.timeout.emit()
+	assert_false(_message_label.visible, "it hides when the timer ends")
+
+
+func test_r_010_45_new_notice_replaces_the_showing_one() -> void:
+	_hud.show_notice(SaveManager.ERR_SAVE_FAILED)
+	_hud.show_notice(SaveManager.MSG_WORLD_DAMAGED)
+	assert_eq(_message_label.text, String(SaveManager.MSG_WORLD_DAMAGED), "the last one is shown")
+	assert_true(_message_label.visible, "still visible")
+
+
+func test_r_010_45_save_manager_notice_reaches_the_hud_through_show_notice() -> void:
+	SaveManager.save_notice.connect(_hud.show_notice)
+	SaveManager.save_notice.emit(SaveManager.MSG_PROFILE_DAMAGED)
+	SaveManager.save_notice.disconnect(_hud.show_notice)
+	assert_true(_message_label.visible, "a notice of the save shows")
+	assert_eq(_message_label.text, String(SaveManager.MSG_PROFILE_DAMAGED), "with its key")
+
+
+func test_r_010_62_saved_notice_only_on_recharge() -> void:
+	for reason: StringName in [
+		SaveManager.REASON_NEW_WORLD,
+		SaveManager.REASON_ENTERED_BASE,
+		SaveManager.REASON_DIED,
+		SaveManager.REASON_STRUCTURE_BUILT,
+		SaveManager.REASON_STRUCTURE_MOVED,
+		SaveManager.REASON_CLOSE,
+		SaveManager.REASON_BACKGROUND,
+	]:
+		EventBus.game_saved.emit(reason)
+		assert_false(_message_label.visible, "'%s' is silent" % reason)
+	EventBus.game_saved.emit(SaveManager.REASON_RECHARGED)
+	assert_true(_message_label.visible, "the recharge is announced")
+	assert_eq(_message_label.text, String(Hud.MSG_GAME_SAVED), "with the 'Game saved' key")
+	_message_timer.timeout.emit()
+	assert_false(_message_label.visible, "and it hides on its timer")
+
+
+func test_r_010_62_save_notice_keys_translated() -> void:
+	for locale: String in SUPPORTED_LOCALES:
+		for key: StringName in SAVE_NOTICE_KEYS:
+			var text: String = ""
+			for translation: Translation in TranslationServer.find_translations(locale, true):
+				text = translation.get_message(key)
+				if not text.is_empty():
+					break
+			assert_ne(text, "", "%s in %s" % [key, locale])

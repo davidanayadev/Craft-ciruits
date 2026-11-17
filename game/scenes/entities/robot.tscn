@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/robot.gd" id="1_robot"]
 [ext_resource type="Script" path="res://scripts/components/player_input.gd" id="2_input"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/components/inventory_component.gd" id="8_inventory"]
 [ext_resource type="Resource" path="res://resources/progression/chassis_levels.tres" id="9_chassis"]
 [ext_resource type="Script" path="res://scripts/components/melee_attack_component.gd" id="10_melee"]
+[ext_resource type="Script" path="res://scripts/components/location_component.gd" id="14_location"]
 [ext_resource type="Resource" path="res://resources/combat/one_arm.tres" id="11_one_arm"]
 [ext_resource type="Resource" path="res://resources/config/combat.tres" id="12_combat"]
 [ext_resource type="Script" path="res://scripts/components/experience_component.gd" id="13_experience"]
@@ -64,7 +65,7 @@ mesh = SubResource("nose_mesh")
 unique_name_in_owner = true
 script = ExtResource("2_input")
 
-[node name="BatteryComponent" type="Node" parent="."]
+[node name="BatteryComponent" type="Node" parent="." groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("5_battery")
 config = ExtResource("6_battery_config")
@@ -75,7 +76,7 @@ unique_name_in_owner = true
 script = ExtResource("7_interactor")
 config = ExtResource("4_controls")
 
-[node name="InventoryComponent" type="Node" parent="."]
+[node name="InventoryComponent" type="Node" parent="." groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("8_inventory")
 
@@ -87,9 +88,13 @@ config = ExtResource("12_combat")
 hitbox_height_m = 2.0
 hitbox_center_y_m = 1.0
 
-[node name="Experience" type="Node" parent="."]
+[node name="Experience" type="Node" parent="." groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("13_experience")
+
+[node name="Location" type="Node" parent="." groups=["persistent"]]
+unique_name_in_owner = true
+script = ExtResource("14_location")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 unique_name_in_owner = true

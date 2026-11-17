@@ -7,6 +7,8 @@ extends GutTest
 ## visit (R-006-25) and different on another visit (R-006-26), and unloading
 ## returns every zombie to the pool (R-006-27).
 ## The zone is spawned with seeds given here, never through GameManager.
+## Spec 010: enemies killed or skipped on a visit stay out when the zone is
+## populated again, and nobody else moves (R-010-32).
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
@@ -551,3 +553,133 @@ func test_r_008_36_reused_zombie_drops_once_per_death() -> void:
 		"a zombie of a previous spawn does not announce its loot twice"
 	)
 	assert_push_error_count(0)
+
+
+## Spec 010 (R-010-32): dead enemies are not placed again; the others keep what
+## their own seeds gave them.
+const SKIPPED: Array[int] = [0, 2]
+const SEED_VISIT := 1
+
+
+func _spawner_of(zone: FarmZone) -> ZombieSpawner:
+	return zone.get_node("%ZombieSpawner") as ZombieSpawner
+
+
+func _kill(zombie: Zombie) -> void:
+	zombie.get_hurtbox().receive_attack(zombie.get_data().hp_max, KILLER_UID)
+
+
+func _zone_skipping(world_seed: int, visit: int, pool: ObjectPool, dead: Array[int]) -> FarmZone:
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	zone.get_node("%Navigation").free()
+	add_child_autofree(zone)
+	zone.spawn_enemies(world_seed, visit, pool, dead)
+	return zone
+
+
+func test_r_010_32_skipped_keep_other_seeds() -> void:
+	var pool: ObjectPool = _new_pool()
+	var dead: Array[int] = SKIPPED.duplicate()
+	for world_seed: int in DROP_SEEDS:
+		var full: FarmZone = _spawned_zone(world_seed, SEED_VISIT, pool)
+		var full_zombies: Array[Zombie] = full.get_enemies().duplicate()
+		var highest_skipped: int = SKIPPED.max()
+		assert_gt(full_zombies.size(), highest_skipped, "seed %d: enough zombies" % world_seed)
+		var kept_indices: Array[int] = []
+		var expected_lines: PackedStringArray = PackedStringArray()
+		var full_lines: PackedStringArray = _describe(full)
+		for i: int in full_zombies.size():
+			if not SKIPPED.has(i):
+				kept_indices.append(i)
+				expected_lines.append(full_lines[i])
+		var full_loot: PackedStringArray = _kill_in_order(
+			full_zombies, _spawn_order(full_zombies.size(), false)
+		)
+		var partial: FarmZone = _zone_skipping(world_seed, SEED_VISIT, pool, dead)
+		assert_eq(_describe(partial), expected_lines, "seed %d: same zombies minus skipped" % world_seed)
+		var partial_zombies: Array[Zombie] = partial.get_enemies().duplicate()
+		var partial_loot: PackedStringArray = _kill_in_order(
+			partial_zombies, _spawn_order(partial_zombies.size(), false)
+		)
+		for k: int in kept_indices.size():
+			assert_eq(
+				partial_loot[k], full_loot[kept_indices[k]], "seed %d: same drop of index %d" % [world_seed, kept_indices[k]]
+			)
+	await wait_physics_frames(2)
+
+
+func test_r_010_32_dead_indices_are_skipped_plus_killed() -> void:
+	var pool: ObjectPool = _new_pool()
+	var dead: Array[int] = [2]
+	var zone: FarmZone = _zone_skipping(SEED_A, SEED_VISIT, pool, dead)
+	var spawner: ZombieSpawner = _spawner_of(zone)
+	assert_eq(spawner.get_dead_indices(), [2] as Array[int], "only the skipped one at first")
+	var full: FarmZone = _spawned_zone(SEED_A, SEED_VISIT, pool)
+	var full_lines: PackedStringArray = _describe(full)
+	full.despawn_enemies()
+	# Spawn index 2 was skipped, so the placed zombies are 0, 1, 3 and 4.
+	var placed: Array[Zombie] = zone.get_enemies().duplicate()
+	assert_eq(placed.size(), full_lines.size() - 1, "one zombie less")
+	_kill(placed[3])
+	_kill(placed[0])
+	await wait_physics_frames(2)
+	assert_eq(
+		spawner.get_dead_indices(), [0, 2, 4] as Array[int], "sorted, no repeats, spawn indices"
+	)
+
+
+func test_r_010_32_despawn_clears_dead_indices() -> void:
+	var pool: ObjectPool = _new_pool()
+	var dead: Array[int] = [1]
+	var zone: FarmZone = _zone_skipping(SEED_A, SEED_VISIT, pool, dead)
+	var spawner: ZombieSpawner = _spawner_of(zone)
+	zone.despawn_enemies()
+	assert_eq(spawner.get_dead_indices(), [] as Array[int], "nothing remembered after despawn")
+	zone.spawn_enemies(SEED_A, SEED_VISIT, pool)
+	assert_eq(spawner.get_dead_indices(), [] as Array[int], "a clean spawn has none dead")
+
+
+## FarmZone round trip of a visit (spec 010, R-010-27, R-010-32).
+func _populated_zone(world_seed: int, visit: int, pool: ObjectPool, state: Dictionary) -> FarmZone:
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	zone.get_node("%Navigation").free()
+	add_child_autofree(zone)
+	zone.populate(world_seed, visit, pool, state)
+	return zone
+
+
+func test_r_010_32_zone_exposes_its_visit() -> void:
+	var pool: ObjectPool = _new_pool()
+	var generated: FarmZone = _new_zone()
+	generated.generate(SEED_A, 3)
+	assert_eq(generated.get_visit(), 3, "the visit given to generate()")
+	generated.repopulate(SEED_A, 5, pool)
+	assert_eq(generated.get_visit(), 5, "the visit given to repopulate()")
+
+
+func test_r_010_32_visit_state_lists_dead_and_no_closed_boxes() -> void:
+	var pool: ObjectPool = _new_pool()
+	var zone: FarmZone = _populated_zone(SEED_A, SEED_VISIT, pool, {})
+	var closed_state: Dictionary = zone.get_visit_state()
+	var no_boxes: Array = closed_state["boxes"]
+	var no_dead: Array = closed_state["dead_enemies"]
+	assert_eq(no_boxes.size(), 0, "closed boxes are not saved")
+	assert_eq(no_dead.size(), 0, "nobody dead yet")
+	var victim: Zombie = zone.get_enemies()[1]
+	_kill(victim)
+	await wait_physics_frames(2)
+	var state: Dictionary = zone.get_visit_state()
+	var dead: Array = state["dead_enemies"]
+	assert_eq(dead, [1], "the killed zombie, by spawn index")
+
+
+func test_r_010_32_populate_without_state_equals_generate_and_spawn() -> void:
+	var pool: ObjectPool = _new_pool()
+	var plain: FarmZone = _new_zone()
+	plain.get_node("%Navigation").free()
+	plain.generate(SEED_A, 2)
+	plain.spawn_enemies(SEED_A, 2, pool)
+	var populated: FarmZone = _populated_zone(SEED_A, 2, pool, {})
+	assert_eq(_describe(populated), _describe(plain), "same zombies")
+	assert_eq(populated.get_boxes().size(), plain.get_boxes().size(), "same boxes")
+	assert_eq(populated.get_visit(), 2, "populate gives the visit")

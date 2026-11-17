@@ -515,3 +515,18 @@ func test_r_009_61_recipes_listed_and_refs_exist() -> void:
 		catalog.get_recipe(&"charging_station"),
 		"DataRegistry returns the same recipe"
 	)
+
+
+## Spec 010 (R-010-19): a World created by the game takes the catalog's
+## new_world_ruleset, the NORMAL one, and it is one of the listed rulesets.
+func test_r_010_19_new_world_ruleset_is_normal() -> void:
+	var catalog: DataCatalog = load(CATALOG_PATH) as DataCatalog
+	assert_not_null(catalog, "data_catalog.tres is a DataCatalog")
+	if catalog == null:
+		return
+	var ruleset: RulesetData = catalog.new_world_ruleset
+	assert_not_null(ruleset, "it names a ruleset")
+	if ruleset == null:
+		return
+	assert_eq(ruleset.resource_path, "res://resources/rulesets/normal.tres", "the NORMAL ruleset")
+	assert_true(catalog.rulesets.has(ruleset), "listed in rulesets")

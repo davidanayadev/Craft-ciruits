@@ -9,6 +9,9 @@ extends Node
 ## co-op (architecture §3 rule 4, §12). Presentation only asks.
 
 const ERR_INVALID_PLACEMENT := BuildGrid.ERR_INVALID_PLACEMENT
+## Save contract (spec 010, architecture §10.2).
+const SAVE_KEY := &"structures"
+const _PLACED_KEY := "placed"
 
 ## The same resource the base scene uses (a test guards it).
 @export var grid_config: BuildGridData
@@ -104,8 +107,11 @@ func move(player: Robot, structure_uid: String, cell: Vector2i) -> ActionResult:
 	if not is_bound():
 		return ActionResult.failure(ERR_INVALID_PLACEMENT)
 	var moved: ActionResult = _grid.move(structure_uid, cell, _robot_cells())
-	if moved.ok and _instances.has(structure_uid):
+	if not moved.ok:
+		return moved
+	if _instances.has(structure_uid):
 		_instances[structure_uid].global_position = cell_to_world(get_structure(structure_uid), cell)
+	EventBus.structure_moved.emit(structure_uid)
 	return moved
 
 
@@ -169,6 +175,36 @@ func load_data(data: Array) -> ActionResult:
 			instance.queue_free()
 		bind_base(_base)
 	return loaded
+
+
+func get_save_key() -> StringName:
+	return SAVE_KEY
+
+
+## The placed structures as BuildGrid.to_data() gives them (R-010-31).
+func to_save_data() -> Dictionary:
+	return {_PLACED_KEY: to_data()}
+
+
+## Entries of a structure the catalog no longer has → push_error and skipped
+## (R-010-11); the rest loads through load_data(), all or nothing. Emits no
+## structure_built: nothing was built (D15).
+func from_save_data(data: Dictionary) -> void:
+	var placed: Variant = data.get(_PLACED_KEY)
+	if not placed is Array:
+		push_error("BaseStructures '%s': no saved structures in %s; none loaded." % [name, data])
+		return
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	var known: Array = []
+	for entry: Variant in placed as Array:
+		var fields: Dictionary = entry if entry is Dictionary else {}
+		var structure_id: String = str(fields.get("structure_id", ""))
+		if catalog == null or not catalog.has_structure(StringName(structure_id)):
+			push_error("BaseStructures '%s': saved structure %s is unknown; it is lost." % [name, entry])
+			continue
+		known.append(entry)
+	if not load_data(known).ok:
+		push_error("BaseStructures '%s': the saved structures do not fit the grid; none loaded." % name)
 
 
 func _instantiate(uid: String) -> void:

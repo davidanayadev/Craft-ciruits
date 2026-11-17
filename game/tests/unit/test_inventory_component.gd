@@ -4,6 +4,7 @@ extends GutTest
 ## R-005-06, R-005-08, R-005-09, R-005-10, R-005-11, R-005-12, R-005-13,
 ## R-005-14 and R-005-15. Each test builds its catalog by hand and assigns it
 ## to the component before add_child_autofree(), so DataRegistry is never used.
+## Spec 010: save and load (R-010-08, 09, 10, 11, 23, 24).
 
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const ERROR_KEYS: Array[StringName] = [
@@ -33,6 +34,7 @@ func _item(id: StringName, stack_max: int) -> ItemData:
 func _new_inventory(slot_count: int) -> InventoryComponent:
 	var inventory: InventoryComponent = InventoryComponent.new()
 	inventory.catalog = _catalog
+	inventory.name = "Inventory"
 	add_child_autofree(inventory)
 	var result: ActionResult = inventory.set_slot_count(slot_count)
 	assert_true(result.ok, "set_slot_count(%d) in the test setup" % slot_count)
@@ -805,4 +807,233 @@ func test_r_009_62_remove_many_invalid_request() -> void:
 	assert_push_error_count(3)
 	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST, "negative quantity")
 	assert_eq(_quantities(inventory), before, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+
+# --- Spec 010: save and load (R-010-08..11, R-010-23, R-010-24, D15) -----------
+
+
+func _saved(id: String, quantity: Variant, extra: Dictionary = {}) -> Dictionary:
+	var entry: Dictionary = {"item_id": id, "quantity": quantity}
+	entry.merge(extra)
+	return entry
+
+
+func _load_slots(inventory: InventoryComponent, slots: Array) -> void:
+	inventory.from_save_data({"slots": slots})
+
+
+func test_r_010_08_save_key() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	assert_eq(InventoryComponent.SAVE_KEY, &"inventory", "const")
+	assert_eq(inventory.get_save_key(), &"inventory", "getter")
+
+
+func test_r_010_08_save_data_has_one_entry_per_slot() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 4)
+	var data: Dictionary = inventory.to_save_data()
+	var slots: Array = data["slots"] as Array
+	assert_eq(slots.size(), 3, "one entry per slot, empty ones included")
+	var entry: Dictionary = slots[0]
+	assert_eq(entry, {"item_id": "scrap", "quantity": 4, "durability": -1, "uid": ""}, "stack entry")
+	assert_true(slots[1] == null, "empty slot is null")
+	assert_true(slots[2] == null, "empty slot is null")
+
+
+func test_r_010_08_save_data_is_json_safe() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"iron", 2)
+	var data: Dictionary = inventory.to_save_data()
+	var parsed: Variant = JSON.parse_string(JSON.stringify(data))
+	var back: Dictionary = parsed as Dictionary
+	var slots: Array = back["slots"] as Array
+	assert_eq(slots.size(), 2, "survives JSON")
+	var first: Dictionary = slots[0] as Dictionary
+	var item_id: String = first["item_id"]
+	assert_eq(item_id, "iron", "id is a String")
+
+
+func test_r_010_09_load_fills_slots_and_emits_once() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	watch_signals(inventory)
+	_load_slots(inventory, [_saved("scrap", 3.0), null, _saved("iron", 5)])
+	var expected: Array[int] = [3, 0, 5]
+	assert_eq(_quantities(inventory), expected, "loaded quantities, float accepted")
+	var third: ItemStack = inventory.get_slots()[2]
+	assert_eq(third.item.id, &"iron", "item resolved from the catalog")
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+	assert_signal_not_emitted(inventory, "overflowed")
+
+
+func test_r_010_09_load_does_not_resize() -> void:
+	var inventory: InventoryComponent = _new_inventory(5)
+	_load_slots(inventory, [_saved("scrap", 1)])
+	assert_eq(inventory.get_slot_count(), 5, "the chassis owns the slot count")
+
+
+func test_r_010_09_load_replaces_previous_contents() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"cables", 6)
+	_fill(inventory, &"iron", 2)
+	_load_slots(inventory, [null, _saved("scrap", 2), null])
+	var expected: Array[int] = [0, 2, 0]
+	assert_eq(_quantities(inventory), expected, "old contents cleared")
+
+
+func test_r_010_09_load_emits_once_even_when_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 1)
+	watch_signals(inventory)
+	_load_slots(inventory, [null, null])
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+	assert_true(inventory.is_empty(), "now empty")
+
+
+func test_r_010_23_load_keeps_durability_and_uid() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_load_slots(inventory, [_saved("scrap", 1, {"durability": 40, "uid": "abc123"}), null])
+	var stack: ItemStack = inventory.get_slots()[0]
+	assert_eq(stack.durability, 40, "durability")
+	assert_eq(stack.uid, "abc123", "uid")
+
+
+func test_r_010_23_missing_optionals_default() -> void:
+	var inventory: InventoryComponent = _new_inventory(1)
+	_load_slots(inventory, [_saved("scrap", 2)])
+	var stack: ItemStack = inventory.get_slots()[0]
+	assert_eq(stack.durability, -1, "durability defaults to -1")
+	assert_eq(stack.uid, "", "uid defaults to empty")
+	assert_push_error_count(0)
+
+
+func test_r_010_09_round_trip_inventory() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	var saved: Dictionary = {
+		"slots":
+		[
+			{"item_id": "scrap", "quantity": 7, "durability": 40, "uid": "abcdef0123456789"},
+			null,
+			{"item_id": "iron", "quantity": 5, "durability": -1, "uid": ""},
+		]
+	}
+	inventory.from_save_data(saved)
+	assert_eq(inventory.to_save_data(), saved, "what was loaded is what is saved")
+
+
+func test_r_010_09_round_trip_through_json_floats() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 9)
+	var parsed: Variant = JSON.parse_string(JSON.stringify(inventory.to_save_data()))
+	var data: Dictionary = parsed as Dictionary
+	var other: InventoryComponent = _new_inventory(2)
+	other.from_save_data(data)
+	var expected: Array[int] = [9, 0]
+	assert_eq(_quantities(other), expected, "JSON numbers are floats and still load")
+
+
+func test_r_010_10_load_never_overflows() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	watch_signals(inventory)
+	_load_slots(inventory, [_saved("scrap", 10), _saved("scrap", 10)])
+	var expected: Array[int] = [10, 10]
+	assert_eq(_quantities(inventory), expected, "slots are kept as saved, no restacking")
+	assert_signal_not_emitted(inventory, "overflowed")
+
+
+func test_r_010_11_unknown_item_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_load_slots(inventory, [_saved("scrap", 2), _saved("ghost", 1), _saved("iron", 1)])
+	assert_push_error("Inventory")
+	var expected: Array[int] = [2, 0, 1]
+	assert_eq(_quantities(inventory), expected, "the rest loads")
+
+
+func test_r_010_11_quantity_zero_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_load_slots(inventory, [_saved("scrap", 0), _saved("iron", 1)])
+	assert_push_error("Inventory")
+	var expected: Array[int] = [0, 1]
+	assert_eq(_quantities(inventory), expected, "the rest loads")
+
+
+func test_r_010_11_quantity_above_stack_max_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	var too_many: int = _catalog.get_item(&"iron").stack_max + 1
+	_load_slots(inventory, [_saved("iron", too_many), _saved("scrap", 1)])
+	assert_push_error("Inventory")
+	var expected: Array[int] = [0, 1]
+	assert_eq(_quantities(inventory), expected, "the rest loads")
+
+
+func test_r_010_11_fractional_quantity_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_load_slots(inventory, [_saved("scrap", 1.5), _saved("scrap", 1)])
+	assert_push_error("Inventory")
+	var expected: Array[int] = [0, 1]
+	assert_eq(_quantities(inventory), expected, "the rest loads")
+
+
+func test_r_010_11_non_dictionary_entry_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_load_slots(inventory, ["scrap", _saved("scrap", 1)])
+	assert_push_error("Inventory")
+	var expected: Array[int] = [0, 1]
+	assert_eq(_quantities(inventory), expected, "the rest loads")
+
+
+func test_r_010_11_entries_past_the_slot_count_are_dropped() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_load_slots(inventory, [_saved("scrap", 1), _saved("iron", 1), _saved("cables", 1)])
+	assert_push_error("Inventory")
+	assert_eq(inventory.get_slot_count(), 2, "not resized")
+	var expected: Array[int] = [1, 1]
+	assert_eq(_quantities(inventory), expected, "the extra entry is dropped")
+
+
+func test_r_010_11_bad_durability_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(3)
+	_load_slots(
+		inventory,
+		[
+			_saved("scrap", 1, {"durability": 2.5}),
+			_saved("scrap", 1, {"durability": "40"}),
+			_saved("iron", 1, {"durability": 40.0}),
+		]
+	)
+	assert_push_error_count(2)
+	var expected: Array[int] = [0, 0, 1]
+	assert_eq(_quantities(inventory), expected, "a whole float is accepted")
+	var third: ItemStack = inventory.get_slots()[2]
+	assert_eq(third.durability, 40, "as an int")
+
+
+func test_r_010_11_bad_uid_leaves_slot_empty() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_load_slots(inventory, [_saved("scrap", 1, {"uid": 12}), _saved("iron", 1, {"uid": "x"})])
+	assert_push_error("Inventory")
+	var expected: Array[int] = [0, 1]
+	assert_eq(_quantities(inventory), expected, "the rest loads")
+
+
+func test_r_010_11_missing_slots_is_rejected() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 3)
+	watch_signals(inventory)
+	inventory.from_save_data({})
+	assert_push_error("Inventory")
+	var expected: Array[int] = [3, 0]
+	assert_eq(_quantities(inventory), expected, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_010_11_slots_not_an_array_is_rejected() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 3)
+	watch_signals(inventory)
+	inventory.from_save_data({"slots": "none"})
+	assert_push_error("Inventory")
+	var expected: Array[int] = [3, 0]
+	assert_eq(_quantities(inventory), expected, "no change")
 	assert_signal_not_emitted(inventory, "inventory_changed")

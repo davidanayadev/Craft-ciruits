@@ -34,8 +34,8 @@ const ANIMATION_ATTACK := &"attack"
 ## Yaw source for camera-relative movement; null falls back to world axes.
 @export var camera_rig: Node3D
 
-## Who this player is in kills and, later, in saves and the network. Generated
-## at start-up until spec 010 brings the Profile's player_uuid.
+## Who this player is in kills, saves and, later, the network. A generated one
+## until the Profile's player_uuid arrives with set_player_uid() (spec 010).
 var player_uid: String = ""
 
 @onready var player_input: PlayerInput = %PlayerInput
@@ -44,6 +44,7 @@ var player_uid: String = ""
 @onready var inventory: InventoryComponent = %InventoryComponent
 @onready var melee: MeleeAttackComponent = %MeleeAttack
 @onready var experience: ExperienceComponent = %Experience
+@onready var location: LocationComponent = %Location
 @onready var _animation_player: AnimationPlayer = %AnimationPlayer
 @onready var _body_shape: CollisionShape3D = %BodyShape
 
@@ -102,6 +103,19 @@ func get_footprint_radius() -> float:
 		push_error("Robot '%s': its body shape is not a capsule." % name)
 		return 0.0
 	return capsule.radius
+
+
+## The Profile's player_uuid (R-010-14); also the attacker uid of its melee.
+func set_player_uid(uid: String) -> void:
+	player_uid = uid
+	melee.attacker_uid = uid
+
+
+## Arrives in zone_id at world_position, standing still: place_at() plus the
+## location it saves (spec 010). ZoneLoader calls it when a travel ends.
+func enter_zone(zone_id: Vector2i, zone_root: Node3D, world_position: Vector3) -> void:
+	place_at(world_position)
+	location.enter(zone_id, zone_root)
 
 
 ## Places itself at world_position, standing still: how it arrives in a zone

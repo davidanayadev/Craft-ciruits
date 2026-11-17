@@ -3,5 +3,6 @@
   "include_subdirs": true,
   "prefix": "test_",
   "should_exit": true,
+  "pre_run_script": "res://tests/support/save_test_hook.gd",
   "junit_xml_file": "res://test_results.xml"
 }

@@ -4,7 +4,7 @@ extends GutTest
 ## that enemy's data, looked up in the catalog it is given (R-007-20); a
 ## negative amount or an unknown enemy reports an error and changes nothing
 ## (R-007-21). Catalogs are made by hand: the numbers are test inputs, not
-## balance values.
+## balance values. Spec 010: save and load (R-010-08, 09, 11, 24).
 
 const OWNER_UID := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const OTHER_UID := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -122,3 +122,79 @@ func test_r_008_28_reset_at_zero_emits_nothing() -> void:
 	assert_eq(_experience.get_total(), 0)
 	assert_signal_not_emitted(_experience, "xp_changed", "nothing changed, nothing announced")
 	assert_push_error_count(0)
+
+
+# --- Spec 010: save and load (R-010-08, R-010-09, R-010-11, D15) ---------------
+
+
+func test_r_010_08_save_key() -> void:
+	assert_eq(ExperienceComponent.SAVE_KEY, &"experience", "const")
+	assert_eq(_experience.get_save_key(), &"experience", "getter")
+
+
+func test_r_010_08_save_data_is_the_total() -> void:
+	_experience.add_xp(7)
+	var data: Dictionary = _experience.to_save_data()
+	assert_eq(data, {"total": 7}, "only the total")
+	assert_eq(typeof(data["total"]), TYPE_INT, "a whole number")
+
+
+func test_r_010_09_load_sets_total_and_emits_once() -> void:
+	_experience.from_save_data({"total": 25})
+	assert_eq(_experience.get_total(), 25, "loaded")
+	assert_signal_emit_count(_experience, "xp_changed", 1)
+	assert_signal_emitted_with_parameters(_experience, "xp_changed", [25])
+
+
+func test_r_010_09_load_accepts_a_whole_float() -> void:
+	_experience.from_save_data({"total": 25.0})
+	assert_eq(_experience.get_total(), 25, "JSON gives floats")
+
+
+func test_r_010_09_load_same_total_emits_nothing() -> void:
+	_experience.add_xp(5)
+	clear_signal_watcher()
+	watch_signals(_experience)
+	_experience.from_save_data({"total": 5})
+	assert_signal_not_emitted(_experience, "xp_changed", "nothing changed")
+
+
+func test_r_010_09_round_trip_experience() -> void:
+	_experience.add_xp(12)
+	var saved: Dictionary = _experience.to_save_data()
+	var other: ExperienceComponent = ExperienceComponent.new()
+	add_child_autofree(other)
+	other.from_save_data(saved)
+	assert_eq(other.get_total(), 12, "same total")
+	assert_eq(other.to_save_data(), saved, "same data")
+
+
+func test_r_010_11_load_negative_is_rejected() -> void:
+	_experience.add_xp(3)
+	clear_signal_watcher()
+	watch_signals(_experience)
+	_experience.from_save_data({"total": -1})
+	assert_push_error("Experience")
+	assert_eq(_experience.get_total(), 3, "unchanged")
+	assert_signal_not_emitted(_experience, "xp_changed")
+
+
+func test_r_010_11_load_fractional_is_rejected() -> void:
+	_experience.from_save_data({"total": 2.5})
+	assert_push_error("Experience")
+	assert_eq(_experience.get_total(), 0, "unchanged")
+	assert_signal_not_emitted(_experience, "xp_changed")
+
+
+func test_r_010_11_load_missing_total_is_rejected() -> void:
+	_experience.from_save_data({})
+	assert_push_error("Experience")
+	assert_eq(_experience.get_total(), 0, "unchanged")
+	assert_signal_not_emitted(_experience, "xp_changed")
+
+
+func test_r_010_11_load_non_number_is_rejected() -> void:
+	_experience.from_save_data({"total": "9"})
+	assert_push_error("Experience")
+	assert_eq(_experience.get_total(), 0, "unchanged")
+	assert_signal_not_emitted(_experience, "xp_changed")

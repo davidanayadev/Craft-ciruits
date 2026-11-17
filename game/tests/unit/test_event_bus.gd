@@ -125,3 +125,8 @@ func test_r_009_35_structure_built_signature() -> void:
 
 func test_r_009_49_player_recharged_signature() -> void:
 	_assert_one_arg_signal("player_recharged", "player_uid", TYPE_STRING)
+
+
+## Spec 010: structure_moved (R-010-31, architecture §7).
+func test_r_010_31_structure_moved_signature() -> void:
+	_assert_one_arg_signal("structure_moved", "structure_uid", TYPE_STRING)

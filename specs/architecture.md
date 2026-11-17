@@ -90,8 +90,8 @@ Lista cerrada. Añadir uno requiere cambiar este documento.
 |---|---|---|
 | `EventBus` | Señales de hechos globales (§7) | Guardar estado |
 | `DataRegistry` | Catálogo de datos por id (§8) | Cargar partidas |
-| `GameManager` | Estado global de la partida: mundo, ruleset, zona actual, contadores de visitas por zona; acceso a `ITimeService` | Guardar estado de un jugador (PMV §4.5 gancho 7) |
-| `SaveManager` | Orquestar guardado y carga (§6) | Saber cómo se serializa cada componente |
+| `GameManager` | Estado global de la partida: mundo (id, nombre, semilla), ruleset, zona actual, contadores de visitas por zona; acceso a `ITimeService` y a `IStore` (spec 010) | Guardar estado de un jugador (PMV §4.5 gancho 7) |
+| `SaveManager` | Orquestar guardado y carga (§6); guarda en memoria el Perfil cargado (uuid, derechos), que es estado de la cuenta y no de un robot ni de un mundo (spec 010) | Saber cómo se serializa cada componente; guardar estado de un jugador entre guardados |
 | `AudioManager` | SFX y música con pool de reproductores | Decidir cuándo suena algo (escucha eventos) |
 | `TutorialManager` | Guía básica (ACTION_PLAN 5.4) | Bloquear el juego fuera de sus pasos |
 
@@ -154,6 +154,13 @@ Main (Node)                          main.gd: arranque y cableado
 | `item_crafted` | `recipe_id: StringName`, `player_uid: String` | Banco | Guía, audio |
 | `structure_built` | `structure_uid: String` | Colocación (Tarea 2.8) | Guardado, guía |
 | `player_recharged` | `player_uid: String` | Estación de carga (spec 009) | Guardado (spec 010), guía |
+| `structure_moved` | `structure_uid: String` | `BaseStructures` (spec 010) | Guardado |
+
+**Señales de estado y de hecho** (spec 010, D15). Las **de estado** dicen cuál es un valor ahora y repetirlas no
+tiene efectos (`battery_changed`, `inventory_changed`, `xp_changed`, `health_changed`); por convención se llaman
+`*_changed`. Las **de hecho** dicen que algo pasó y sus oyentes reaccionan (todo `EventBus`, `zone_visit_counted`,
+`battery_low`, `battery_depleted`, `overflowed`, `level_up`…). Cargar una partida emite solo señales de estado
+(§10.2). Una señal nueva elige su clase y su nombre con esta regla.
 
 Reglas: el bus **no guarda estado**; toda señal está tipada; todo evento que afecte a un jugador lleva su
 `player_uid` (cooperativo); un evento nuevo se añade a esta tabla en el plan del spec que lo crea.
@@ -328,8 +335,15 @@ sobrescriben (ONLINE.md). `SaveManager` recibe la implementación al arrancar; n
   `get_save_key() -> StringName`, `to_save_data() -> Dictionary`, `from_save_data(data: Dictionary) -> void`.
   Un componente ya hereda de `Node`, así que el contrato se comprueba con un test (todo nodo del grupo tiene los
   tres métodos), no con herencia.
+- Los dueños de estado del mundo (contadores de visitas, objetos caídos, estructuras, estado de las visitas)
+  también están en `persistent`: `SaveManager` guarda una parte bajo el `player_uid` de la entidad de la que
+  cuelga el nodo (grupo `players`) o, si no cuelga de ninguna, bajo el mundo (spec 010).
 - `to_save_data()` solo devuelve tipos JSON: números, textos, listas, diccionarios. Objetos como ids
-  (`"basic_arms"`), posiciones como `(zone_id, local)`.
+  (`"basic_arms"`), posiciones como `(zone_id, local)`. La semilla del mundo va como texto decimal (un número JSON
+  es un `float` y perdería precisión) y los `float` se escriben con precisión completa (spec 010).
+- `from_save_data()` emite las señales **de estado** de su dueño y **nunca** las de hecho (§7): cargar no es que
+  algo haya pasado. Por ejemplo, al cargar el nivel de chasis (spec 013) se emiten `xp_changed` y `stats_changed`,
+  pero no `level_up`.
 - El archivo lleva `schema_version`. Cada cambio de formato añade una función `migrate_vN_to_vN1(data)`; cargar
   aplica la cadena hasta la versión actual (Tarea 2.3).
 - **Nunca** se guardan ni cargan `Resource` de Godot en `user://`: un recurso cargado desde un archivo editable

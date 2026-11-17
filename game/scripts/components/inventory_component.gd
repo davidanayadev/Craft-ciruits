@@ -17,6 +17,9 @@ signal overflowed(leftovers: Array[ItemStack])
 const ERR_INVALID_REQUEST := &"ERR_INVALID_REQUEST"
 const ERR_NOT_ENOUGH_ITEMS := &"ERR_NOT_ENOUGH_ITEMS"
 const MSG_INVENTORY_FULL := &"MSG_INVENTORY_FULL"
+## Save contract (spec 010, architecture §10.2).
+const SAVE_KEY := &"inventory"
+const _SLOTS_KEY := "slots"
 
 ## Validates ids; DataRegistry's catalog when left null at _ready().
 var catalog: DataCatalog
@@ -213,6 +216,55 @@ func take_amount_from(
 	return _report_leftovers(leftovers)
 
 
+func get_save_key() -> StringName:
+	return SAVE_KEY
+
+
+## Every slot in order, null when empty; the slot count is not saved, it
+## comes from the chassis level on load (R-010-24).
+func to_save_data() -> Dictionary:
+	var slots: Array = []
+	for stack: ItemStack in _slots:
+		slots.append(null if stack == null else {
+			"item_id": String(stack.item.id),
+			"quantity": stack.quantity,
+			"durability": stack.durability,
+			"uid": stack.uid,
+		})
+	return {_SLOTS_KEY: slots}
+
+
+## How many slots saved data lists; -1 when it has no slot list. A container
+## sized by its contents (an opened box) sizes itself with it before loading.
+static func get_saved_slot_count(data: Dictionary) -> int:
+	var saved: Variant = data.get(_SLOTS_KEY)
+	return (saved as Array).size() if saved is Array else -1
+
+
+## Replaces every slot, keeping the slot count; one inventory_changed and
+## never overflowed (R-010-09). A bad slot (unknown item, quantity outside
+## 1..stack_max, wrong field) → push_error and it stays empty, the rest loads
+## (R-010-11); saved slots beyond the count are lost, reported. No slot list
+## → push_error, no change.
+func from_save_data(data: Dictionary) -> void:
+	var saved: Variant = data.get(_SLOTS_KEY)
+	if not saved is Array:
+		push_error("InventoryComponent '%s': no saved slot list in %s; no change." % [name, data])
+		return
+	var entries: Array = saved
+	if entries.size() > _slots.size():
+		push_error(
+			"InventoryComponent '%s': %d saved slots for %d slots; the extra ones are lost."
+			% [name, entries.size(), _slots.size()]
+		)
+	var loaded: Array[ItemStack] = []
+	loaded.resize(_slots.size())
+	for index: int in mini(entries.size(), _slots.size()):
+		loaded[index] = _stack_from_save(entries[index], index)
+	_slots = loaded
+	inventory_changed.emit()
+
+
 ## First direct child of node that is an InventoryComponent; null when none.
 static func find_in(node: Node) -> InventoryComponent:
 	for child: Node in node.get_children():
@@ -265,6 +317,28 @@ func _settle_take(source: InventoryComponent, amounts: Array[int]) -> void:
 			% [name, source.name]
 		)
 	inventory_changed.emit()
+
+
+## Null for an empty slot or a bad entry (reported).
+func _stack_from_save(entry: Variant, index: int) -> ItemStack:
+	if entry == null:
+		return null
+	var fields: Dictionary = entry if entry is Dictionary else {}
+	var item_id: StringName = StringName(str(fields.get("item_id", "")))
+	var quantity: int = SaveFields.to_int(fields.get("quantity"), 0)
+	var durability: Variant = fields.get("durability", -1)
+	var stack_uid: Variant = fields.get("uid", "")
+	var valid: bool = (
+		_knows(item_id) and quantity >= 1 and quantity <= catalog.get_item(item_id).stack_max
+		and SaveFields.is_whole_number(durability) and stack_uid is String
+	)
+	if not valid:
+		push_error("InventoryComponent '%s': saved slot %d %s is lost." % [name, index, entry])
+		return null
+	var stack: ItemStack = ItemStack.new(catalog.get_item(item_id), quantity)
+	stack.durability = SaveFields.to_int(durability, -1)
+	stack.uid = stack_uid
+	return stack
 
 
 func _report_leftovers(leftovers: Array[ItemStack]) -> InventoryAddResult:

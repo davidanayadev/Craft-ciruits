@@ -7,9 +7,14 @@ extends Node3D
 ## again brings them back (spec 009), the same path spec 010 will load from.
 ## The clock comes from outside (GameManager's in the game, a fake one in
 ## tests): it never creates one.
+## It owns the dropped items in the save (spec 010): every zone's, in the
+## format of DroppedItem.to_data(); the expired ones are gone on load.
 
 ## The device clock has whole seconds, so checking more often finds nothing new.
 const EXPIRY_CHECK_INTERVAL_S := 1.0
+## Save contract (spec 010, architecture §10.2).
+const SAVE_KEY := &"dropped_items"
+const _ITEMS_KEY := "items"
 
 @export var pool: ObjectPool
 @export var config: DroppedItemConfigData
@@ -38,13 +43,7 @@ func _ready() -> void:
 func bind_zone(zone_id: Vector2i, zone_root: Node3D) -> void:
 	_zone_id = zone_id
 	_zone_root = zone_root
-	if not _stored.has(zone_id):
-		return
-	var stored: Array = _stored[zone_id]
-	_stored.erase(zone_id)
-	for data: Dictionary in stored:
-		_restore(data)
-	discard_expired_now()
+	_restore_stored()
 
 
 ## The bound zone is being unloaded: its items keep their state here and go
@@ -146,6 +145,75 @@ func to_data() -> Array[Dictionary]:
 	return data
 
 
+func get_save_key() -> StringName:
+	return SAVE_KEY
+
+
+## The stored items of every unloaded zone, then the live ones (R-010-29).
+func to_save_data() -> Dictionary:
+	var items: Array = []
+	for stored: Array in _stored.values():
+		items.append_array(stored)
+	items.append_array(to_data())
+	return {_ITEMS_KEY: items}
+
+
+## Replaces every item, live and stored; the expired ones are dropped with
+## the clock's time before anyone can interact (R-010-30). An entry with no
+## known zone or no drop time → push_error and skipped; its stacks are checked
+## when its zone is bound (R-010-11). Emits nothing.
+func from_save_data(data: Dictionary) -> void:
+	var items: Variant = data.get(_ITEMS_KEY)
+	if not items is Array or config == null or time_service == null:
+		push_error("DroppedItemSpawner '%s': cannot load %s (needs config and time_service)." % [name, data])
+		return
+	for item: DroppedItem in _items.duplicate():
+		_release(item)
+	_stored.clear()
+	var now: int = time_service.now_unix()
+	for entry: Variant in items as Array:
+		var fields: Dictionary = entry if entry is Dictionary else {}
+		var zone_id: Variant = _valid_zone_of(fields)
+		if zone_id == null:
+			continue
+		var dropped_at: int = SaveFields.to_int(fields.get("dropped_at"), 0)
+		if DroppedItemRules.is_expired(dropped_at, now, config.lifetime_s):
+			continue
+		var stored: Array = _stored.get(zone_id, [])
+		stored.append(fields)
+		_stored[zone_id as Vector2i] = stored
+	if _zone_root != null:
+		_restore_stored()
+
+
+## The bound zone's stored items back, then the expired ones out (R-009-17, R-008-23).
+func _restore_stored() -> void:
+	if not _stored.has(_zone_id):
+		return
+	var stored: Array = _stored[_zone_id]
+	_stored.erase(_zone_id)
+	for data: Dictionary in stored:
+		_restore(data)
+	discard_expired_now()
+
+
+## Its zone_id when the catalog knows that zone and the entry has the shape of
+## DroppedItem.to_data(); else null, reported.
+func _valid_zone_of(fields: Dictionary) -> Variant:
+	var zone_id: Variant = SaveFields.to_vector2i(fields.get("zone_id"))
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	var known: bool = zone_id != null and catalog != null and catalog.has_zone(zone_id as Vector2i)
+	var shaped: bool = (
+		fields.get("uid") is String and fields.get("stacks") is Array
+		and SaveFields.to_vector3(fields.get("position")) != null
+		and SaveFields.is_whole_number(fields.get("dropped_at"))
+	)
+	if not known or not shaped:
+		push_error("DroppedItemSpawner '%s': saved dropped item %s is lost." % [name, fields])
+		return null
+	return zone_id
+
+
 func _spawn(world_position: Vector3, slot_count: int) -> DroppedItem:
 	if _zone_root == null:
 		push_error(
@@ -158,32 +226,49 @@ func _spawn(world_position: Vector3, slot_count: int) -> DroppedItem:
 
 
 ## A stored item back in its zone, with its uid, position, time and stacks. A
-## stack of an item the catalog no longer knows is lost, never the others.
+## stack of an item the catalog no longer knows is lost, never the others; a
+## malformed entry (the data may come from disk) is lost whole, reported.
 func _restore(data: Dictionary) -> void:
-	var stacks: Array[ItemStack] = []
-	for stack_data: Dictionary in data["stacks"]:
-		var item_id: StringName = StringName(str(stack_data["item_id"]))
-		var catalog: DataCatalog = DataRegistry.get_catalog()
-		if catalog == null or not catalog.has_item(item_id):
-			push_error("DroppedItemSpawner '%s': unknown item '%s' lost on restore." % [name, item_id])
-			continue
-		var quantity: int = stack_data["quantity"]
-		stacks.append(ItemStack.new(catalog.get_item(item_id), quantity))
-	if stacks.is_empty():
+	var local: Variant = SaveFields.to_vector3(data.get("position"))
+	var item_uid: Variant = data.get("uid")
+	var dropped_at: Variant = data.get("dropped_at")
+	var stack_list: Variant = data.get("stacks")
+	if (
+		local == null or not item_uid is String or not SaveFields.is_whole_number(dropped_at)
+		or not stack_list is Array
+	):
+		push_error("DroppedItemSpawner '%s': a malformed dropped item was lost: %s." % [name, data])
 		return
-	var position_data: Array = data["position"]
-	var x: float = position_data[0]
-	var y: float = position_data[1]
-	var z: float = position_data[2]
-	var local: Vector3 = Vector3(x, y, z)
-	if _zone_root == null:
+	var stacks: Array[ItemStack] = _restore_stacks(stack_list as Array)
+	if stacks.is_empty() or _zone_root == null:
 		return
-	var dropped_at: int = data["dropped_at"]
+	var local_position: Vector3 = local
 	var item: DroppedItem = _spawn_item(
-		str(data["uid"]), _zone_root.to_global(local), local, dropped_at, stacks.size()
+		item_uid as String,
+		_zone_root.to_global(local_position),
+		local_position,
+		SaveFields.to_int(dropped_at, 0),
+		stacks.size()
 	)
 	if item != null and not item.get_contents().add_stacks(stacks).ok:
 		push_error("DroppedItemSpawner '%s': a restored item lost stacks." % name)
+
+
+func _restore_stacks(stack_list: Array) -> Array[ItemStack]:
+	var stacks: Array[ItemStack] = []
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	for entry: Variant in stack_list:
+		var stack_data: Dictionary = entry if entry is Dictionary else {}
+		var item_id: StringName = StringName(str(stack_data.get("item_id", "")))
+		var quantity: int = SaveFields.to_int(stack_data.get("quantity"), 0)
+		if catalog == null or not catalog.has_item(item_id) or quantity <= 0:
+			push_error(
+				"DroppedItemSpawner '%s': stack %s lost on restore (unknown item or bad quantity)."
+				% [name, stack_data]
+			)
+			continue
+		stacks.append(ItemStack.new(catalog.get_item(item_id), quantity))
+	return stacks
 
 
 func _now_unix() -> int:

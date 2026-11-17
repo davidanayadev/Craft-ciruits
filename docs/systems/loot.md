@@ -1,7 +1,7 @@
 # Botín
 
 > Las cajas de botín de una zona se tiran una vez desde una tabla con semilla y guardan el resultado en su propio inventario.
-> Specs: [004](../../specs/004-green-zone/spec.md), [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008 (visita en la semilla; tabla de los zombis)
+> Specs: [004](../../specs/004-green-zone/spec.md), [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010 (caja restaurada abierta)
 
 ## Piezas
 
@@ -79,7 +79,7 @@ Los ítems y las tablas se registran en el catálogo ([data_catalog.md](data_cat
 
 - Reordenar `entries` o cambiar el orden de llamadas al RNG cambia el botín de mundos guardados.
 - Una caja a medio vaciar sigue abierta (`opened` se emite de nuevo); solo se deshabilita cuando está vacía.
-- El estado de la caja (tirada, contenido) no se guarda: dura la visita y se pierde al repoblar (el guardado llega con el spec 010).
+- El estado de una caja abierta (`LootBox.get_save_state`, `restore_opened`) lo guarda `ZoneMemory` solo durante la visita en curso; al repoblar se pierde. Restaurar no tira ni emite `loot_generated` ni `opened` ([world_zones.md](world_zones.md), [save.md](save.md)).
 - Hay dos tablas (`basic_box`, `zombie_drop`); sus ítems deben estar en el catálogo (R-004-22).
 - El contenido de las cajas de la visita 0 cambió respecto a la spec 004 por la derivación con visita.
 - `ItemData.icon` es obligatorio (lo comprueba el test del catálogo, R-005-31).

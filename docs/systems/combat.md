@@ -3,7 +3,7 @@
 > El robot golpea con un brazo en la dirección que mira, cada golpe cuesta batería, los zombies mueren y el robot
 > suma XP. Incluye el feedback del golpe (destello, sacudida, chispas, borde rojo).
 > Specs: [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) (solo
-> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · Última actualización: spec 009
+> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada) · Última actualización: spec 010
 
 ## Piezas
 
@@ -101,7 +101,7 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 - El impacto ve la posición del hurtbox del zombie un paso de física atrás (≤ 6 cm a su velocidad): aceptado.
 - No hay armas, degradación por golpe, retroceso, hit stop, SFX, HUD de XP ni nivel de chasis (specs 013, 014 y
   ACTION_PLAN 4.x). La XP solo se acumula.
-- `player_uid` es aleatorio al arrancar; la spec 010 pondrá el del Perfil.
+- `player_uid` es aleatorio hasta que `Robot.set_player_uid` le da el `player_uuid` del Perfil (también al ataque, `melee.attacker_uid`). `ExperienceComponent` es dueño de guardado (`experience`: el total) y cargar emite `xp_changed` pero nunca repite una subida de nivel ([save.md](save.md)).
 - `enemy_killed` sale dentro de un paso de física: un oyente que toque el árbol debe usar `call_deferred`.
 - `reward_kill` con un id fuera del catálogo da un solo `push_error` y no suma.
 - Con `force_touch_debug` el clic izquierdo mueve y también golpea (spec 007 plan §7).

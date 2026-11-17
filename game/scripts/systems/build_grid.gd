@@ -162,8 +162,8 @@ func to_data() -> Array[Dictionary]:
 		data.append({
 			"uid": uid,
 			"structure_id": String(_structure_ids[uid]),
-			"zone_id": [_zone_id.x, _zone_id.y],
-			"cell": [cell.x, cell.y],
+			"zone_id": SaveFields.vector2i_to_array(_zone_id),
+			"cell": SaveFields.vector2i_to_array(cell),
 		})
 	return data
 
@@ -193,31 +193,12 @@ func _load_entry(entry: Variant, catalog: DataCatalog) -> bool:
 		return false
 	if not catalog.has_structure(StringName(structure_id as String)):
 		return false
-	var zone_pair: Array[int] = _to_pair(fields.get("zone_id"))
-	var cell_pair: Array[int] = _to_pair(fields.get("cell"))
-	if zone_pair.is_empty() or cell_pair.is_empty():
+	var zone_id: Variant = SaveFields.to_vector2i(fields.get("zone_id"))
+	var cell: Variant = SaveFields.to_vector2i(fields.get("cell"))
+	if zone_id == null or cell == null or zone_id != _zone_id:
 		return false
-	if Vector2i(zone_pair[0], zone_pair[1]) != _zone_id:
-		return false
-	var cell: Vector2i = Vector2i(cell_pair[0], cell_pair[1])
 	var structure: StructureData = catalog.get_structure(StringName(structure_id as String))
-	return occupy(uid as String, structure, cell).ok
-
-
-## A [x, y] pair of whole numbers (JSON gives floats) → [x, y] as ints;
-## anything else → empty.
-static func _to_pair(value: Variant) -> Array[int]:
-	var numbers: Array[int] = []
-	if not value is Array or (value as Array).size() != 2:
-		return numbers
-	for item: Variant in value as Array:
-		if not (item is int or item is float):
-			return []
-		var number: float = item
-		if number != floorf(number):
-			return []
-		numbers.append(floori(number))
-	return numbers
+	return occupy(uid as String, structure, cell as Vector2i).ok
 
 
 static func _covered_cells(footprint: Vector2i, cell: Vector2i) -> Array[Vector2i]:

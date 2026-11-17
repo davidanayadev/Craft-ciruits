@@ -3,7 +3,7 @@ extends GutTest
 ## (R-003-02..04) and by elapsed time only (R-003-05), reports changes
 ## (R-003-06), warns once when low (R-003-07), stops at 0 (R-003-08), lets other
 ## systems consume and add (R-003-09), rejects negative amounts (R-003-10) and
-## keeps its state per instance (R-003-14).
+## keeps its state per instance (R-003-14). Spec 010: save and load (R-010-08, 09, 11, 24).
 ## No scene and no physics: the component gets delta and gait by parameter.
 ## Values come from the real .tres files (BALANCE §1.1 and §4.2 single source).
 
@@ -28,6 +28,7 @@ func _new_battery() -> BatteryComponent:
 	var battery: BatteryComponent = BatteryComponent.new()
 	battery.config = _config
 	battery.legs = _legs
+	battery.name = "Battery"
 	add_child_autofree(battery)
 	return battery
 
@@ -221,3 +222,116 @@ func test_r_009_48_recharge_full_emits_change() -> void:
 	assert_signal_emitted_with_parameters(
 		_battery, "battery_changed", [_battery.get_maximum(), _battery.get_maximum()]
 	)
+
+
+# --- Spec 010: save and load (R-010-08, R-010-09, R-010-11, R-010-24, D15) -----
+
+
+func test_r_010_08_save_key() -> void:
+	assert_eq(BatteryComponent.SAVE_KEY, &"battery", "const")
+	assert_eq(_battery.get_save_key(), &"battery", "getter")
+
+
+func test_r_010_24_save_data_is_only_the_current_charge() -> void:
+	_battery.consume(30.0)
+	var data: Dictionary = _battery.to_save_data()
+	assert_eq(data.size(), 1, "only one key: the maximum comes from the config")
+	assert_true(data.has("current"), "current")
+	var current: float = data["current"] as float
+	assert_almost_eq(current, _battery.get_maximum() - 30.0, TOLERANCE, "current charge")
+	assert_eq(typeof(data["current"]), TYPE_FLOAT, "a JSON number")
+
+
+func test_r_010_09_load_sets_charge_and_emits_changed_once() -> void:
+	_battery.from_save_data({"current": 42.5})
+	assert_almost_eq(_battery.get_current(), 42.5, TOLERANCE, "loaded")
+	assert_signal_emit_count(_battery, "battery_changed", 1, "one state signal")
+	assert_signal_emitted_with_parameters(_battery, "battery_changed", [42.5, _battery.get_maximum()])
+
+
+func test_r_010_09_load_accepts_an_int() -> void:
+	_battery.from_save_data({"current": 50})
+	assert_almost_eq(_battery.get_current(), 50.0, TOLERANCE, "int 50 accepted")
+
+
+func test_r_010_09_load_accepts_the_maximum_without_a_signal() -> void:
+	_battery.from_save_data({"current": _battery.get_maximum()})
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "still full")
+	assert_signal_not_emitted(_battery, "battery_changed", "equal value, nothing announced")
+
+
+func test_r_010_09_load_same_value_emits_nothing() -> void:
+	_battery.consume(10.0)
+	clear_signal_watcher()
+	watch_signals(_battery)
+	var same: float = _battery.get_current()
+	_battery.from_save_data({"current": same})
+	assert_signal_not_emitted(_battery, "battery_changed", "equal value")
+
+
+func test_r_010_09_load_below_threshold_no_fact() -> void:
+	var below: float = _low_threshold() * 0.5
+	_battery.from_save_data({"current": below})
+	assert_almost_eq(_battery.get_current(), below, TOLERANCE, "loaded")
+	assert_signal_not_emitted(_battery, "battery_low", "loading is not a fact")
+	assert_signal_not_emitted(_battery, "battery_depleted", "loading is not a fact")
+
+
+func test_r_010_09_load_below_threshold_does_not_rearm_the_warning() -> void:
+	_battery.from_save_data({"current": _low_threshold() * 0.5})
+	_battery.consume(1.0)
+	assert_signal_not_emitted(_battery, "battery_low", "the warning counts as already given")
+
+
+func test_r_010_09_load_above_threshold_rearms_the_warning() -> void:
+	_battery.from_save_data({"current": _low_threshold() * 0.5})
+	_battery.from_save_data({"current": _config.maximum * 0.9})
+	_battery.consume(_config.maximum)
+	assert_signal_emit_count(_battery, "battery_low", 1, "armed again by the load above")
+
+
+func test_r_010_09_round_trip_battery() -> void:
+	_battery.consume(37.0)
+	var saved: Dictionary = _battery.to_save_data()
+	var other: BatteryComponent = _new_battery()
+	watch_signals(other)
+	other.from_save_data(saved)
+	assert_almost_eq(other.get_current(), _battery.get_current(), TOLERANCE, "same charge")
+	assert_signal_emit_count(other, "battery_changed", 1, "one state signal")
+	var again: Dictionary = other.to_save_data()
+	assert_eq(again, saved, "saves the same data")
+
+
+func test_r_010_11_load_zero_is_rejected() -> void:
+	_battery.from_save_data({"current": 0.0})
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
+	assert_signal_not_emitted(_battery, "battery_changed")
+
+
+func test_r_010_11_load_negative_is_rejected() -> void:
+	_battery.from_save_data({"current": -5.0})
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
+	assert_signal_not_emitted(_battery, "battery_changed")
+
+
+func test_r_010_11_load_above_maximum_is_rejected() -> void:
+	_battery.from_save_data({"current": _battery.get_maximum() + 1.0})
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
+	assert_signal_not_emitted(_battery, "battery_changed")
+
+
+func test_r_010_11_load_missing_current_is_rejected() -> void:
+	_battery.from_save_data({})
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
+	assert_signal_not_emitted(_battery, "battery_changed")
+
+
+func test_r_010_11_load_non_number_is_rejected() -> void:
+	_battery.from_save_data({"current": "50"})
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
+	assert_signal_not_emitted(_battery, "battery_changed")

@@ -1,7 +1,7 @@
 # Batería
 
 > La batería es la salud del robot: se gasta sola, al moverse y al recibir golpes, y al llegar a 0 el robot muere.
-> Specs: [003](../../specs/003-battery/spec.md), [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008 (la muerte pasa por `DeathController`)
+> Specs: [003](../../specs/003-battery/spec.md), [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010 (guardado)
 
 ## Piezas
 
@@ -43,6 +43,13 @@ Robot._physics_process -> BatteryComponent.tick -> battery_changed -> Hud
 Robot.receive_hit ------> consume -------------> battery_depleted -> DeathController -> player_died -> Main (TransferScreen)
 MeleeAttackComponent.swing_started -> Robot -> consume
 ```
+
+### Guardado (spec 010)
+
+`BatteryComponent` está en el grupo `persistent` con clave `battery` ([save.md](save.md)): guarda solo la carga actual; el
+máximo sale de la configuración. `from_save_data` emite `battery_changed` si la carga cambia, rearma el aviso de batería
+baja y nunca emite `battery_low` ni `battery_depleted` (cargar no es un hecho). Una carga `<= 0` o por encima del máximo es
+`push_error` y no cambia nada.
 
 ## Datos
 
