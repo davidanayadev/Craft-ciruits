@@ -87,7 +87,7 @@ plan a *Planificado*.
 | [007](007-melee-combat/spec.md) | Combate cuerpo a cuerpo y XP por muerte | 1.4 | Hecho |
 | [008](008-death-recovery/spec.md) | Muerte, `RulesetData`, objetos caídos y recuperación | 1.5 | Hecho |
 | [009](009-base-placement-charging/spec.md) | Escena de base, viaje entre zonas, colocación libre y estación de carga | 2.1, 2.8, 2.2 | Hecho |
-| [010](010-save-profile-world/spec.md) | Guardado Perfil/Mundo, `IStore` | 2.3 | Aprobado |
+| [010](010-save-profile-world/spec.md) | Guardado Perfil/Mundo, `IStore` | 2.3 | Planificado |
 | 011 | Crafteo y `RecipeData` | 2.4 | Por crear |
 | 012 | Generador eólico y cofres | 2.5, 2.6 | Por crear |
 | 013 | Nivel de chasis | 2.7 | Por crear |
