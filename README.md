@@ -83,6 +83,72 @@ Install the debug APK on a phone connected with USB debugging enabled:
 "$ANDROID_HOME/platform-tools/adb" install -r builds/android/cyberscrap-debug.apk
 ```
 
+## PowerShell (Windows)
+
+The same commands from PowerShell, run from the repo root. PowerShell 5.1 has no `&&`: run the lines one by one.
+
+### Run
+
+Point `GODOT_BIN` to the Godot executable. The first line sets it for this window only. The second saves it for
+your user, so new windows have it too:
+
+```powershell
+$env:GODOT_BIN = "C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
+[Environment]::SetEnvironmentVariable("GODOT_BIN", "C:\Godot\Godot_v4.7.2-stable_win64_console.exe", "User")
+```
+
+Open the editor, or run the game on the desktop:
+
+```powershell
+& $env:GODOT_BIN --editor --path game
+& $env:GODOT_BIN --path game
+```
+
+Run every test. `tools/run_tests.sh` is Bash, so call Git's own `bash.exe` (a bare `bash` can resolve to WSL):
+
+```powershell
+& "$env:ProgramFiles\Git\bin\bash.exe" tools/run_tests.sh
+```
+
+Export the debug builds and install the APK on a phone with USB debugging enabled:
+
+```powershell
+New-Item -ItemType Directory -Force builds/android, builds/windows | Out-Null
+& $env:GODOT_BIN --headless --path game --export-debug "Android"
+& $env:GODOT_BIN --headless --path game --export-debug "Windows Desktop"
+& "$env:ANDROID_HOME\platform-tools\adb.exe" install -r builds/android/cyberscrap-debug.apk
+```
+
+### Version
+
+Start a spec on its own branch from an up-to-date `main` (never commit to `main`):
+
+```powershell
+git switch main
+git pull
+git switch -c feat/NNN-slug
+```
+
+Commit everything and push. `.gitignore` already keeps out `game/.godot/`, `builds/`, the test report and signing
+files, but check `git status` before adding:
+
+```powershell
+git status
+git add -A
+git commit -m "feat(scope): what changed (spec NNN)"
+git push -u origin feat/NNN-slug
+```
+
+Open the pull request to `main` with the [GitHub CLI](https://cli.github.com/), and once it is merged, go back to
+`main` and delete the local branch:
+
+```powershell
+gh pr create --base main --fill
+git switch main
+git pull
+git branch -d feat/NNN-slug
+```
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs `tools/run_tests.sh` on Linux for every pull request to `main` and every push
