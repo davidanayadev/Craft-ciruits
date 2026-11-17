@@ -88,6 +88,7 @@ Delegate to save cost: cheap models for mechanical work, fresh eyes at review ga
 | Definition of Done | `godot-runner`, `i18n-auditor` and `balance-auditor` in parallel, then `architecture-guardian` once |
 | A fix attempt failed, or the bug is intermittent or unclear | `deep-debugger` |
 | Wide search across many files | built-in `Explore` |
+| Closing a spec, after the Definition of Done checks | `system-documenter spec NNN` (updates `docs/systems/`) |
 
 Do not delegate tasks of 1–3 tool calls, commit messages or PRs (the main session knows why the code changed), or
 work another subagent already reported on. Run Opus agents (`architecture-guardian`, `deep-debugger`) only at the
@@ -131,6 +132,7 @@ The documents cross-reference each other. Treat each one as the source of truth 
 | `SPECS.md` | Post-MVP features (v1.1+): advanced pieces, red zone, abilities, vehicles, fuel, lore, business model (§23), worlds by seed (§26), Normal/Hardcore modes (§27), factions (§28), crafting tiers (§29) |
 | `ONLINE.md` | Multiplayer roadmap (async, then co-op, then PvP) and the decoupling rules the MVP code must follow now |
 | `TOOLING.md` | Third-party services and **the phase in which each one may be introduced** |
+| `docs/systems/` | How the implemented code works today, one page per system, linking to the why in specs and ADRs (never numbers or requirements) |
 
 Rules that follow from this:
 - **Scope:** anything listed in PMV.md §2.3, or tagged v1.1+ in SPECS.md, is out of scope for the MVP.

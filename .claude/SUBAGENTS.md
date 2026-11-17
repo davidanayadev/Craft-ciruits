@@ -38,6 +38,7 @@ Otras reglas de gasto:
 | `i18n-auditor` | Haiku / low | No | Textos visibles sin traducir y claves que faltan, vacías o sin usar |
 | `balance-auditor` | Sonnet / medium | No | `.tres` contra `BALANCE.md` y literales de gameplay en scripts |
 | `architecture-guardian` | Opus / high | No | Revisar un diff o un `plan.md` contra la constitución, la arquitectura y el alcance |
+| `system-documenter` | Sonnet / medium | Solo `docs/systems/` | Documentación de sistemas: cómo funciona hoy el código y por qué |
 
 ### `godot-runner`
 - **Cuándo:** al terminar cada tarea de `tasks.md`, antes de dar algo por hecho, cuando falla la CI
@@ -67,6 +68,14 @@ Otras reglas de gasto:
 ### `architecture-guardian`
 - **Cuándo:** una vez antes de abrir el PR de un spec, y con `plan NNN` antes de pasar un plan a *Planificado*.
 - **Cuándo no:** después de cada commit, ni para buscar bugs genéricos (para eso está `/code-review`).
+
+### `system-documenter`
+- **Cuándo:** al cerrar un spec, con `spec NNN`: actualiza solo las páginas de los sistemas que tocó ese spec.
+- **Cuándo no:** durante la implementación (el código aún cambia) ni para cambios pequeños fuera de un spec.
+- **Por qué Sonnet y no Haiku:** explicar el porqué exige cruzar spec, plan y código; Haiku tiende a parafrasear
+  y a rellenar huecos. El gasto se acota porque solo toca los sistemas del spec que se cierra.
+- **Ojo:** si el porqué no está escrito en ninguna fuente, pone "Sin documentar" en lugar de inventarlo. Las
+  discrepancias entre código y spec las informa; no las arregla.
 
 ## 3. Subagente global
 
@@ -103,11 +112,13 @@ Las skills `/sdd-spec`, `/sdd-plan` y `/sdd-implement` ya invocan estos agentes 
 | `/sdd-implement`, por tarea | `gut-test-writer` (test primero) → sesión principal implementa → `godot-runner` |
 | Bug que no cede | `deep-debugger` |
 | Definición de hecho | En paralelo: `godot-runner`, `i18n-auditor`, `balance-auditor`. Después, una vez: `architecture-guardian` |
+| Cierre del spec | `system-documenter spec NNN` |
 | Antes del PR | `/code-review` (nivel bajo o medio) si el cambio es grande |
 | Commit y PR | Sesión principal |
 
 ## 6. Mantenimiento
 
+- La documentación de sistemas vive en `docs/systems/`; su `README.md` define qué contiene cada página.
 - Campos del frontmatter usados: `name`, `description`, `tools`, `model`, `effort`, `color`. La `description` es lo
   que Claude lee para decidir cuándo delegar: corta y concreta.
 - Los cambios en archivos existentes se detectan en caliente. Una carpeta `agents/` nueva necesita reiniciar la
