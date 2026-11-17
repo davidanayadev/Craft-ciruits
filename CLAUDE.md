@@ -155,7 +155,7 @@ Rules that follow from this:
   is not an inventory item. Chassis level-ups (XP threshold, then more inventory slots) are applied
   by ACTION_PLAN Tarea 2.7 from a `ChassisLevelData` `.tres`.
 - **Autoloads (singletons):** `GameManager` (global game state, not per-player state), `SaveManager`
-  (JSON encrypted with `EncryptionContext`, with a backup copy and fallback to it on corruption),
+  (JSON encrypted with `FileAccess` file encryption, AES-256, with a backup copy and fallback to it on corruption),
   `AudioManager`, plus `TutorialManager`. The architecture (ADR 0005) adds `EventBus` and `DataRegistry`
   (closed list in `specs/architecture.md` §5). Later: `OnlineManager`, `MultiplayerManager`.
 - **Per-player state lives in components, never in autoloads:** battery in `BatteryComponent`,

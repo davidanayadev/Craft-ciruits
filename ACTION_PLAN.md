@@ -274,10 +274,10 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
     - [ ] Cabecera: `world_id`, nombre, `seed`, `ruleset`, `schema_version`
     - [ ] Datos del jugador: batería, inventario, piezas equipadas
     - [ ] Datos de base: bancos construidos, estaciones de carga, cofres, items en cofres
-    - [ ] Cambios por zona, indexados por `zone_id` (cajas abiertas de la visita en curso con lo que queda dentro, items dropeados o tirados con su hora para la caducidad) y contador de visitas de la zona, que sube al salir (BALANCE.md §7.2)
+    - [ ] Cambios por zona, indexados por `zone_id` (cajas abiertas de la visita en curso con lo que queda dentro, enemigos muertos de la visita en curso por índice de aparición, items dropeados o tirados con su hora para la caducidad) y contador de visitas de la zona, que sube al salir (BALANCE.md §7.2; enemigos muertos: decisión nov 2026, spec 010)
     - [ ] Progresión: nivel de chasis, XP
     - [ ] Timestamp: última vez que se guardó
-  - [ ] Encriptación: usar `EncryptionContext` de Godot (AES-256)
+  - [ ] Encriptación: cifrado de archivos de `FileAccess` (AES-256), clave en el cliente como ofuscación; sin cifrar opcional en builds de depuración (decisión nov 2026, spec 010)
   - [ ] `schema_version` + función de migración, para que los guardados del PMV sigan cargando en v1.1
 - [ ] Tienda detrás de una clase base (PMV.md §4.5, gancho 8):
   - [ ] Crear `IStore` (clase base, sin instanciar) con `has_entitlement(id)`, `purchase(sku)`, `restore()`
@@ -286,6 +286,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 - [ ] Autosave:
   - [ ] Guardar automáticamente al entrar en base
   - [ ] Guardar automáticamente al cerrar juego (notification NOTIFICATION_WM_CLOSE_REQUEST)
+  - [ ] Guardar al pasar a segundo plano en el móvil, tras morir y al construir o mover una estructura; nunca en mitad de un viaje, la transferencia o el modo colocación (decisión nov 2026, spec 010)
 - [ ] Backup de save:
   - [ ] Crear copia de seguridad antes de sobrescribir (Perfil y Mundo)
   - [ ] Si save principal está corrupto, cargar backup

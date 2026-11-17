@@ -300,8 +300,9 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
 | **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
 | **Enemigos** | Reaparecen con el mismo contador de visitas (spec 006) |
+| **Enemigos muertos** | Se guardan mientras dura la visita: cerrar y abrir la app no los resucita ni repite su drop. Los vivos vuelven a su punto de aparición con la vida completa (decisión nov 2026, spec 010) |
 | **Material soltado por los enemigos** | Misma regla que los soltados al morir: cae al suelo como objeto caído, no depende del contador y caduca con la misma duración (decisión nov 2026, spec 008) |
-| **Quién lo aplica** | El contador y la reposición de cajas y enemigos: spec 008 (al morir) y spec 009 (al salir por el punto de salida). El guardado del contador, de las cajas abiertas y de los objetos caídos: spec 010 (decisión nov 2026, spec 008) |
+| **Quién lo aplica** | El contador y la reposición de cajas y enemigos: spec 008 (al morir) y spec 009 (al salir por el punto de salida). El guardado del contador, de las cajas abiertas, de los enemigos muertos y de los objetos caídos: spec 010 (decisión nov 2026, spec 008) |
 
 Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar batería y riesgo (ACTION_PLAN Tarea 5.2). Morir tampoco es una vía segura de recuperación: al volver a por las piezas, la zona ya está repuesta, con los enemigos de nuevo en pie (decisión nov 2026).
 
