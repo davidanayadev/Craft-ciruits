@@ -19,6 +19,7 @@ var _structures: BaseStructures
 
 func before_each() -> void:
 	GameManager.clear_visit_counts()
+	SaveTestSupport.start_world()
 	_main = MAIN_SCENE.instantiate()
 	add_child_autofree(_main)
 	_robot = _main.get_node("%Robot") as Robot
@@ -32,6 +33,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	GameManager.clear_visit_counts()
+	SaveTestSupport.reset()
 
 
 ## Walks up to node (placed next to it) and interacts, as the player does.

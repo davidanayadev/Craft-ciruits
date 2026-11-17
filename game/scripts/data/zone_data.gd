@@ -27,3 +27,8 @@ enum Kind { BASE, FARM }
 ## the base repopulates nothing.
 func counts_visits() -> bool:
 	return kind == Kind.FARM
+
+
+## Inside the playable area, edges included; the height is free (R-010-36).
+func contains_local_position(local_position: Vector3) -> bool:
+	return absf(local_position.x) <= size_m.x / 2.0 and absf(local_position.z) <= size_m.y / 2.0

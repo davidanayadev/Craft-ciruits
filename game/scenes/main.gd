@@ -20,6 +20,10 @@ extends Node
 ## become dropped items, which live under World and outside the zone.
 ## Building (spec 009) is BuildFlow's: bench, build screen, placement and the
 ## "Edit base" button.
+## The save (spec 010) is SaveFlow's: it loads the Profile and the World before
+## anything starts; Main then gives the death controller the World's ruleset
+## and travels to the saved location, or to the base. A save of a newer
+## version blocks the game: World stays frozen and nothing travels.
 
 @onready var _robot: Robot = %Robot
 @onready var _camera_rig: CameraRig = %CameraRig
@@ -36,6 +40,7 @@ extends Node
 @onready var _debug_hud: DebugHud = %DebugHud
 @onready var _build_flow: BuildFlow = %BuildFlow
 @onready var _base_structures: BaseStructures = %BaseStructures
+@onready var _save_flow: SaveFlow = %SaveFlow
 
 ## The transfer ended and the robot comes back when the travel to the base ends.
 var _respawn_pending: bool = false
@@ -62,12 +67,34 @@ func _ready() -> void:
 	_build_flow.bind(_robot, _hud, _zone_loader)
 	_dropped_items.time_service = GameManager.get_time_service()
 	_robot.throw_requested.connect(_on_throw_requested)
+	if not _save_flow.start(_robot, _hud, _debug_hud, _zone_loader):
+		_set_world_frozen(true, PlayerInput.REASON_SCREEN)
+		return
 	_wire_death()
 	_wire_travel()
-	# A new world starts in the base (R-009-08); spec 010 loads a saved one.
-	_zone_loader.travel_to(DataRegistry.get_base_zone().zone_id)
+	_travel_to_start()
 
 
+## The saved zone and position of the local player (R-010-34), or the base's
+## spawn point for a new World (R-009-08, R-010-19) or a location that cannot
+## be used (R-010-36).
+func _travel_to_start() -> void:
+	var location: LocationComponent = _robot.location
+	var base_id: Vector2i = DataRegistry.get_base_zone().zone_id
+	if not location.has_restored_location():
+		_zone_loader.travel_to(base_id)
+		return
+	var zone_id: Vector2i = location.get_restored_zone_id()
+	var local_position: Vector3 = location.get_restored_local_position()
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	if not catalog.has_zone(zone_id) or not catalog.get_zone(zone_id).contains_local_position(local_position):
+		push_error("Main: the saved location %s %s cannot be used; starting in the base." % [zone_id, local_position])
+		_zone_loader.travel_to(base_id)
+		return
+	_zone_loader.travel_to_position(zone_id, local_position)
+
+
+## After the World is loaded: its ruleset decides the deaths (R-010-20).
 func _wire_death() -> void:
 	_death_controller.ruleset = GameManager.get_ruleset()
 	_death_controller.bind(_robot)
@@ -156,7 +183,7 @@ func _on_box_opened(box: LootBox, opener: Node3D) -> void:
 
 ## Storage closes whatever screen is on top, or opens the inventory (R-005-24).
 func _on_storage_pressed() -> void:
-	if _robot.battery.is_depleted() or _zone_loader.is_travelling():
+	if _robot.battery.is_depleted() or _zone_loader.is_travelling() or _save_flow.is_game_blocked():
 		return
 	if _ui_manager.is_modal_open():
 		_ui_manager.close_top()
@@ -220,8 +247,9 @@ func _travel_to_base_for_respawn() -> void:
 func _respawn_at(zone: Zone) -> void:
 	_respawn_pending = false
 	# A rejected respawn is a bug already reported: the game stays stopped
-	# instead of running with a dead robot.
+	# instead of running with a dead robot, and the save is let go.
 	if zone == null or not _death_controller.respawn(_robot, zone.get_spawn_position()):
+		_save_flow.release_death_hold()
 		return
 	_set_world_frozen(false, PlayerInput.REASON_DEATH)
 	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_DEATH)

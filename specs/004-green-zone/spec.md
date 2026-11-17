@@ -43,7 +43,7 @@ inventario, `InventoryComponent` y su UI son de la spec 005, que conecta esa se�
 
 | ID | Requisito | Fuente |
 |---|---|---|
-| R-004-08 | THE `GameManager` autoload SHALL hold the world seed of the current game. | architecture §5 — ver pregunta 1 |
+| R-004-08 | ~~THE `GameManager` autoload SHALL hold the world seed of the current game.~~ **Sustituido por R-010-20** (spec 010, 2026-11-17): la semilla viene del Mundo cargado o creado. | architecture §5 — ver pregunta 1 |
 | R-004-09 | THE `SeededRng` utility SHALL return a `RandomNumberGenerator` derived only from the world seed and a `zone_id`, so the same inputs always give the same sequence and different `zone_id`s give different sequences. | PMV §4.5 gancho 3, architecture §11, Constitución P9 |
 | R-004-10 | THE zone generation code (box count, box positions, box contents) SHALL use only RNGs from `SeededRng`, never the global `randf()`, `randi()`, `randi_range()` or `randomize()`. | ACTION_PLAN 1.1, Constitución P9 |
 | R-004-11 | WHEN the green zone is generated twice with the same world seed, THE boxes SHALL appear in the same number and at the same positions. | ACTION_PLAN 1.1 (test) |

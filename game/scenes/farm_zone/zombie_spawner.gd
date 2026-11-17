@@ -9,6 +9,8 @@ extends Node3D
 ## and its place in the spawn order (spec 008).
 ## Zombies come from a pool that outlives the zone and go back to it when they
 ## die or when the zone is unloaded.
+## It remembers which spawn indices of the visit are dead, so a saved visit
+## comes back without them (spec 010, R-010-32).
 
 ## A zombie of this spawner left loot where it died (spec 008).
 signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
@@ -18,12 +20,23 @@ signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
 var _active: Array[Zombie] = []
 var _pool: ObjectPool
+## Spawn index of each active zombie.
+var _spawn_indices: Dictionary[Zombie, int] = {}
+## Indices of this visit that were skipped or killed.
+var _dead: Array[int] = []
 
 
-## Places the zombies of this visit on the markers. Missing zone data, pool or
-## enemies_root, or zombies still active → push_error, no change.
+## Places the zombies of this visit on the markers but dead_indices, which
+## roll no drop; their brain seed is still drawn, so the others keep theirs.
+## Missing zone data, pool or enemies_root, or zombies still active →
+## push_error, no change.
 func spawn(
-	zone: ZoneData, markers: Array[Node], world_seed: int, visit: int, pool: ObjectPool
+	zone: ZoneData,
+	markers: Array[Node],
+	world_seed: int,
+	visit: int,
+	pool: ObjectPool,
+	dead_indices: Array[int] = []
 ) -> void:
 	if zone == null or pool == null or enemies_root == null:
 		push_error("ZombieSpawner '%s': spawn() needs zone data, a pool and enemies_root." % name)
@@ -41,19 +54,32 @@ func spawn(
 	var spawns: Array[ZonePopulation.EnemySpawn] = ZonePopulation.pick_enemy_spawns(
 		markers.size(), zone.enemy_count_min, zone.enemy_count_max, zone.enemy_spawns, spawn_rng
 	)
+	_dead.clear()
 	for i: int in spawns.size():
+		var brain_seed: int = brain_rng.randi()
+		if dead_indices.has(i):
+			_mark_dead(i)
+			continue
 		var drop_seed: int = SeededRng.derive_seed_for_visit(
 			world_seed, zone.zone_id, SeededRng.STREAM_ENEMY_DROP, visit, i
 		)
 		var marker: Marker3D = markers[spawns[i].marker_index] as Marker3D
-		_place(spawns[i], marker, brain_rng.randi(), drop_seed)
+		_place(spawns[i], marker, brain_seed, drop_seed, i)
 
 
-## Returns every active zombie to the pool (R-006-27).
+## Returns every active zombie to the pool (R-006-27); the visit is over.
 func despawn_all() -> void:
 	for zombie: Zombie in _active:
 		_release(zombie)
 	_active.clear()
+	_dead.clear()
+
+
+## Skipped plus killed in this visit, sorted.
+func get_dead_indices() -> Array[int]:
+	var dead: Array[int] = _dead.duplicate()
+	dead.sort()
+	return dead
 
 
 func get_active() -> Array[Zombie]:
@@ -61,7 +87,11 @@ func get_active() -> Array[Zombie]:
 
 
 func _place(
-	enemy_spawn: ZonePopulation.EnemySpawn, marker: Marker3D, brain_seed: int, drop_seed: int
+	enemy_spawn: ZonePopulation.EnemySpawn,
+	marker: Marker3D,
+	brain_seed: int,
+	drop_seed: int,
+	spawn_index: int
 ) -> void:
 	if marker == null:
 		push_error(
@@ -85,12 +115,19 @@ func _place(
 	zombie.defeated.connect(_on_zombie_defeated)
 	zombie.loot_dropped.connect(_on_zombie_loot_dropped)
 	_active.append(zombie)
+	_spawn_indices[zombie] = spawn_index
 
 
 func _release(zombie: Zombie) -> void:
 	zombie.defeated.disconnect(_on_zombie_defeated)
 	zombie.loot_dropped.disconnect(_on_zombie_loot_dropped)
+	_spawn_indices.erase(zombie)
 	_pool.release(zombie)
+
+
+func _mark_dead(spawn_index: int) -> void:
+	if not _dead.has(spawn_index):
+		_dead.append(spawn_index)
 
 
 func _on_zombie_loot_dropped(stacks: Array[ItemStack], world_position: Vector3) -> void:
@@ -98,6 +135,8 @@ func _on_zombie_loot_dropped(stacks: Array[ItemStack], world_position: Vector3) 
 
 
 func _on_zombie_defeated(zombie: Zombie) -> void:
+	if _spawn_indices.has(zombie):
+		_mark_dead(_spawn_indices[zombie])
 	# Deferred: died arrives in the middle of a physics step, and taking the
 	# body out of the tree there removes it from the physics space mid-step.
 	_return_defeated.call_deferred(zombie)

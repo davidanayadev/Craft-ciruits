@@ -41,6 +41,7 @@ var _config: CameraConfigData
 func before_each() -> void:
 	# First: Main reads the visit counter of its zone in _ready.
 	GameManager.clear_visit_counts()
+	SaveTestSupport.start_world()
 	_config = load(CAMERA_PATH) as CameraConfigData
 	_main = MAIN_SCENE.instantiate()
 	add_child_autofree(_main)
@@ -52,6 +53,7 @@ func after_each() -> void:
 		Input.action_release(action)
 	_send_open_storage(false)
 	GameManager.clear_visit_counts()
+	SaveTestSupport.reset()
 
 
 func _loader() -> ZoneLoader:
@@ -1005,6 +1007,12 @@ func test_r_009_08_zone_slot_empty_in_scene() -> void:
 
 
 func test_r_009_08_starts_in_base_spawn() -> void:
+	# Spec 010: a new World in a new store, and one Main at a time (a save
+	# collects every persistent node of the tree, and before_each's Main has
+	# already saved its robot in the green zone).
+	_main.queue_free()
+	await wait_process_frames(1)
+	SaveTestSupport.start_world()
 	var fresh: Node = MAIN_SCENE.instantiate()
 	add_child_autofree(fresh)
 	var loader: ZoneLoader = fresh.get_node("%ZoneLoader") as ZoneLoader

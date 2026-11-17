@@ -12,7 +12,7 @@ const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
-const DEV_WORLD_PATH := "res://resources/config/dev_world.tres"
+const KNOWN_SEED := 20261115
 const SEED_A := 1001
 ## Seeds checked to give different layouts; see test_r_004_11_other_seed_other_layout.
 const SEED_B := 1002
@@ -220,9 +220,7 @@ func test_r_004_21_dev_seed_known_boxes() -> void:
 	# Pins the boxes of the development world. Number and position of the boxes
 	# depend only on seed + zone_id (BALANCE §7.2): later changes to the zone's
 	# generation must not move them.
-	var dev_world: DevWorldConfigData = load(DEV_WORLD_PATH) as DevWorldConfigData
-	assert_eq(dev_world.world_seed, 20261115, "the seed this known answer was taken with")
-	var zone: FarmZone = _generated_zone(dev_world.world_seed)
+	var zone: FarmZone = _generated_zone(KNOWN_SEED)
 	var expected: Array[Vector3] = [
 		Vector3(-12, 0, -13),
 		Vector3(-3, 0, -18),

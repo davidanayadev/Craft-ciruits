@@ -6,12 +6,23 @@ extends CanvasLayer
 ## so its text is exempt from i18n (P11 covers player-visible strings).
 ## "Fill base" (spec 009) places a structure on every free cell of the base,
 ## through BaseStructures.place and paying like a player, to measure the
-## frame rate with the base full (R-009-22).
+## frame rate with the base full (R-009-22); the saves wait until it ends, so
+## it measures placing and not one save per structure (spec 010, plan D17).
+## It also shows the world seed and a "New world" button (spec 010, R-010-65);
+## SaveFlow does the deleting.
+
+## "New world" was pressed.
+signal new_world_requested
+
+## The hold of the saves while "Fill base" places.
+const HOLD_FILL_BASE := &"fill_base"
 
 @onready var _fps_label: Label = %FpsLabel
 @onready var _xp_label: Label = %XpLabel
 @onready var _refresh: Timer = %Refresh
 @onready var _fill_base_button: Button = %FillBaseButton
+@onready var _seed_label: Label = %SeedLabel
+@onready var _new_world_button: Button = %NewWorldButton
 
 var _player: Robot = null
 var _structures: BaseStructures = null
@@ -22,6 +33,7 @@ func _ready() -> void:
 	if not visible:
 		_refresh.stop()
 	_fill_base_button.pressed.connect(fill_base)
+	_new_world_button.pressed.connect(_on_new_world_button_pressed)
 
 
 ## Shows the XP of the given player and follows its changes.
@@ -29,6 +41,10 @@ func bind(player: Robot) -> void:
 	_player = player
 	player.experience.xp_changed.connect(_on_xp_changed)
 	_on_xp_changed(player.experience.get_total())
+
+
+func show_world_seed(world_seed: int) -> void:
+	_seed_label.text = "Seed: %d" % world_seed
 
 
 ## Where "Fill base" places; without it the button does nothing.
@@ -44,6 +60,12 @@ func fill_base() -> void:
 	var recipe: RecipeData = _first_structure_recipe()
 	if recipe == null:
 		return
+	SaveManager.hold_saves(HOLD_FILL_BASE)
+	_place_everywhere(recipe)
+	SaveManager.release_saves(HOLD_FILL_BASE)
+
+
+func _place_everywhere(recipe: RecipeData) -> void:
 	var area: Vector2i = _structures.grid_config.area_size_cells
 	for y: int in area.y:
 		for x: int in area.x:
@@ -65,6 +87,10 @@ func _first_structure_recipe() -> RecipeData:
 
 func _on_refresh_timeout() -> void:
 	_fps_label.text = "FPS: %d" % Engine.get_frames_per_second()
+
+
+func _on_new_world_button_pressed() -> void:
+	new_world_requested.emit()
 
 
 func _on_xp_changed(total: int) -> void:

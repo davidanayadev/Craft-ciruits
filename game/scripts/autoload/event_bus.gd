@@ -25,6 +25,14 @@ signal zone_changed(zone_id: Vector2i)
 ## BaseStructures, once per placement (spec 009).
 @warning_ignore("unused_signal")
 signal structure_built(structure_uid: String)
+## The World was written to disk. Emitted by SaveManager, once per save,
+## with the reason that asked for it (spec 010, R-010-44).
+@warning_ignore("unused_signal")
+signal game_saved(reason: StringName)
+## A placed structure moved to another cell. Emitted by BaseStructures, once
+## per move (spec 010); the save listens.
+@warning_ignore("unused_signal")
+signal structure_moved(structure_uid: String)
 ## A player recharged at a charging station. Emitted by the station (spec 009);
 ## spec 010 saves on it.
 @warning_ignore("unused_signal")

@@ -8,6 +8,8 @@ extends Zone
 ## Where the boxes are never changes; what they hold and which enemies there
 ## are depend on the visit (BALANCE §7.2). Enemies come from a pool that
 ## outlives the zone (spec 006). repopulate() starts a new visit (spec 008).
+## populate() brings back a saved visit: its open boxes and its dead enemies
+## (spec 010).
 
 ## A box of this zone was interacted with while it held items (spec 005).
 ## Relayed here so whoever loads the zone connects one signal, not every box.
@@ -17,10 +19,15 @@ signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
 @export var box_scene: PackedScene
 
+const _BOXES_KEY := "boxes"
+const _MARKER_KEY := "marker"
+const _DEAD_ENEMIES_KEY := "dead_enemies"
+
 var _boxes: Array[LootBox] = []
 ## Marker of each box, in the same order as _boxes.
 var _box_marker_indices: Array[int] = []
 var _generated: bool = false
+var _visit: int = ZonePopulation.FIRST_VISIT
 
 @onready var _box_markers: Node3D = %BoxMarkers
 @onready var _boxes_root: Node3D = %Boxes
@@ -46,6 +53,7 @@ func generate(world_seed: int, visit: int) -> void:
 		push_error("FarmZone '%s': data and box_scene must be assigned." % name)
 		return
 	_generated = true
+	_visit = visit
 	var markers: Array[Node] = _box_markers.get_children()
 	var rng: RandomNumberGenerator = SeededRng.create(
 		world_seed, data.zone_id, SeededRng.STREAM_BOX_PLACEMENT
@@ -65,6 +73,7 @@ func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
 	if not _generated:
 		push_error("FarmZone '%s': repopulate() needs generate() first." % name)
 		return
+	_visit = visit
 	despawn_enemies()
 	spawn_enemies(world_seed, visit, pool)
 	# Replaced, not reset: a new box is cheaper to get right than undoing the
@@ -79,17 +88,53 @@ func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
 		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed, visit)
 
 
+## generate() plus the saved state of that visit (get_visit_state(), spec
+## 010): the boxes that were open come back open with what was left, and the
+## dead enemies stay dead. Same seed and visit, so the boxes are the same
+## (R-010-35). {} is a visit nothing happened in yet.
+func populate(world_seed: int, visit: int, pool: ObjectPool, saved_state: Dictionary) -> void:
+	generate(world_seed, visit)
+	if not _generated:
+		return
+	_restore_boxes(saved_state.get(_BOXES_KEY, []))
+	spawn_enemies(world_seed, visit, pool, _saved_dead_enemies(saved_state))
+
+
+## The visit given to generate() or repopulate().
+func get_visit() -> int:
+	return _visit
+
+
+## {"boxes": [{"marker": int, "contents": {...}}], "dead_enemies": [int]} of
+## the visit in progress: the open boxes only, by marker.
+func get_visit_state() -> Dictionary:
+	var boxes: Array = []
+	for i: int in _boxes.size():
+		var box_state: Variant = _boxes[i].get_save_state()
+		if box_state == null:
+			continue
+		var entry: Dictionary = box_state
+		entry[_MARKER_KEY] = _box_marker_indices[i]
+		boxes.append(entry)
+	return {_BOXES_KEY: boxes, _DEAD_ENEMIES_KEY: _zombie_spawner.get_dead_indices()}
+
+
 func get_boxes() -> Array[LootBox]:
 	return _boxes
 
 
-## Places the zombies of the given visit, taken from the pool. Calling it
-## again without despawn_enemies() → push_error, no change.
-func spawn_enemies(world_seed: int, visit: int, pool: ObjectPool) -> void:
+## Places the zombies of the given visit, taken from the pool, but the dead
+## ones (spec 010). Calling it again without despawn_enemies() → push_error,
+## no change.
+func spawn_enemies(
+	world_seed: int, visit: int, pool: ObjectPool, dead_indices: Array[int] = []
+) -> void:
 	if data == null:
 		push_error("FarmZone '%s': data must be assigned." % name)
 		return
-	_zombie_spawner.spawn(data, _enemy_markers.get_children(), world_seed, visit, pool)
+	_zombie_spawner.spawn(
+		data, _enemy_markers.get_children(), world_seed, visit, pool, dead_indices
+	)
 
 
 ## Returns every zombie to the pool. Whoever unloads the zone calls it first
@@ -120,6 +165,34 @@ func _place_box(marker: Marker3D, marker_index: int, world_seed: int, visit: int
 	box.opened.connect(_on_box_opened.bind(box))
 	_boxes.append(box)
 	_box_marker_indices.append(marker_index)
+
+
+## Each saved box opened again on its marker; a marker with no box → push_error.
+func _restore_boxes(saved: Variant) -> void:
+	if not saved is Array:
+		push_error("FarmZone '%s': saved boxes %s are lost." % [name, saved])
+		return
+	for entry: Variant in saved as Array:
+		var fields: Dictionary = entry if entry is Dictionary else {}
+		var index: int = _box_marker_indices.find(SaveFields.to_int(fields.get(_MARKER_KEY), -1))
+		if index == -1:
+			push_error("FarmZone '%s': saved box %s has no box on its marker." % [name, entry])
+			continue
+		_boxes[index].restore_opened(fields)
+
+
+func _saved_dead_enemies(saved_state: Dictionary) -> Array[int]:
+	var dead: Array[int] = []
+	var saved: Variant = saved_state.get(_DEAD_ENEMIES_KEY, [])
+	if not saved is Array:
+		push_error("FarmZone '%s': saved dead enemies %s are lost." % [name, saved])
+		return dead
+	for index: Variant in saved as Array:
+		if SaveFields.is_whole_number(index):
+			dead.append(SaveFields.to_int(index, 0))
+		else:
+			push_error("FarmZone '%s': saved dead enemy %s is lost." % [name, index])
+	return dead
 
 
 func _on_box_opened(opener: Node3D, box: LootBox) -> void:

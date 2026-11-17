@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/entities/robot.tscn" id="3_robot"]
@@ -23,6 +23,8 @@
 [ext_resource type="Resource" path="res://resources/config/base_grid.tres" id="22_grid"]
 [ext_resource type="PackedScene" path="res://scenes/ui/loading_screen.tscn" id="23_loading"]
 [ext_resource type="Script" path="res://scenes/base/build_flow.gd" id="24_build_flow"]
+[ext_resource type="Script" path="res://scenes/zones/zone_memory.gd" id="25_zone_memory"]
+[ext_resource type="Script" path="res://scenes/save/save_flow.gd" id="26_save_flow"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -48,16 +50,20 @@ unique_name_in_owner = true
 script = ExtResource("11_pool")
 scene = ExtResource("16_dropped_item")
 
-[node name="DroppedItems" type="Node3D" parent="World" node_paths=PackedStringArray("pool")]
+[node name="DroppedItems" type="Node3D" parent="World" node_paths=PackedStringArray("pool") groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("17_dropped_items")
 pool = NodePath("../DroppedItemPool")
 config = ExtResource("18_dropped_config")
 
-[node name="BaseStructures" type="Node" parent="World"]
+[node name="BaseStructures" type="Node" parent="World" groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("21_structures")
 grid_config = ExtResource("22_grid")
+
+[node name="ZoneMemory" type="Node" parent="World" groups=["persistent"]]
+unique_name_in_owner = true
+script = ExtResource("25_zone_memory")
 
 [node name="Players" type="Node3D" parent="World"]
 unique_name_in_owner = true
@@ -77,7 +83,7 @@ unique_name_in_owner = true
 script = ExtResource("19_death")
 dropped_items = NodePath("../World/DroppedItems")
 
-[node name="ZoneLoader" type="Node" parent="." node_paths=PackedStringArray("zone_slot", "players_root", "zombie_pool", "impact_pool", "dropped_item_pool", "dropped_items", "base_structures")]
+[node name="ZoneLoader" type="Node" parent="." node_paths=PackedStringArray("zone_slot", "players_root", "zombie_pool", "impact_pool", "dropped_item_pool", "dropped_items", "base_structures", "zone_memory")]
 unique_name_in_owner = true
 script = ExtResource("20_loader")
 zone_slot = NodePath("../World/ZoneSlot")
@@ -87,6 +93,12 @@ impact_pool = NodePath("../World/ImpactPool")
 dropped_item_pool = NodePath("../World/DroppedItemPool")
 dropped_items = NodePath("../World/DroppedItems")
 base_structures = NodePath("../World/BaseStructures")
+zone_memory = NodePath("../World/ZoneMemory")
+
+[node name="SaveFlow" type="Node" parent="." node_paths=PackedStringArray("ui_manager")]
+unique_name_in_owner = true
+script = ExtResource("26_save_flow")
+ui_manager = NodePath("../UI/UIManager")
 
 [node name="BuildFlow" type="Node" parent="." node_paths=PackedStringArray("ui_manager", "base_structures")]
 unique_name_in_owner = true

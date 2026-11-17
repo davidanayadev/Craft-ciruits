@@ -7,6 +7,8 @@ extends GutTest
 ## is not taken stays (R-005-20) and the box is disabled when it becomes
 ## empty, not when it is opened (R-005-21 replaces R-004-24).
 
+## Spec 010: an opened box saves its contents and is restored without rolling
+## (R-010-27).
 const LOOT_BOX_SCENE := preload("res://scenes/entities/loot_box.tscn")
 const BASIC_BOX_PATH := "res://resources/loot/basic_box.tres"
 const PROMPT_KEY := &"PROMPT_OPEN"
@@ -254,3 +256,78 @@ func test_r_004_01_box_is_an_obstacle() -> void:
 	var box: LootBox = _new_box(SEED_A)
 	var shapes: Array[Node] = box.find_children("*", "CollisionShape3D", false, false)
 	assert_eq(shapes.size(), 1, "the box body has a collider")
+
+
+func test_r_010_27_save_state_null_when_closed() -> void:
+	var box: LootBox = _new_box(SEED_A)
+	var state: Variant = box.get_save_state()
+	assert_true(state == null, "a closed box has nothing to save")
+
+
+func test_r_010_27_save_state_holds_contents_once_opened() -> void:
+	var box: LootBox = _new_box(SEED_A)
+	_open(box)
+	var state: Variant = box.get_save_state()
+	assert_true(state is Dictionary, "a dictionary once opened")
+	if not state is Dictionary:
+		return
+	var saved: Dictionary = state
+	var expected: Dictionary = {"contents": box.get_contents().to_save_data()}
+	assert_eq(saved, expected, "exactly the contents of the box")
+
+
+func test_r_010_27_restore_opened() -> void:
+	var source: LootBox = _new_box(SEED_A)
+	_open(source)
+	var state: Variant = source.get_save_state()
+	var saved: Dictionary = state as Dictionary
+	var target: LootBox = _new_box(SEED_B)
+	target.restore_opened(saved)
+	assert_true(target.is_opened(), "opened")
+	assert_eq(_contents(target), _contents(source), "the saved stacks, not a new roll")
+	assert_eq(
+		target.get_contents().get_slot_count(),
+		source.get_contents().get_slot_count(),
+		"slot count of the saved slots"
+	)
+	var closed_mesh: MeshInstance3D = target.get_node("%ClosedMesh") as MeshInstance3D
+	var opened_mesh: MeshInstance3D = target.get_node("%OpenedMesh") as MeshInstance3D
+	assert_false(closed_mesh.visible, "closed look hidden")
+	assert_true(opened_mesh.visible, "opened look shown")
+	assert_true(_interactable(target).enabled, "it still has loot")
+	assert_signal_not_emitted(target, "loot_generated", "restoring is not a roll")
+	assert_signal_not_emitted(target, "opened", "restoring is not an opening")
+
+
+func test_r_010_27_restored_box_disables_when_emptied() -> void:
+	var source: LootBox = _new_box(SEED_A)
+	_open(source)
+	var state: Variant = source.get_save_state()
+	var saved: Dictionary = state as Dictionary
+	var target: LootBox = _new_box(SEED_B)
+	target.restore_opened(saved)
+	assert_true(_take_all(_new_taker(5), target).ok, "everything is taken")
+	assert_false(_interactable(target).enabled, "emptied later, disabled")
+
+
+func test_r_010_27_restore_empty_contents_disables() -> void:
+	for slots: Array in [[null, null], []]:
+		var box: LootBox = _new_box(SEED_A)
+		box.restore_opened({"contents": {"slots": slots}})
+		assert_true(box.is_opened(), "opened")
+		assert_false(_interactable(box).enabled, "nothing left, disabled (%s)" % [slots])
+		var opened_mesh: MeshInstance3D = box.get_node("%OpenedMesh") as MeshInstance3D
+		assert_true(opened_mesh.visible, "opened look")
+
+
+func test_r_010_27_restore_on_opened_box_reports_error() -> void:
+	var box: LootBox = _new_box(SEED_A)
+	_open(box)
+	var before: Dictionary[StringName, int] = _contents(box)
+	var other: LootBox = _new_box_with_table(_fixed_table({&"iron": 1}))
+	_open(other)
+	var state: Variant = other.get_save_state()
+	var saved: Dictionary = state as Dictionary
+	box.restore_opened(saved)
+	assert_push_error_count(1)
+	assert_eq(_contents(box), before, "nothing changed")

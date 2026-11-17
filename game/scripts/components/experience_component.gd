@@ -8,6 +8,10 @@ extends Node
 
 signal xp_changed(total: int)
 
+## Save contract (spec 010, architecture §10.2).
+const SAVE_KEY := &"experience"
+const _TOTAL_KEY := "total"
+
 var _total: int = 0
 
 
@@ -49,3 +53,25 @@ func reset() -> void:
 
 func get_total() -> int:
 	return _total
+
+
+func get_save_key() -> StringName:
+	return SAVE_KEY
+
+
+func to_save_data() -> Dictionary:
+	return {_TOTAL_KEY: _total}
+
+
+## xp_changed when the total changes; a level-up is never replayed on load
+## (R-010-09, D15). Missing, fractional or negative → push_error, no change.
+func from_save_data(data: Dictionary) -> void:
+	var value: Variant = data.get(_TOTAL_KEY)
+	var total: int = SaveFields.to_int(value, -1)
+	if total < 0:
+		push_error("ExperienceComponent '%s': invalid saved total in %s; no change." % [name, data])
+		return
+	if total == _total:
+		return
+	_total = total
+	xp_changed.emit(_total)

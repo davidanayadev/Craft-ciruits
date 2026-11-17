@@ -27,6 +27,7 @@ func before_all() -> void:
 func before_each() -> void:
 	# First: Main reads the visit counter of its zone in _ready.
 	GameManager.clear_visit_counts()
+	SaveTestSupport.start_world()
 	if _runner_layer != null:
 		_runner_layer.visible = false
 	_main = MAIN_SCENE.instantiate()
@@ -43,6 +44,7 @@ func before_each() -> void:
 func after_each() -> void:
 	Input.action_release(&"attack")
 	GameManager.clear_visit_counts()
+	SaveTestSupport.reset()
 	if _runner_layer != null:
 		_runner_layer.visible = true
 

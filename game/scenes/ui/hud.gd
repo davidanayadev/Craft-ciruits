@@ -7,7 +7,8 @@ extends Control
 ## (spec 005). A large attack button sits at the bottom right, under the
 ## interact button, and the screen edges flash red when the player is hit
 ## (spec 007). An "Edit base" button under the battery shows only while the
-## base is loaded (spec 009, R-009-59).
+## base is loaded (spec 009, R-009-59). The short message also shows the
+## save notices and "Game saved" after a recharge at a station (spec 010).
 ## It only listens to the signals of the local player it is bound to and never
 ## reads state in _process (architecture §9.5).
 
@@ -19,6 +20,8 @@ signal storage_pressed
 signal attack_held_changed(held: bool)
 ## The player pressed "Edit base" (spec 009).
 signal edit_base_pressed
+
+const MSG_GAME_SAVED := &"MSG_GAME_SAVED"
 
 var _has_target: bool = false
 var _input_blocked: bool = false
@@ -40,6 +43,7 @@ func _ready() -> void:
 	_attack_button.held_changed.connect(_on_attack_button_held_changed)
 	_message_timer.timeout.connect(_on_message_timer_timeout)
 	_edit_base_button.pressed.connect(_on_edit_base_button_pressed)
+	EventBus.game_saved.connect(_on_game_saved)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -59,6 +63,15 @@ func bind(player: Robot) -> void:
 	player.inventory.overflowed.connect(_on_inventory_overflowed)
 	player.player_input.blocked_changed.connect(_on_input_blocked_changed)
 	_on_input_blocked_changed(player.player_input.is_input_blocked())
+
+
+## Shows a translation key in the short message for its usual time (spec 005);
+## a new one replaces the one showing.
+func show_notice(message_key: StringName) -> void:
+	# A translation key: the label translates its own text.
+	_message_label.text = String(message_key)
+	_message_label.visible = true
+	_message_timer.start()
 
 
 ## The button exists only while the base is the loaded zone (R-009-59).
@@ -119,10 +132,13 @@ func _on_edit_base_button_pressed() -> void:
 
 
 func _on_inventory_overflowed(_leftovers: Array[ItemStack]) -> void:
-	# A translation key: the label translates its own text.
-	_message_label.text = String(InventoryComponent.MSG_INVENTORY_FULL)
-	_message_label.visible = true
-	_message_timer.start()
+	show_notice(InventoryComponent.MSG_INVENTORY_FULL)
+
+
+## Only the save of a recharge is announced; the others are silent (R-010-62).
+func _on_game_saved(reason: StringName) -> void:
+	if reason == SaveManager.REASON_RECHARGED:
+		show_notice(MSG_GAME_SAVED)
 
 
 func _on_message_timer_timeout() -> void:

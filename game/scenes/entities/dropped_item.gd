@@ -58,7 +58,7 @@ func get_contents() -> InventoryComponent:
 	return _contents
 
 
-## Its state in JSON types only, as spec 010 will save it.
+## Its state in JSON types only, as spec 010 saves it (R-010-29).
 func to_data() -> Dictionary:
 	var stacks: Array[Dictionary] = []
 	for stack: ItemStack in _contents.get_slots():
@@ -66,8 +66,8 @@ func to_data() -> Dictionary:
 			stacks.append({"item_id": String(stack.item.id), "quantity": stack.quantity})
 	return {
 		"uid": uid,
-		"zone_id": [zone_id.x, zone_id.y],
-		"position": [local_position.x, local_position.y, local_position.z],
+		"zone_id": SaveFields.vector2i_to_array(zone_id),
+		"position": SaveFields.vector3_to_array(local_position),
 		"dropped_at": dropped_at_unix,
 		"stacks": stacks,
 	}

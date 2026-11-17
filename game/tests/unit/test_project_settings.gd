@@ -101,6 +101,18 @@ func test_r_004_08_19_autoloads_registered() -> void:
 	assert_eq(_get_string("autoload/DataRegistry"), "*res://scripts/autoload/data_registry.gd")
 
 
+## Spec 010: SaveManager reads the World into GameManager, so it loads after it.
+func test_r_010_02_save_manager_autoload_after_game_manager() -> void:
+	assert_eq(_get_string("autoload/SaveManager"), "*res://scripts/autoload/save_manager.gd")
+	var root: Window = get_tree().root
+	var game_manager: Node = root.get_node_or_null("GameManager")
+	var save_manager: Node = root.get_node_or_null("SaveManager")
+	assert_not_null(save_manager, "SaveManager is a node under /root")
+	if game_manager == null or save_manager == null:
+		return
+	assert_gt(save_manager.get_index(), game_manager.get_index(), "after GameManager")
+
+
 func test_r_004_12_interaction_physics_layer_named() -> void:
 	# The name is what the editor shows; the number lives in the component.
 	var setting: String = "layer_names/3d_physics/layer_%d" % InteractableComponent.PHYSICS_LAYER
@@ -127,6 +139,14 @@ func test_r_005_33_back_does_not_quit() -> void:
 	# close the game, so the engine's own "quit on back" stays off.
 	var quit_on_go_back: bool = ProjectSettings.get_setting("application/config/quit_on_go_back")
 	assert_false(quit_on_go_back, "the Android back action does not quit the game")
+
+
+func test_r_010_64_setting_off_by_default() -> void:
+	# Plain JSON saves are a debug-only opt-in (spec 010, R-010-64).
+	var setting: String = "cyberscrap/save/plain_json_in_debug"
+	assert_true(ProjectSettings.has_setting(setting), "the setting exists")
+	var plain_json: bool = ProjectSettings.get_setting(setting, true)
+	assert_false(plain_json, "off by default")
 
 
 func _get_rule(rules: Dictionary, path: String) -> int:

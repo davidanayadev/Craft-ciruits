@@ -36,7 +36,7 @@ zombies y para tirar items del inventario.
 | ID | Requisito | Fuente |
 |---|---|---|
 | R-008-01 | THE game SHALL define a `RulesetData` resource with a stable id and the fields that describe the death reaction of PMV §2.4, and one `.tres`, `NORMAL`, listed in the `DataCatalog`. | ACTION_PLAN 1.5, PMV §4.5 gancho 4, architecture §8 |
-| R-008-02 | THE `GameManager` SHALL hold the ruleset of the current world, taken from the dev world config until spec 010 reads it from the World file. | architecture §5, PMV §4.5 gancho 4 |
+| R-008-02 | ~~THE `GameManager` SHALL hold the ruleset of the current world, taken from the dev world config until spec 010 reads it from the World file.~~ **Sustituido por R-010-20** (spec 010, 2026-11-17): el ruleset viene del Mundo cargado o creado. | architecture §5, PMV §4.5 gancho 4 |
 | R-008-03 | THE reaction to a player's death SHALL be read from the world's `RulesetData`; no script SHALL branch on a ruleset id or name. | ACTION_PLAN 1.5, PMV §2.4 |
 | R-008-04 | THE battery after reappearing (BALANCE §1.1), the lifetime of dropped objects (BALANCE §7.2) and the duration of the transfer screen (BALANCE §11) SHALL come from data resources, not script literals. | Constitución P2 — pregunta 5 |
 | R-008-05 | THE `EnemyData` resource SHALL gain a drop table, and the slow and fast zombie `.tres` SHALL carry the material of BALANCE §3.1, rolled with the range rule of BALANCE §2.1. | ACTION_PLAN 1.5, BALANCE §2.1, §3.1 — pregunta 6 |

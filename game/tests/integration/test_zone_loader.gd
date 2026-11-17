@@ -241,7 +241,7 @@ func test_r_009_14_leaving_farm_counts_one_visit() -> void:
 	await _leave_by_exit()
 	assert_true(_loader.get_current_zone() is BaseZone, "the exit leads to the base")
 	assert_eq(GameManager.get_visit_count(GREEN_ZONE_ID), ZonePopulation.FIRST_VISIT + 1, "one visit")
-	assert_signal_emit_count(GameManager, "zone_visit_changed", 1, "counted once")
+	assert_signal_emit_count(GameManager, "zone_visit_counted", 1, "counted once")
 
 
 func test_r_009_15_entering_counts_nothing() -> void:

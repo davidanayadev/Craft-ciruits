@@ -5,6 +5,7 @@ extends GutTest
 ## §7 and §7.1; update both together.
 ## Spec 009: every zone has a kind and a scene, and the base is zone (0, -1)
 ## (R-009-01, architecture §14).
+## Spec 010: a local position is inside the zone's playable area (R-010-36).
 
 const GREEN_ZONE_PATH := "res://resources/zones/green_zone.tres"
 const BASE_ZONE_PATH := "res://resources/zones/base.tres"
@@ -102,6 +103,37 @@ func test_r_009_01_base_zone_id_from_architecture() -> void:
 	assert_eq(base.box_count_max, 0, "no boxes in the base")
 	assert_eq(base.enemy_count_max, 0, "no enemies in the base (safe zone)")
 	assert_eq(base.enemy_spawns.size(), 0, "no enemy spawns in the base")
+
+
+func test_r_010_36_contains_local_position() -> void:
+	var zone: ZoneData = ZoneData.new()
+	zone.size_m = Vector2(20.0, 10.0)
+	assert_true(zone.contains_local_position(Vector3.ZERO), "the centre")
+	assert_true(zone.contains_local_position(Vector3(10.0, 0.0, 5.0)), "corner edge included")
+	assert_true(zone.contains_local_position(Vector3(-10.0, 0.0, -5.0)), "opposite corner included")
+	assert_true(zone.contains_local_position(Vector3(0.0, 999.0, 0.0)), "y is ignored")
+	assert_false(zone.contains_local_position(Vector3(10.01, 0.0, 0.0)), "beyond x")
+	assert_false(zone.contains_local_position(Vector3(-10.01, 0.0, 0.0)), "beyond -x")
+	assert_false(zone.contains_local_position(Vector3(0.0, 0.0, 5.01)), "beyond z (depth uses size_m.y)")
+	assert_false(zone.contains_local_position(Vector3(0.0, 0.0, -5.01)), "beyond -z")
+
+
+func test_r_010_36_contains_local_position_real_zones() -> void:
+	var base: ZoneData = load(BASE_ZONE_PATH) as ZoneData
+	if _zone == null or base == null:
+		fail_test("green_zone.tres or base.tres is missing")
+		return
+	for zone: ZoneData in [_zone, base]:
+		var half_x: float = zone.size_m.x / 2.0
+		var half_z: float = zone.size_m.y / 2.0
+		assert_true(zone.contains_local_position(Vector3(half_x, 0.0, half_z)), "edge of %s" % zone.scene_path)
+		assert_true(zone.contains_local_position(Vector3.ZERO), "centre of %s" % zone.scene_path)
+		assert_false(
+			zone.contains_local_position(Vector3(half_x + 0.5, 0.0, 0.0)), "outside x of %s" % zone.scene_path
+		)
+		assert_false(
+			zone.contains_local_position(Vector3(0.0, 0.0, -half_z - 0.5)), "outside z of %s" % zone.scene_path
+		)
 
 
 func test_r_009_01_scene_root_matches_kind_and_data() -> void:
