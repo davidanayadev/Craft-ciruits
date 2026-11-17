@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Borrador (2026-11-16) |
+| **Estado** | Aprobado (2026-11-17) |
 | **Tarea(s) ACTION_PLAN** | 2.1, 2.8, 2.2 |
 | **Fuentes** | ACTION_PLAN.md Tareas 2.1, 2.8, 2.2 (y 1.5, 2.3, 2.4, 2.5, 2.6, 4.1, 4.3, 4.4 para los límites) · PMV.md §2.1, §2.3, §2.4, §3.2, §4.5 ganchos 2 y 7, §10 (estación de carga crafteable; cajas y viaje; muerte) · BALANCE.md §1.1, §1.2, §5.1, §5.3, §5.6, §7, §7.2, §11 · SPECS.md §32 (base libre, v1.1) · architecture.md §3, §5, §6, §7, §8, §9.1, §9.2, §9.5, §10.2, §10.3, §12, §14 · Constitución P2, P3, P4, P6, P8, P9, P11, P12, P13, P14 |
 | **Depende de** | 003 (`BatteryComponent`), 004 (`FarmZone`, `ZoneData`, `InteractableComponent`), 005 (`UIManager`, `InventoryComponent`), 006 (`ZombieSpawner`, `ObjectPool`), 008 (contador de visitas, repoblación, objeto caído, reaparición, `RulesetData`; debe estar *Hecho* antes de implementar esta) |
@@ -43,7 +43,7 @@ cuadrícula de la base, y morir te devuelve a la base. Cierra el bucle de la Fas
 | R-009-05 | THE battery, inventory and XP of the robot SHALL not change because of a travel. | architecture §6 (verificación), BALANCE §1.2 |
 | R-009-06 | IF `travel_to` receives a `zone_id` that is not in the catalog, or is called while another travel is in progress, THEN THE `ZoneLoader` SHALL report the error and leave the current zone untouched. | Constitución §2 (errores) |
 | R-009-07 | WHILE a travel is in progress, THE game SHALL show a loading screen with texts only from translation keys in ES and EN, and THE robot SHALL not move, attack, interact, drain battery or take hits. | architecture §6, Constitución P11 — pregunta 9 |
-| R-009-08 | WHEN a new game starts, THE robot SHALL appear at the spawn point of the base; `Main` SHALL no longer place the green zone in `ZoneSlot` itself. | ACTION_PLAN Fase 1 (criterio), 2.1 — pregunta 10 |
+| R-009-08 | WHEN a new game starts, THE robot SHALL appear at the spawn point of the base; `Main` SHALL no longer place the green zone in `ZoneSlot` itself (replaces R-004-05). | ACTION_PLAN Fase 1 (criterio), 2.1 — pregunta 10 |
 | R-009-09 | THE current zone SHALL be held by `GameManager` as global state and set only by `ZoneLoader`. | architecture §5 |
 
 ### 3.2 Puntos de salida y viaje
@@ -147,7 +147,7 @@ cuadrícula de la base, y morir te devuelve a la base. Cierra el bucle de la Fas
 | ID | Requisito | Fuente |
 |---|---|---|
 | R-009-61 | THE game SHALL define a `RecipeData` resource with a stable id, ingredients, result, `station`, `tier` and `requires`, listed in the `DataCatalog`, with one `.tres`: the charging station, at the cost of BALANCE §5.3, `WORKBENCH`, tier 1, no requirements. | ACTION_PLAN 2.4, 2.2, PMV §4.5 gancho 5, BALANCE §5.3 — pregunta 1 |
-| R-009-62 | THE check that an inventory holds the ingredients of a recipe, and the removal of those ingredients, SHALL be pure code in `CraftingSystem`, taking the inventory and the recipe by parameter and returning an `ActionResult`; a failed payment SHALL change nothing. | ACTION_PLAN 2.4, architecture §3 regla 4, §9.2 — pregunta 1 |
+| R-009-62 | THE check that an inventory holds the ingredients of a recipe SHALL be pure code in `CraftingSystem` over the slots of that inventory and the recipe, and THE removal of those ingredients SHALL be done by the owner of the inventory (`InventoryComponent`) through an all-or-nothing pure rule of `InventoryRules`, returning an `ActionResult`; a failed payment SHALL change nothing. | ACTION_PLAN 2.4, architecture §3 regla 4, §9.2 — pregunta 1 |
 | R-009-63 | THE repair bench SHALL be interactable through `InteractableComponent`, with its prompt from a translation key in ES and EN. | ACTION_PLAN 2.4, architecture §9.1 |
 | R-009-64 | WHEN the local player interacts with the repair bench, THE game SHALL open through `UIManager` a build screen that lists the structure recipes with their name and cost, with texts only from translation keys in ES and EN. | ACTION_PLAN 2.2, architecture §9.5 — pregunta 1 |
 | R-009-65 | WHEN the player picks an enabled recipe in the build screen, THE screen SHALL close and placement mode SHALL start for its structure, without spending anything yet (the cost is charged in R-009-35). | PMV §10 (spec 009) — pregunta 1 |
