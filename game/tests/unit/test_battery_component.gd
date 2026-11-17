@@ -209,3 +209,15 @@ func test_r_003_14_two_components_do_not_share_state() -> void:
 	assert_lt(_battery.get_current(), _battery.get_maximum(), "the ticked component drained")
 	assert_eq(other.get_current(), other.get_maximum(), "the other one is untouched")
 	assert_eq(_config.maximum, 100.0, "the shared resource is not modified")
+
+
+## Spec 009: the station recharges through this method, which reports like any
+## other change (R-009-48).
+func test_r_009_48_recharge_full_emits_change() -> void:
+	_battery.consume(40.0)
+	_battery.recharge_full()
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "full")
+	assert_signal_emit_count(_battery, "battery_changed", 2, "one for the drain, one for the recharge")
+	assert_signal_emitted_with_parameters(
+		_battery, "battery_changed", [_battery.get_maximum(), _battery.get_maximum()]
+	)

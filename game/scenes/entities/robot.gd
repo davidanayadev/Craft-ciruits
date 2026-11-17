@@ -10,12 +10,17 @@ extends CharacterBody3D
 ## the XP of the enemies it kills (spec 007).
 ## It asks to throw items and takes its place again after a death, but it does
 ## not know the dropped items nor the ruleset (spec 008).
+## It asks to build at the repair bench, and tells the base grid how much
+## floor it covers, so no structure is placed on it (spec 009).
 
 ## A hit landed on this robot. Degradation of pieces connects here (spec 014).
 signal hit_received(damage: float, attacker: Node3D)
 ## The player wants quantity of that inventory slot on the ground. Whoever
 ## owns the dropped items makes the change (spec 008).
 signal throw_requested(player: Robot, slot_index: int, quantity: int)
+## The player picked a recipe to build; nothing is charged until it is placed
+## (R-009-65). Whoever owns the placement flow opens it.
+signal build_requested(player: Robot, recipe: RecipeData)
 
 ## Group of every player entity; set in robot.tscn. Enemies look their target
 ## up here instead of holding a reference, so co-op needs no change.
@@ -40,6 +45,7 @@ var player_uid: String = ""
 @onready var melee: MeleeAttackComponent = %MeleeAttack
 @onready var experience: ExperienceComponent = %Experience
 @onready var _animation_player: AnimationPlayer = %AnimationPlayer
+@onready var _body_shape: CollisionShape3D = %BodyShape
 
 
 func _ready() -> void:
@@ -82,11 +88,33 @@ func request_throw(slot_index: int, quantity: int) -> void:
 	throw_requested.emit(self, slot_index, quantity)
 
 
+## Asks to build what recipe makes. A robot with a depleted battery asks for nothing.
+func request_build(recipe: RecipeData) -> void:
+	if battery.is_depleted():
+		return
+	build_requested.emit(self, recipe)
+
+
+## Radius of the floor circle the robot stands on (R-009-58).
+func get_footprint_radius() -> float:
+	var capsule: CapsuleShape3D = _body_shape.shape as CapsuleShape3D
+	if capsule == null:
+		push_error("Robot '%s': its body shape is not a capsule." % name)
+		return 0.0
+	return capsule.radius
+
+
+## Places itself at world_position, standing still: how it arrives in a zone
+## after a travel (spec 009).
+func place_at(world_position: Vector3) -> void:
+	global_position = world_position
+	velocity = Vector3.ZERO
+
+
 ## Places itself at world_position, standing still, and charges
 ## battery_amount points: how a dead robot comes back (spec 008).
 func respawn_at(world_position: Vector3, battery_amount: float) -> void:
-	global_position = world_position
-	velocity = Vector3.ZERO
+	place_at(world_position)
 	battery.add(battery_amount)
 
 

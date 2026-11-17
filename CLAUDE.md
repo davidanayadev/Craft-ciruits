@@ -6,10 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3), 003
 (battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1), 005 (inventory, ACTION_PLAN
-Tarea 1.2), 006 (zombies, ACTION_PLAN Tarea 1.3) and 007 (melee combat and XP on kill, ACTION_PLAN Tarea 1.4) are
-done and merged. Spec 008 (death, dropped items and recovery, ACTION_PLAN Tarea 1.5) is done. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
+Tarea 1.2), 006 (zombies, ACTION_PLAN Tarea 1.3), 007 (melee combat and XP on kill, ACTION_PLAN Tarea 1.4) and
+008 (death, dropped items and recovery, ACTION_PLAN Tarea 1.5) are done and merged. Spec 009 (base scene, travel
+between zones, free placement and charging station, ACTION_PLAN Tareas 2.1, 2.8, 2.2) is done. `game/` has its
+settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
-(`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric camera rig, `Robot` moved
+(`game/scenes/main.tscn`: a persistent `Main` that starts in the base, the green farm zone generated from the world
+seed, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
 "Interact" button or E and a battery `Hud`). The robot owns
 an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). A box keeps its roll
@@ -28,14 +31,21 @@ HUD only). `CombatFeedback` wires the white hit flash, camera shake, pooled impa
 Death is real (spec 008): at 0 battery `DeathController` applies the world's `RulesetData` (only `normal.tres`),
 the inventory falls where the robot died as a pooled `DroppedItem`, the zone's visit counter (in `GameManager`)
 goes up and the zone is repopulated (new zombies, boxes closed with the contents of the new visit), the
-`TransferScreen` covers the game for 2 s and the robot reappears on the zone's spawn point, which stands in for the
-base until spec 009. Dropped items are picked up with "Interact", expire after 5 minutes of real time
+`TransferScreen` covers the game for 2 s and the robot reappears with full battery in the base. Dropped items are picked up with "Interact", expire after 5 minutes of real time
 (`DroppedItemRules`, read through `ITimeService` / `LocalTimeService` from `GameManager.get_time_service()`) and
 live under `World/DroppedItems`, outside the zone. Killed zombies roll a seeded drop table, and the inventory
 screen throws a chosen quantity of a stack (`QuantitySelector`, `InventoryRules.split`). Seeds that depend on the
-visit use `SeededRng.derive_seed_for_visit`. Nothing is saved yet: visit counters and dropped items live in memory.
-The `EventBus`, `GameManager` and `DataRegistry` autoloads exist. There is no base, saving, chests, crafting,
-pieces or chassis levels yet. The next spec is 009.
+visit use `SeededRng.derive_seed_for_visit`. Zones are `ZoneData` resources (`BASE` or `FARM`, with their scene
+path) and `ZoneLoader` keeps exactly one loaded under `World/ZoneSlot`: an `ExitPoint` ("Travel") loads the other
+zone in a thread behind the `LoadingScreen`, with `World` frozen; leaving a farm zone by its exit counts a visit,
+and the dropped items of an unloaded zone are kept and restored. The base (`scenes/base/base.tscn`, `BaseZone`) has
+a repair bench and a build area on a pure `BuildGrid`. The bench opens the `BuildScreen` (only the charging station
+recipe, paid with `CraftingSystem` and `InventoryRules.remove_many`), and the `PlacementScreen` places, or with the
+HUD "Edit base" button moves, structures on the grid with a valid/invalid preview while the robot stands still.
+`BaseStructures` under `World` owns the placed structures. A `ChargingStation` recharges the robot to 100%
+instantly; the base itself does not recharge. Nothing is saved yet: visit counters, dropped items and placed
+structures live in memory. The `EventBus`, `GameManager` and `DataRegistry` autoloads exist. There is no saving,
+chests, full crafting, pieces or chassis levels yet. The next spec is 010.
 
 ## Commands
 
@@ -88,6 +98,7 @@ Delegate to save cost: cheap models for mechanical work, fresh eyes at review ga
 | Definition of Done | `godot-runner`, `i18n-auditor` and `balance-auditor` in parallel, then `architecture-guardian` once |
 | A fix attempt failed, or the bug is intermittent or unclear | `deep-debugger` |
 | Wide search across many files | built-in `Explore` |
+| Closing a spec, after the auditors and before marking it `Hecho` | `system-documenter spec NNN` (updates `docs/systems/`) |
 
 Do not delegate tasks of 1–3 tool calls, commit messages or PRs (the main session knows why the code changed), or
 work another subagent already reported on. Run Opus agents (`architecture-guardian`, `deep-debugger`) only at the
@@ -131,6 +142,7 @@ The documents cross-reference each other. Treat each one as the source of truth 
 | `SPECS.md` | Post-MVP features (v1.1+): advanced pieces, red zone, abilities, vehicles, fuel, lore, business model (§23), worlds by seed (§26), Normal/Hardcore modes (§27), factions (§28), crafting tiers (§29) |
 | `ONLINE.md` | Multiplayer roadmap (async, then co-op, then PvP) and the decoupling rules the MVP code must follow now |
 | `TOOLING.md` | Third-party services and **the phase in which each one may be introduced** |
+| `docs/systems/` | How the implemented code works today, one page per system, linking to the why in specs and ADRs (never numbers or requirements) |
 
 Rules that follow from this:
 - **Scope:** anything listed in PMV.md §2.3, or tagged v1.1+ in SPECS.md, is out of scope for the MVP.

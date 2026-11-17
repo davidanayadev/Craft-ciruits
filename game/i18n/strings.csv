@@ -17,3 +17,19 @@ HUD_ATTACK,Attack,Atacar
 PROMPT_PICK_UP,Pick up,Recoger
 TRANSFER_TITLE,Consciousness Transfer,Transferencia de Consciencia
 INVENTORY_THROW,Drop,Tirar
+PROMPT_TRAVEL,Travel,Viajar
+PROMPT_RECHARGE,Recharge,Recargar
+PROMPT_USE,Use,Usar
+LOADING_TITLE,Loading...,Cargando...
+BUILD_TITLE,Build,Construir
+BUILD_BUTTON,Build,Construir
+BUILD_COST_ENTRY,%s x%d,%s x%d
+STRUCTURE_CHARGING_STATION,Charging station,Estación de carga
+ERR_NOT_ENOUGH_MATERIALS,Not enough materials,Faltan materiales
+ERR_INVALID_PLACEMENT,It does not fit here,No cabe aquí
+MSG_BASE_FULL,No room left in the base,No queda sitio en la base
+PLACEMENT_CONFIRM,Confirm,Confirmar
+PLACEMENT_CANCEL,Cancel,Cancelar
+PLACEMENT_HINT_PLACE,Tap a cell to place the structure,Toca una celda para colocar la estructura
+PLACEMENT_HINT_EDIT,Tap a structure to move it,Toca una estructura para moverla
+HUD_EDIT_BASE,Edit base,Editar base

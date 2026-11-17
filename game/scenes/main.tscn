@@ -1,7 +1,6 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
-[ext_resource type="PackedScene" path="res://scenes/farm_zone/farm_zone_green.tscn" id="2_zone"]
 [ext_resource type="PackedScene" path="res://scenes/entities/robot.tscn" id="3_robot"]
 [ext_resource type="PackedScene" path="res://scenes/camera/camera_rig.tscn" id="4_camera"]
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="5_touch"]
@@ -19,6 +18,11 @@
 [ext_resource type="Script" path="res://scenes/entities/dropped_item_spawner.gd" id="17_dropped_items"]
 [ext_resource type="Resource" path="res://resources/config/dropped_items.tres" id="18_dropped_config"]
 [ext_resource type="Script" path="res://scenes/death/death_controller.gd" id="19_death"]
+[ext_resource type="Script" path="res://scenes/zones/zone_loader.gd" id="20_loader"]
+[ext_resource type="Script" path="res://scenes/base/base_structures.gd" id="21_structures"]
+[ext_resource type="Resource" path="res://resources/config/base_grid.tres" id="22_grid"]
+[ext_resource type="PackedScene" path="res://scenes/ui/loading_screen.tscn" id="23_loading"]
+[ext_resource type="Script" path="res://scenes/base/build_flow.gd" id="24_build_flow"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -27,8 +31,6 @@ script = ExtResource("1_main")
 unique_name_in_owner = true
 
 [node name="ZoneSlot" type="Node3D" parent="World"]
-
-[node name="GreenZone" parent="World/ZoneSlot" instance=ExtResource("2_zone")]
 unique_name_in_owner = true
 
 [node name="ZombiePool" type="Node" parent="World"]
@@ -52,7 +54,13 @@ script = ExtResource("17_dropped_items")
 pool = NodePath("../DroppedItemPool")
 config = ExtResource("18_dropped_config")
 
+[node name="BaseStructures" type="Node" parent="World"]
+unique_name_in_owner = true
+script = ExtResource("21_structures")
+grid_config = ExtResource("22_grid")
+
 [node name="Players" type="Node3D" parent="World"]
+unique_name_in_owner = true
 
 [node name="Robot" parent="World/Players" instance=ExtResource("3_robot")]
 unique_name_in_owner = true
@@ -68,6 +76,23 @@ effects_root = NodePath("../World")
 unique_name_in_owner = true
 script = ExtResource("19_death")
 dropped_items = NodePath("../World/DroppedItems")
+
+[node name="ZoneLoader" type="Node" parent="." node_paths=PackedStringArray("zone_slot", "players_root", "zombie_pool", "impact_pool", "dropped_item_pool", "dropped_items", "base_structures")]
+unique_name_in_owner = true
+script = ExtResource("20_loader")
+zone_slot = NodePath("../World/ZoneSlot")
+players_root = NodePath("../World/Players")
+zombie_pool = NodePath("../World/ZombiePool")
+impact_pool = NodePath("../World/ImpactPool")
+dropped_item_pool = NodePath("../World/DroppedItemPool")
+dropped_items = NodePath("../World/DroppedItems")
+base_structures = NodePath("../World/BaseStructures")
+
+[node name="BuildFlow" type="Node" parent="." node_paths=PackedStringArray("ui_manager", "base_structures")]
+unique_name_in_owner = true
+script = ExtResource("24_build_flow")
+ui_manager = NodePath("../UI/UIManager")
+base_structures = NodePath("../World/BaseStructures")
 
 [node name="CameraRig" parent="." instance=ExtResource("4_camera")]
 unique_name_in_owner = true
@@ -88,4 +113,7 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 
 [node name="TransferScreen" parent="UI" instance=ExtResource("8_transfer")]
+unique_name_in_owner = true
+
+[node name="LoadingScreen" parent="UI" instance=ExtResource("23_loading")]
 unique_name_in_owner = true

@@ -19,7 +19,12 @@ func test_r_004_08_world_seed_from_dev_world() -> void:
 const ZONE_A := Vector2i(0, 0)
 const ZONE_B := Vector2i(4, -3)
 const EXPECTED_VARIABLES: PackedStringArray = [
-	"_world_seed", "_ruleset", "_visit_counts", "_time_service"
+	"_world_seed",
+	"_ruleset",
+	"_visit_counts",
+	"_time_service",
+	"_current_zone_id",
+	"_has_current_zone",
 ]
 
 
@@ -114,3 +119,43 @@ func test_r_008_34_holds_only_world_state() -> void:
 	var expected: PackedStringArray = EXPECTED_VARIABLES.duplicate()
 	expected.sort()
 	assert_eq(variables, expected, "only world state, no per-player value")
+
+
+## Spec 009: the loaded zone is global state of GameManager, set only by
+## ZoneLoader (R-009-09).
+const SCRIPT_DIRS: PackedStringArray = ["res://scenes", "res://scripts"]
+const GAME_MANAGER_PATH := "res://scripts/autoload/game_manager.gd"
+const ZONE_LOADER_PATH := "res://scenes/zones/zone_loader.gd"
+
+
+func test_r_009_09_current_zone() -> void:
+	watch_signals(GameManager)
+	GameManager.set_current_zone(ZONE_B)
+	assert_true(GameManager.has_current_zone(), "a zone is loaded")
+	assert_eq(GameManager.get_current_zone_id(), ZONE_B, "the one that was set")
+	GameManager.set_current_zone(ZONE_A)
+	assert_eq(GameManager.get_current_zone_id(), ZONE_A, "the last one set")
+	assert_signal_not_emitted(GameManager, "zone_visit_changed", "setting the zone counts no visit")
+	assert_eq(GameManager.get_visit_count(ZONE_B), ZonePopulation.FIRST_VISIT, "no visit counted")
+
+
+func test_r_009_09_only_zone_loader_sets_it() -> void:
+	var callers: PackedStringArray = PackedStringArray()
+	for directory: String in SCRIPT_DIRS:
+		_collect_callers(directory, "set_current_zone(", callers)
+	var others: PackedStringArray = PackedStringArray()
+	for caller: String in callers:
+		if caller != ZONE_LOADER_PATH:
+			others.append(caller)
+	assert_eq(others, PackedStringArray(), "only ZoneLoader sets the zone")
+
+
+func _collect_callers(directory: String, needle: String, callers: PackedStringArray) -> void:
+	for sub: String in DirAccess.get_directories_at(directory):
+		_collect_callers(directory.path_join(sub), needle, callers)
+	for file: String in DirAccess.get_files_at(directory):
+		var path: String = directory.path_join(file)
+		if not file.ends_with(".gd") or path == GAME_MANAGER_PATH:
+			continue
+		if FileAccess.get_file_as_string(path).contains(needle):
+			callers.append(path)

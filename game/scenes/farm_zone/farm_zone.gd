@@ -1,9 +1,9 @@
 class_name FarmZone
-extends Node3D
+extends Zone
 ## A farm zone (spec 004): ground, decoration, boundaries, a spawn point and
 ## hand-placed box markers. generate() fills it from the world seed; the zone
-## never reads the seed itself, so whoever loads it (main.gd now, ZoneLoader
-## in spec 009) decides the world, and tests can generate it with any seed.
+## never reads the seed itself, so whoever loads it (ZoneLoader, spec 009)
+## decides the world, and tests can generate it with any seed.
 ## Positions are local to the zone, whose origin is the centre of its grid cell.
 ## Where the boxes are never changes; what they hold and which enemies there
 ## are depend on the visit (BALANCE §7.2). Enemies come from a pool that
@@ -15,7 +15,6 @@ signal box_opened(box: LootBox, opener: Node3D)
 ## An enemy of this zone left loot where it died (spec 008).
 signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
-@export var data: ZoneData
 @export var box_scene: PackedScene
 
 var _boxes: Array[LootBox] = []
@@ -23,7 +22,6 @@ var _boxes: Array[LootBox] = []
 var _box_marker_indices: Array[int] = []
 var _generated: bool = false
 
-@onready var _spawn_point: Marker3D = %SpawnPoint
 @onready var _box_markers: Node3D = %BoxMarkers
 @onready var _boxes_root: Node3D = %Boxes
 @onready var _enemy_markers: Node3D = %EnemyMarkers
@@ -31,6 +29,7 @@ var _generated: bool = false
 
 
 func _ready() -> void:
+	super()
 	_zombie_spawner.enemy_loot_dropped.connect(_on_enemy_loot_dropped)
 
 
@@ -78,10 +77,6 @@ func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
 	_box_marker_indices = []
 	for marker_index: int in marker_indices:
 		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed, visit)
-
-
-func get_spawn_position() -> Vector3:
-	return _spawn_point.global_position
 
 
 func get_boxes() -> Array[LootBox]:

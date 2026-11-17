@@ -2,7 +2,9 @@ class_name DroppedItemSpawner
 extends Node3D
 ## Creates the dropped items, expires them and returns them to their pool
 ## (spec 008). It is the parent of the active ones and lives under World,
-## outside the zone: repopulating or unloading a zone does not touch them.
+## outside the zone: repopulating a zone does not touch them. Unloading one
+## keeps their state in JSON types and returns them to the pool; loading it
+## again brings them back (spec 009), the same path spec 010 will load from.
 ## The clock comes from outside (GameManager's in the game, a fake one in
 ## tests): it never creates one.
 
@@ -18,6 +20,8 @@ var _items: Array[DroppedItem] = []
 var _zone_id: Vector2i = Vector2i.ZERO
 var _zone_root: Node3D = null
 var _expiry_timer: Timer = null
+## to_data() of the items of each unloaded zone.
+var _stored: Dictionary[Vector2i, Array] = {}
 
 
 func _ready() -> void:
@@ -28,10 +32,31 @@ func _ready() -> void:
 
 
 ## The zone that is loaded: what falls from now on belongs to it, at a
-## position local to zone_root. ZoneLoader calls it in spec 009.
+## position local to zone_root. The items stored when it was unloaded come
+## back, and the expired ones are discarded before anyone can interact
+## (R-009-17, R-008-23). ZoneLoader calls it.
 func bind_zone(zone_id: Vector2i, zone_root: Node3D) -> void:
 	_zone_id = zone_id
 	_zone_root = zone_root
+	if not _stored.has(zone_id):
+		return
+	var stored: Array = _stored[zone_id]
+	_stored.erase(zone_id)
+	for data: Dictionary in stored:
+		_restore(data)
+	discard_expired_now()
+
+
+## The bound zone is being unloaded: its items keep their state here and go
+## back to the pool, so none is freed with the zone (R-009-04).
+func unbind_zone() -> void:
+	var stored: Array = _stored.get(_zone_id, [])
+	stored.append_array(to_data())
+	if not stored.is_empty():
+		_stored[_zone_id] = stored
+	for item: DroppedItem in _items.duplicate():
+		_release(item)
+	_zone_root = null
 
 
 ## The zone given to bind_zone().
@@ -122,6 +147,58 @@ func to_data() -> Array[Dictionary]:
 
 
 func _spawn(world_position: Vector3, slot_count: int) -> DroppedItem:
+	if _zone_root == null:
+		push_error(
+			"DroppedItemSpawner '%s': needs a pool, a time service and a bound zone." % name
+		)
+		return null
+	return _spawn_item(
+		Uid.generate(), world_position, _zone_root.to_local(world_position), _now_unix(), slot_count
+	)
+
+
+## A stored item back in its zone, with its uid, position, time and stacks. A
+## stack of an item the catalog no longer knows is lost, never the others.
+func _restore(data: Dictionary) -> void:
+	var stacks: Array[ItemStack] = []
+	for stack_data: Dictionary in data["stacks"]:
+		var item_id: StringName = StringName(str(stack_data["item_id"]))
+		var catalog: DataCatalog = DataRegistry.get_catalog()
+		if catalog == null or not catalog.has_item(item_id):
+			push_error("DroppedItemSpawner '%s': unknown item '%s' lost on restore." % [name, item_id])
+			continue
+		var quantity: int = stack_data["quantity"]
+		stacks.append(ItemStack.new(catalog.get_item(item_id), quantity))
+	if stacks.is_empty():
+		return
+	var position_data: Array = data["position"]
+	var x: float = position_data[0]
+	var y: float = position_data[1]
+	var z: float = position_data[2]
+	var local: Vector3 = Vector3(x, y, z)
+	if _zone_root == null:
+		return
+	var dropped_at: int = data["dropped_at"]
+	var item: DroppedItem = _spawn_item(
+		str(data["uid"]), _zone_root.to_global(local), local, dropped_at, stacks.size()
+	)
+	if item != null and not item.get_contents().add_stacks(stacks).ok:
+		push_error("DroppedItemSpawner '%s': a restored item lost stacks." % name)
+
+
+func _now_unix() -> int:
+	return time_service.now_unix() if time_service != null else 0
+
+
+## world_position and local_position are the same point; both are passed so
+## neither is rounded through the other.
+func _spawn_item(
+	item_uid: String,
+	world_position: Vector3,
+	local_position: Vector3,
+	dropped_at_unix: int,
+	slot_count: int
+) -> DroppedItem:
 	if pool == null or time_service == null or _zone_root == null:
 		push_error(
 			"DroppedItemSpawner '%s': needs a pool, a time service and a bound zone." % name
@@ -139,13 +216,7 @@ func _spawn(world_position: Vector3, slot_count: int) -> DroppedItem:
 		return null
 	item.position = to_local(world_position)
 	add_child(item)
-	item.setup(
-		Uid.generate(),
-		_zone_id,
-		_zone_root.to_local(world_position),
-		time_service.now_unix(),
-		slot_count
-	)
+	item.setup(item_uid, _zone_id, local_position, dropped_at_unix, slot_count)
 	item.emptied.connect(_on_item_emptied)
 	_items.append(item)
 	if _expiry_timer.is_stopped():

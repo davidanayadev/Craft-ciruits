@@ -153,6 +153,7 @@ Main (Node)                          main.gd: arranque y cableado
 | `enemy_killed` | `enemy_id: StringName`, `killer_uid: String` | Enemigo | Progresión, guía, audio |
 | `item_crafted` | `recipe_id: StringName`, `player_uid: String` | Banco | Guía, audio |
 | `structure_built` | `structure_uid: String` | Colocación (Tarea 2.8) | Guardado, guía |
+| `player_recharged` | `player_uid: String` | Estación de carga (spec 009) | Guardado (spec 010), guía |
 
 Reglas: el bus **no guarda estado**; toda señal está tipada; todo evento que afecte a un jugador lleva su
 `player_uid` (cooperativo); un evento nuevo se añade a esta tabla en el plan del spec que lo crea.
@@ -176,6 +177,7 @@ extends Resource
 @export var enemies: Array[EnemyData] = []
 @export var zones: Array[ZoneData] = []
 @export var rulesets: Array[RulesetData] = []
+@export var structures: Array[StructureData] = []   # estructuras colocables (spec 009)
 ```
 
 `DataRegistry` expone `get_item(id: StringName) -> ItemData`, `get_recipe(id)`, etc., y `push_error()` si un
@@ -283,12 +285,19 @@ enum Op { SET, ADD, MULTIPLY }
 func open(screen_id: StringName, context: Dictionary = {}) -> void
 func close_top() -> void
 func is_modal_open() -> bool
+func is_open(screen_id: StringName) -> bool         # spec 009
 signal modal_state_changed(is_open: bool)
+
+# UIScreen (base de las pantallas)
+func setup(context: Dictionary) -> void
+func handle_back() -> bool   # true: la pantalla atendió "atrás" y sigue abierta (spec 009)
+func on_closed() -> void     # al salir de la pila por cualquier camino, antes de liberarse (spec 009)
 ```
 
 - Las pantallas (banco, cofre, inventario, equipo, pausa) se registran por id en un recurso de catálogo de UI.
-- Escape (PC) y el botón atrás de Android (`NOTIFICATION_WM_GO_BACK_REQUEST`, **(verificar)**) cierran la de
-  arriba.
+- Escape (PC) y el botón atrás de Android (`NOTIFICATION_WM_GO_BACK_REQUEST`, **(verificar)**) van a la de
+  arriba: si su `handle_back()` devuelve `true` la atiende ella (la colocación cancela un movimiento y sigue en
+  edición, spec 009); si no, se cierra.
 - Con una pantalla abierta, el control del robot ignora el movimiento (escucha `modal_state_changed`).
 - El HUD se engancha al jugador local con `bind(player: Robot)` y escucha sus señales. **Nada de leer estado en
   `_process`.**

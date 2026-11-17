@@ -4,10 +4,13 @@ extends GutTest
 ## button and starts no swing, although the left button is bound to `attack`;
 ## a click on the scenery does swing, and the attack button swings once.
 ## Mouse positions go in window coordinates (plan 007 §5.1, point 3).
+## Spec 009: the game starts by travelling to the base; the tests wait for it,
+## since the input is blocked while a travel runs.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 ## Frames for a parsed event to reach the GUI and the next physics step.
 const INPUT_FRAMES := 4
+const TRAVEL_TIMEOUT_S := 10.0
 
 var _main: Node
 var _robot: Robot
@@ -30,6 +33,9 @@ func before_each() -> void:
 	add_child_autofree(_main)
 	_robot = _main.get_node("%Robot") as Robot
 	_hud = _main.get_node("%Hud") as Hud
+	var loader: ZoneLoader = _main.get_node("%ZoneLoader") as ZoneLoader
+	if loader.is_travelling():
+		await wait_for_signal(loader.travel_finished, TRAVEL_TIMEOUT_S)
 	watch_signals(_robot.melee)
 	await wait_process_frames(2)
 

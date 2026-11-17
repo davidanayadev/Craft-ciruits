@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-17) |
+| **Estado** | Hecho (2026-11-17) |
 | **Tarea(s) ACTION_PLAN** | 2.1, 2.8, 2.2 |
 | **Fuentes** | ACTION_PLAN.md Tareas 2.1, 2.8, 2.2 (y 1.5, 2.3, 2.4, 2.5, 2.6, 4.1, 4.3, 4.4 para los límites) · PMV.md §2.1, §2.3, §2.4, §3.2, §4.5 ganchos 2 y 7, §10 (estación de carga crafteable; cajas y viaje; muerte) · BALANCE.md §1.1, §1.2, §5.1, §5.3, §5.6, §7, §7.2, §11 · SPECS.md §32 (base libre, v1.1) · architecture.md §3, §5, §6, §7, §8, §9.1, §9.2, §9.5, §10.2, §10.3, §12, §14 · Constitución P2, P3, P4, P6, P8, P9, P11, P12, P13, P14 |
 | **Depende de** | 003 (`BatteryComponent`), 004 (`FarmZone`, `ZoneData`, `InteractableComponent`), 005 (`UIManager`, `InventoryComponent`), 006 (`ZombieSpawner`, `ObjectPool`), 008 (contador de visitas, repoblación, objeto caído, reaparición, `RulesetData`; debe estar *Hecho* antes de implementar esta) |
@@ -105,7 +105,7 @@ cuadrícula de la base, y morir te devuelve a la base. Cierra el bucle de la Fas
 | R-009-42 | THE number of charging stations SHALL have no limit other than the space of the buildable area. | BALANCE §5.3 |
 | R-009-55 | WHEN the player taps or clicks a cell of the buildable area in placement mode, THE preview SHALL move to that cell. | PMV §10 (spec 009) — pregunta 5 |
 | R-009-56 | THE placement mode SHALL show "Confirm" and "Cancel" buttons; on PC the accept and cancel actions SHALL do the same, and the Android back button SHALL cancel. | PMV §10 (spec 009), architecture §9.5 — pregunta 5 |
-| R-009-57 | WHILE a structure is being placed or moved, THE robot SHALL not move, attack or interact, and its battery SHALL keep draining by the usual rules. | PMV §10 (spec 009), BALANCE §1.1 — pregunta 5 |
+| R-009-57 | WHILE a structure is being placed or moved, or edit mode is open with nothing picked, THE robot SHALL not move, attack or interact, and its battery SHALL keep draining by the usual rules. | PMV §10 (spec 009), BALANCE §1.1 — pregunta 5; modo edición sin nada cogido aceptado en la revisión del plan (2026-11-17) |
 | R-009-58 | WHILE a structure is being placed or moved, THE cells where a robot stands SHALL count as invalid. | PMV §10 (spec 009) — pregunta 7 |
 
 ### 3.7 Modo edición

@@ -4,7 +4,8 @@ extends Node
 ## back (spec 008). It only reads the fields of the ruleset, never its id, so
 ## another mode is another RulesetData. It holds no player state: "dead" is
 ## "battery at 0 until respawn()", and what the robot carried lives in the
-## dropped item. The zone a robot died in is the one bound to dropped_items.
+## dropped item. The zone a robot died in is the one bound to dropped_items;
+## only a zone that counts visits gets a new one (spec 009, question 12).
 
 @export var dropped_items: DroppedItemSpawner
 
@@ -41,6 +42,16 @@ func _on_battery_depleted(robot: Robot) -> void:
 		dropped_items.drop_inventory(robot.inventory, robot.global_position)
 	if not ruleset.keeps_xp:
 		robot.experience.reset()
-	GameManager.increment_visit_count(dropped_items.get_zone_id())
+	_count_visit(dropped_items.get_zone_id())
 	# Last, so listeners already see the inventory on the ground.
 	EventBus.player_died.emit(robot.player_uid)
+
+
+## A zone the catalog does not know is a bug: reported, and no visit counted.
+func _count_visit(zone_id: Vector2i) -> void:
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	if catalog == null or not catalog.has_zone(zone_id):
+		push_error("DeathController: the robot died in an unknown zone %s." % zone_id)
+		return
+	if catalog.get_zone(zone_id).counts_visits():
+		GameManager.increment_visit_count(zone_id)

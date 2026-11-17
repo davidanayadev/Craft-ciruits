@@ -274,3 +274,36 @@ func test_r_008_40_can_split_matches_split() -> void:
 		assert_false(InventoryRules.can_split(slots, request.x, request.y), "slot %d, quantity %d" % [request.x, request.y])
 	assert_eq(_quantities(slots), [5, 0, 3] as Array[int], "can_split changes nothing")
 	assert_push_error_count(0)
+
+
+# --- Removing several items at once (spec 009, R-009-62) ----------------------
+
+
+func test_r_009_62_rules_can_remove_many() -> void:
+	var scrap: ItemData = _item(&"scrap", 10)
+	var cables: ItemData = _item(&"cables", 10)
+	var slots: Array[ItemStack] = [ItemStack.new(scrap, 6), ItemStack.new(cables, 3), ItemStack.new(scrap, 4)]
+	var exact: Dictionary[StringName, int] = {&"scrap": 10, &"cables": 3}
+	var surplus: Dictionary[StringName, int] = {&"scrap": 2}
+	var short_one: Dictionary[StringName, int] = {&"scrap": 11}
+	var short_second: Dictionary[StringName, int] = {&"scrap": 1, &"cables": 4}
+	var missing_kind: Dictionary[StringName, int] = {&"iron": 1}
+	assert_true(InventoryRules.can_remove_many(slots, exact), "exactly what is held, over several stacks")
+	assert_true(InventoryRules.can_remove_many(slots, surplus), "less than held")
+	assert_false(InventoryRules.can_remove_many(slots, short_one), "one item short")
+	assert_false(InventoryRules.can_remove_many(slots, short_second), "the second kind is short")
+	assert_false(InventoryRules.can_remove_many(slots, missing_kind), "an item that is not held")
+	assert_eq(_quantities(slots), [6, 3, 4] as Array[int], "can_remove_many changes nothing")
+
+
+func test_r_009_62_rules_remove_many() -> void:
+	var scrap: ItemData = _item(&"scrap", 10)
+	var cables: ItemData = _item(&"cables", 10)
+	var slots: Array[ItemStack] = [ItemStack.new(scrap, 6), ItemStack.new(cables, 3), ItemStack.new(scrap, 4)]
+	var amounts: Dictionary[StringName, int] = {&"scrap": 7, &"cables": 3}
+	InventoryRules.remove_many(slots, amounts)
+	assert_eq(InventoryRules.count(slots, &"scrap"), 3, "7 of 10 scrap left the inventory")
+	assert_eq(InventoryRules.count(slots, &"cables"), 0)
+	assert_null(slots[1], "an emptied slot becomes null")
+	assert_eq(slots.size(), 3, "the slot count does not change")
+	assert_eq(_quantities(slots), [3, 0, 0] as Array[int], "like remove(): last slot first")

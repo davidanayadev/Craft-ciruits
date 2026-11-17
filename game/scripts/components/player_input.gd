@@ -3,14 +3,24 @@ extends Node
 ## Single source of player input (R-002-13): merges the InputMap keyboard
 ## actions (PC) and the virtual joystick (touch). Gameplay reads this node and
 ## never touches events or keys directly.
-## While blocked (a UIManager screen is open, R-005-27) it reports no input.
+## While blocked it reports no input. Several owners block it for their own
+## reason (a UIManager screen R-005-27, a death R-008-29, a travel R-009-07);
+## it stays blocked while any reason is active.
 ## The attack (spec 007) is not polled from Input: the action state changes
 ## before the GUI gets the event, so a click on a HUD button would count as an
 ## attack (R-007-15). It is taken from unhandled events and from the HUD attack
 ## button instead.
 
+## "Any reason active" went from false to true or back. Only on that change.
+signal blocked_changed(blocked: bool)
+
+const REASON_SCREEN := &"screen"
+const REASON_DEATH := &"death"
+const REASON_TRAVEL := &"travel"
+
 var _joystick_sample: JoystickLogic.Sample = null
-var _input_blocked: bool = false
+## A reason is on or off, never counted.
+var _block_reasons: Dictionary[StringName, bool] = {}
 ## The attack action went down in an event no control consumed.
 var _attack_action_down: bool = false
 var _attack_button_held: bool = false
@@ -29,7 +39,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Analog direction in screen space, |v| <= 1. Joystick wins while active.
 func get_direction() -> Vector2:
-	if _input_blocked:
+	if is_input_blocked():
 		return Vector2.ZERO
 	if _joystick_sample != null and _joystick_sample.active:
 		return _joystick_sample.direction
@@ -37,7 +47,7 @@ func get_direction() -> Vector2:
 
 
 func is_run_intent() -> bool:
-	if _input_blocked:
+	if is_input_blocked():
 		return false
 	if _joystick_sample != null and _joystick_sample.active:
 		return _joystick_sample.run_intent
@@ -47,7 +57,7 @@ func is_run_intent() -> bool:
 ## True only on the physics frame the interact action goes down. On touch the
 ## HUD button asks the robot directly (R-004-14).
 func is_interact_just_pressed() -> bool:
-	return not _input_blocked and Input.is_action_just_pressed(&"interact")
+	return not is_input_blocked() and Input.is_action_just_pressed(&"interact")
 
 
 ## True while the attack is held (action or HUD button) or if it was pressed
@@ -61,7 +71,7 @@ func poll_attack() -> bool:
 	# then says it is up, and a later click on the HUD must not bring it back.
 	if _attack_action_down and not Input.is_action_pressed(&"attack"):
 		_attack_action_down = false
-	if _input_blocked:
+	if is_input_blocked():
 		return false
 	return pressed or _attack_action_down or _attack_button_held
 
@@ -74,13 +84,25 @@ func set_attack_button_held(held: bool) -> void:
 
 
 ## Blocked input gives no direction, no run intent, no interact and no attack.
-## The robot keeps processing, so the battery still drains.
-func set_input_blocked(blocked: bool) -> void:
-	_input_blocked = blocked
+## The robot keeps processing, so the battery still drains. Each owner passes
+## its own reason, so ending one block never lifts another. Empty reason →
+## push_error, no change.
+func set_input_blocked(blocked: bool, reason: StringName) -> void:
+	if reason.is_empty():
+		push_error("PlayerInput '%s': set_input_blocked() needs a reason." % name)
+		return
+	var was_blocked: bool = is_input_blocked()
+	if blocked:
+		_block_reasons[reason] = true
+	else:
+		_block_reasons.erase(reason)
+	if is_input_blocked() != was_blocked:
+		blocked_changed.emit(is_input_blocked())
 
 
+## Any reason active.
 func is_input_blocked() -> bool:
-	return _input_blocked
+	return not _block_reasons.is_empty()
 
 
 func set_joystick_sample(sample: JoystickLogic.Sample) -> void:

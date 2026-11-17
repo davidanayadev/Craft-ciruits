@@ -95,10 +95,10 @@ func test_r_004_16_depleted_robot_does_not_interact() -> void:
 
 
 func test_r_005_27_blocked_input_does_not_interact() -> void:
-	_robot.player_input.set_input_blocked(true)
+	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	await _tap_interact()
 	_robot.request_interact()
 	assert_false(_box.is_opened(), "a robot with blocked input opens nothing")
-	_robot.player_input.set_input_blocked(false)
+	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	_robot.request_interact()
 	assert_true(_box.is_opened(), "unblocked, it interacts again")

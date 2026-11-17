@@ -2,7 +2,8 @@ class_name UIManager
 extends Control
 ## Stack of pop-up screens (architecture §9.5). Screens are opened by id from
 ## the catalog and added on top as children. The pause action (Escape) and the
-## Android back request close the top one. It never pauses the tree: whoever
+## Android back request go to the top one, which handles them itself
+## (UIScreen.handle_back, spec 009) or is closed. It never pauses the tree: whoever
 ## listens to modal_state_changed decides what a screen blocks.
 
 ## Only when going from no screen to some, and back.
@@ -17,13 +18,13 @@ var _screen_ids: Array[StringName] = []
 
 func _unhandled_input(event: InputEvent) -> void:
 	if is_modal_open() and event.is_action_pressed(&"pause"):
-		close_top()
+		_back()
 		get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and is_modal_open():
-		close_top()
+		_back()
 
 
 ## Unknown id or id already open → push_error, no change.
@@ -61,6 +62,17 @@ func is_modal_open() -> bool:
 	return not _screens.is_empty()
 
 
+func is_open(screen_id: StringName) -> bool:
+	return _screen_ids.has(screen_id)
+
+
+## The top screen handles "back" itself or is closed.
+func _back() -> void:
+	var top: UIScreen = _screens[_screens.size() - 1]
+	if not top.handle_back():
+		_close(top)
+
+
 func _instantiate(screen_id: StringName) -> UIScreen:
 	if catalog == null or not catalog.screens.has(screen_id):
 		push_error("UIManager: unknown screen id '%s'." % screen_id)
@@ -90,4 +102,5 @@ func _remove_at(index: int) -> void:
 	var screen: UIScreen = _screens[index]
 	_screens.remove_at(index)
 	_screen_ids.remove_at(index)
+	screen.on_closed()
 	screen.queue_free()

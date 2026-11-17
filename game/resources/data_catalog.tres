@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DataCatalog" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="DataCatalog" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/data_catalog.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/items/scrap.tres" id="2"]
@@ -7,9 +7,16 @@
 [ext_resource type="Resource" path="res://resources/enemies/zombie_slow.tres" id="5"]
 [ext_resource type="Resource" path="res://resources/enemies/zombie_fast.tres" id="6"]
 [ext_resource type="Resource" path="res://resources/rulesets/normal.tres" id="7"]
+[ext_resource type="Resource" path="res://resources/zones/green_zone.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/zones/base.tres" id="9"]
+[ext_resource type="Resource" path="res://resources/structures/charging_station.tres" id="10"]
+[ext_resource type="Resource" path="res://resources/recipes/charging_station.tres" id="11"]
 
 [resource]
 script = ExtResource("1")
 items = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4")])
 enemies = Array[Resource]([ExtResource("5"), ExtResource("6")])
 rulesets = Array[Resource]([ExtResource("7")])
+zones = Array[Resource]([ExtResource("8"), ExtResource("9")])
+structures = Array[Resource]([ExtResource("10")])
+recipes = Array[Resource]([ExtResource("11")])

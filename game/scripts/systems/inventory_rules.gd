@@ -68,6 +68,24 @@ static func remove(slots: Array[ItemStack], item_id: StringName, quantity: int) 
 			slots[i] = null
 
 
+## Whether every amount (item id → quantity) is held at once (spec 009).
+static func can_remove_many(slots: Array[ItemStack], amounts: Dictionary[StringName, int]) -> bool:
+	for item_id: StringName in amounts:
+		if count(slots, item_id) < amounts[item_id]:
+			return false
+	return true
+
+
+## Removes every amount, each one like remove(). All or nothing: the caller
+## checks can_remove_many() first; amounts it rejects → push_error, no change.
+static func remove_many(slots: Array[ItemStack], amounts: Dictionary[StringName, int]) -> void:
+	if not can_remove_many(slots, amounts):
+		push_error("InventoryRules: cannot remove %s, not everything is held." % amounts)
+		return
+	for item_id: StringName in amounts:
+		remove(slots, item_id, amounts[item_id])
+
+
 ## Whether quantity can leave slot_index: an occupied slot and 1..its quantity.
 static func can_split(slots: Array[ItemStack], slot_index: int, quantity: int) -> bool:
 	if slot_index < 0 or slot_index >= slots.size() or slots[slot_index] == null:

@@ -139,13 +139,13 @@ func test_r_007_07_held_swings_once_per_interval() -> void:
 
 func test_r_007_09_no_swing_when_depleted_or_screen_open() -> void:
 	var before: float = _robot.battery.get_current()
-	_robot.player_input.set_input_blocked(true)
+	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	_robot.player_input.set_attack_button_held(true)
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_signal_not_emitted(_robot.melee, "swing_started", "no swing while a screen is open")
 	assert_almost_eq(_robot.battery.get_current(), before, DRAIN_SLACK, "and no battery spent")
 	_robot.battery.consume(_robot.battery.get_current())
-	_robot.player_input.set_input_blocked(false)
+	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_signal_not_emitted(_robot.melee, "swing_started", "nor with a depleted battery")
 

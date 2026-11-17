@@ -1,6 +1,7 @@
 extends GutTest
 ## R-001-08: one InputMap action per PMV control, each one playable from a PC
 ## keyboard. This list is the executable spec of the action names (plan 001 §6, P2).
+## Spec 009 adds confirm (Enter) for the placement mode on PC (R-009-40, R-009-56).
 
 const ACTIONS: Array[StringName] = [
 	&"move_forward",
@@ -13,6 +14,7 @@ const ACTIONS: Array[StringName] = [
 	&"interact",
 	&"open_storage",
 	&"pause",
+	&"confirm",
 ]
 
 
@@ -29,3 +31,14 @@ func _has_keyboard_binding(action: StringName) -> bool:
 		if event is InputEventKey:
 			return true
 	return false
+
+
+func test_r_009_40_confirm_action() -> void:
+	assert_true(InputMap.has_action(&"confirm"), "confirm exists")
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"confirm"):
+		var key_event: InputEventKey = event as InputEventKey
+		if key_event != null:
+			keys.append(key_event.physical_keycode)
+	assert_true(keys.has(KEY_ENTER), "Enter confirms")
+	assert_true(keys.has(KEY_KP_ENTER), "and the keypad Enter")

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="RecipeData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/recipe_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/recipe_ingredient_data.gd" id="2"]
+[ext_resource type="Resource" path="res://resources/items/scrap.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/structures/charging_station.tres" id="4"]
+
+[sub_resource type="Resource" id="scrap"]
+script = ExtResource("2")
+item = ExtResource("3")
+quantity = 4
+
+[resource]
+script = ExtResource("1")
+id = &"charging_station"
+ingredients = Array[ExtResource("2")]([SubResource("scrap")])
+station = 2
+tier = 1
+requires = Array[StringName]([])
+result_structure = ExtResource("4")

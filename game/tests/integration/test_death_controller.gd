@@ -7,12 +7,14 @@ extends GutTest
 ## respawn restores the battery and announces itself once (R-008-31), every
 ## death makes its own item (R-008-32), and the controller holds no player
 ## state (R-008-34).
+## Spec 009: only zones that count visits (FARM) count a death; the base does
+## not (R-009-52). ZONE_ID is the green zone, so the catalog knows it.
 ## The robot's physics is switched off: its battery only moves when the test says.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
 const CONFIG_PATH := "res://resources/config/dropped_items.tres"
-const ZONE_ID := Vector2i(3, -2)
+const ZONE_ID := Vector2i(0, 0)
 const OTHER_ZONE_ID := Vector2i(-1, 4)
 const ZONE_ORIGIN := Vector3(10.0, 0.0, 5.0)
 const DEATH_POSITION := Vector3(4.0, 0.0, -3.0)
@@ -285,3 +287,22 @@ func test_r_008_controller_without_ruleset_reports_error() -> void:
 	assert_push_error("DeathController")
 	assert_signal_not_emitted(EventBus, "player_died")
 	assert_eq(_spawner.get_items().size(), 0, "nothing was dropped")
+
+
+func test_r_009_52_base_death_counts_no_visit() -> void:
+	var base: ZoneData = DataRegistry.get_base_zone()
+	assert_not_null(base, "the catalog has a base")
+	if base == null:
+		return
+	_spawner.bind_zone(base.zone_id, _zone_root)
+	watch_signals(GameManager)
+	_kill_by_consume()
+	assert_eq(GameManager.get_visit_count(base.zone_id), ZonePopulation.FIRST_VISIT, "no visit")
+	assert_signal_not_emitted(GameManager, "zone_visit_changed", "nothing to repopulate")
+
+
+func test_r_009_52_unknown_zone_counts_nothing_and_reports() -> void:
+	_spawner.bind_zone(OTHER_ZONE_ID, _zone_root)
+	_kill_by_consume()
+	assert_eq(GameManager.get_visit_count(OTHER_ZONE_ID), ZonePopulation.FIRST_VISIT, "no visit")
+	assert_push_error("unknown zone")

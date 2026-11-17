@@ -26,6 +26,17 @@ func bind(robot: Robot, camera_rig: CameraRig, hud: Hud) -> void:
 	robot.hit_received.connect(_on_hit_received)
 
 
+## Every burst still playing goes back to the pool at once: a travel is about
+## to unload the zone they lit up (R-009-04).
+func release_all() -> void:
+	if effects_root == null or impact_pool == null:
+		return
+	for child: Node in effects_root.get_children():
+		var sparks: ImpactSparks = child as ImpactSparks
+		if sparks != null:
+			impact_pool.release(sparks)
+
+
 func _on_hit_dealt(target: HurtboxComponent) -> void:
 	_camera_rig.shake(config.hit_dealt_shake_m, config.hit_dealt_shake_s)
 	_play_sparks(target.global_position)

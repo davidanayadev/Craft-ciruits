@@ -211,7 +211,7 @@ estado).
 - Botón "Editar base" (`HUD_EDIT_BASE`) en el `Hud`: visible solo con la base cargada (`BuildFlow` lo enciende con
   `zone_loaded`, R-009-59). Pulsado abre `PlacementScreen` en `EDIT_PICK`; pulsado otra vez la cierra
   (`UIManager.is_open(id)`, nuevo). Con otra pantalla abierta (inventario, construcción), el botón no hace nada:
-  no se apila la colocación encima de otra pantalla. **Decisión del plan, a confirmar en la revisión**: el robot tampoco se mueve en `EDIT_PICK` (es la misma
+  no se apila la colocación encima de otra pantalla. **Decisión del plan, aceptada (2026-11-17) y anotada en R-009-57**: el robot tampoco se mueve en `EDIT_PICK` (es la misma
   pantalla); el spec solo lo pide al colocar o mover, y separar los dos casos obligaría a una segunda vía de
   entrada para la misma pantalla.
 
@@ -641,6 +641,73 @@ en headless fuera del repo):
 7. `remove_child` + `queue_free` de una zona con `World` desactivado mientras el `InteractorComponent` del robot
    apunta a un `InteractableComponent` de esa zona: sin errores (008 §5.1 punto 5 es parecido).
 
+### 5.1 Resultado de los puntos (verificar) (T-009-01, 2026-11-17)
+
+Godot 4.7.2 (`--doctool` y scripts de prueba con `-s` contra `game/`, fuera del repo).
+
+| # | Resultado | Efecto en el plan |
+|---|---|---|
+| 1 | ✅ `load_threaded_request` → `OK`; `load_threaded_get_status` pasa por `IN_PROGRESS` (30 fotogramas la primera vez para `farm_zone_green.tscn` en headless) a `LOADED`; con la escena en caché, `LOADED` en el acto. Una ruta inexistente: la petición también devuelve `OK`, pasa por `IN_PROGRESS` y acaba en `FAILED` (unos 5 fotogramas), con dos `ERROR` del motor (`Cannot open file`, `Failed loading resource`) | Sin cambios. El fallo de carga se detecta en el sondeo, no en la petición; el test del fallo espera esos errores del motor |
+| 2 | ✅ Un nodo añadido bajo un padre `PROCESS_MODE_DISABLED` recibe `_ready` en el acto; la `NavigationRegion3D` registra su mapa (1 región) y, al descongelar, `map_get_path` devuelve camino (20 puntos) | Sin cambios |
+| 3 | ⚠️ Parcial. Las escenas del proyecto no tienen `uid` en su cabecera, así que la ruta se escribe como `res://…tscn` en el `.tres`; `ResourceLoader` la resuelve en headless. La resolución en el APK (`.remap`) no se puede probar en headless: la cubre T-009-17, y el primer arranque ya la ejercita (el juego empieza cargando `base.tscn` por esa ruta) | Sin cambios; anotado para T-009-17 |
+| 4 | ✅ Con proyección ortográfica, `project_ray_origin` / `project_ray_normal` dan un rayo paralelo a la vista; `Plane.intersects_ray` devuelve `Variant` (`Vector3`, o `null` sin corte) | Sin cambios (asignar a `Vector3` tras comprobar `null`) |
+| 5 | ✅ `ImmediateMesh` con `PRIMITIVE_LINES` y material sin sombreado se dibuja con el renderer Compatibility (`opengl3`, ventana de 640x360) | Sin cambios |
+| 6 | ⚠️ Con `emulate_mouse_from_touch` activo (por defecto), un `Control` recibe el toque en `_gui_input` como `InputEventMouseButton` emulado, no como `InputEventScreenTouch`; el `InputEventScreenTouch` sigue llegando a `_unhandled_input`. Un `Button` hermano posterior se queda el clic antes que el `Control` de fondo | `PlacementScreen` lee el botón izquierdo del ratón (también el emulado) en `_gui_input`. El joystick flotante puede seguir viendo el toque, pero la entrada del robot está bloqueada mientras la pantalla está abierta, así que no se mueve. Android: manual en T-009-17 |
+| 7 | ✅ Descargar la zona con `World` desactivado mientras el interactor apunta a una caja: sin errores; el objetivo pasa a `null` y `request_interact` no hace nada | Sin cambios |
+
+### 5.2 Pruebas manuales (T-009-17, 2026-11-17)
+
+Hechas por la persona que revisa en PC (Windows) y en el Android de gama media (APK debug). Resultado según su
+informe: todo pasa.
+
+| Prueba | PC | Android |
+|---|---|---|
+| El juego arranca en la base (incluida la ruta de `base.tscn` en el APK, §5.1 punto 3) | ✅ | ✅ |
+| Criterio de hecho del spec §5 | ✅ | ✅ |
+| Colocación con ratón y con toque | ✅ | ✅ |
+| Botón atrás de Android cancela (§5.1 punto 6) | — | ✅ |
+| FPS ≥ 30 durante 60 s con la base llena | ✅ | ✅ |
+
+No se anotaron cifras de FPS, solo que se cumple el mínimo.
+
+### 5.3 Desviaciones de implementación (2026-11-17)
+
+Cambios menores respecto a §1-§4, ninguno toca un requisito:
+
+- **Trazado de la base** (`base_grid.tres`): origen del área en `(-6, 0, -5)` local; celdas reservadas `(5, 0)` y
+  `(6, 0)` (frente del banco, en `(0, 0, -6.5)`), `(3, 7)` (frente del `SpawnPoint`, en `(-2.5, 0, 5)`) y `(8, 7)`
+  (frente del `ExitPoint`, en `(2.5, 0, 5)`). Aparición y salida quedan fuera del área y a más de 2 m entre sí, para
+  que llegar no ofrezca ya "Viajar". Suelo: el tile `dirt` de `green_zone_tiles.tres` (no se añadió un tile
+  metálico a la librería compartida).
+- **`ChargingStation.set_interaction_enabled`** no existe: `BaseStructures.set_interactions_enabled` apaga y
+  enciende el `InteractableComponent` de cada estructura colocada, sea del tipo que sea (sirve igual para el
+  generador y los cofres de la 012).
+- **`BaseStructures`** gana `get_base()` e `is_in_area(cell)`; la `PlacementScreen` recibe `BaseStructures` como
+  `CONTEXT_BASE` y obtiene de ahí la `BaseZone` para la vista previa y el rayo.
+- **`BaseZone`** gana `is_grid_visible()` y `get_preview()`; **`BuildArea`**, `is_overlay_visible()` (para tests).
+- **`ZoneLoader`** exporta también `impact_pool` y `dropped_item_pool` (los precalienta, §1 paso 5).
+- **`RepairBench`** es un `StaticBody3D` (tiene colisión), no un `Node3D` sin cuerpo.
+- **`DebugHud.bind_base_structures()`** le da al botón "Llenar base" su `BaseStructures`.
+- **`DeathController`** consulta el catálogo para saber si la zona de la muerte `counts_visits()`; una zona que el
+  catálogo no conoce se informa con `push_error` y no cuenta visita. Por eso el `ZONE_ID` de
+  `test_death_controller.gd` pasa a ser la zona verde.
+- **`test_placement_screen.gd`** vive en `integration/` (necesita la escena de la base y un `UIManager` real).
+- **Chispas al viajar**: `Main` llama a `CombatFeedback.release_all()` en `travel_started` (no `ZoneLoader`): las
+  chispas cuelgan de `World`, no de la zona, y `ZoneLoader` no conoce `CombatFeedback`.
+- **Joystick al abrir la colocación**: `BuildFlow` no llama a `FloatingJoystick.cancel()`. La entrada del robot está
+  bloqueada mientras la pantalla está abierta, así que no se mueve; si el aro del joystick se queda visible con el
+  dedo puesto, se verá en T-009-17.
+- **Revisión de `architecture-guardian` (2026-11-17)**, aplicado: el congelado de `World` lleva motivos en `Main`
+  (`DEATH`, `TRAVEL`, como `PlayerInput`), y una muerte en el mismo paso en que se usa una salida espera al final de
+  ese viaje y reaparece en la base (tests `test_r_009_51_death_in_exit_step_waits_for_base` y
+  `test_r_009_51_transfer_ends_during_exit_travel`); `ZoneLoader` empieza a sondear la carga en diferido, detrás del
+  congelado; `Robot.place_at()` es la vía del robot para colocarse al llegar; `BaseStructures.place` ocupa las celdas
+  antes de cobrar y las suelta si el cobro falla (`BuildGrid.remove`); el inventario no se abre durante un viaje;
+  Enter en `EDIT_PICK` no hace nada. Aceptado sin cambio: en ese caso extremo (salir y morir en el mismo paso) la zona
+  de origen suma dos visitas, una por la muerte (R-008-07) y otra por la salida (R-009-14).
+- **Bloqueo en `EDIT_PICK`**: se implementó como propone §1 (el robot tampoco se mueve con el modo edición abierto
+  sin nada cogido); aceptado por la persona que revisa (2026-11-17) y anotado en R-009-57.
+
 ## 6. Check de constitución
 
 | Principio | Cumple | Nota |
@@ -673,7 +740,8 @@ en headless fuera del repo):
   descarga. Es trabajo tirado detrás de una pantalla; se acepta para no cambiar la 008. Al salir por la salida no
   pasa: el contador sube al descargar la zona, cuando ya no es la cargada.
 - **Joystick y toques de colocación** → la pantalla se queda con los toques en `_gui_input` (verificar 6). Si el
-  dedo ya estaba en el joystick al abrirla, `BuildFlow` llama a `FloatingJoystick.cancel()` como hace la muerte.
+  dedo ya estaba en el joystick al abrirla, la entrada del robot sigue bloqueada; al final `BuildFlow` no llama a
+  `FloatingJoystick.cancel()` (§5.3) y lo comprueba T-009-17.
 - **Pulsar "Inventario" con la colocación abierta** → `Main._on_storage_pressed` cierra la pantalla de arriba, que
   es cancelar. Se acepta: no gasta nada.
 - **Recarga de la base al morir dentro** → descarga y vuelve a cargar la base (una escena pequeña) detrás de la
@@ -729,5 +797,6 @@ En desacuerdo:
 - **`zone.gd` en `scripts/`.** Es el script base de las escenas de zona, no lógica reutilizable sin escena: va junto
   a ellas, como `scenes/ui/ui_screen.gd` para las pantallas (architecture §4: presentación con su escena).
 
-Pendiente de la persona que revisa:
-- Bloquear el robot también en `EDIT_PICK` (§1 "Colocación y edición"). Si se acepta, se anota en R-009-57.
+Decidido por la persona que revisa (2026-11-17):
+- Bloquear el robot también en `EDIT_PICK` (§1 "Colocación y edición"): aceptado ("si editas no te mueves") y
+  anotado en R-009-57.
