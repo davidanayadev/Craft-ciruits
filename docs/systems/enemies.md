@@ -3,7 +3,7 @@
 > Zombies lentos y rápidos que patrullan, persiguen y golpean al robot quitándole batería. La IA es una máquina
 > de estados pura; los zombies se colocan desde la semilla del mundo y salen de un pool de instancias.
 > Specs: [006](../../specs/006-zombies/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md) · Última actualización: spec 008
+> [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010 (índices de enemigos muertos)
 
 ## Piezas
 
@@ -111,7 +111,9 @@ marcadores en `%EnemyMarkers` (más que el máximo de enemigos). `drop_table = n
 - `activate()` exige estar dentro del árbol; coloca el zombie en su sitio **antes** de `add_child`, o arrastra al
   robot si se solapan.
 - `home` y los puntos de patrulla están en coordenadas globales.
-- La visita sale de `GameManager`, que no se guarda todavía (spec 010). `FarmZone.repopulate()` llama a
+- La visita sale de `GameManager`, que la guarda ([save.md](save.md)). `ZombieSpawner` recuerda los índices de spawn de
+  la visita que murieron o se omitieron (`get_dead_indices`); `spawn_enemies` los salta sin tirar su botín pero consume
+  su semilla de cerebro, para que el resto no cambie ([world_zones.md](world_zones.md)). `FarmZone.repopulate()` llama a
   `despawn_enemies()` en cada muerte del robot en una zona `FARM`; `ZoneLoader` también la llama al descargar la zona
   ([travel.md](travel.md)). La base no tiene enemigos ni navmesh.
 - `activate()` ahora recibe `drop_seed` como cuarto argumento: quien lo llame a mano (tests) debe pasarlo.
