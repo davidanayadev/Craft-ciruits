@@ -27,3 +27,5 @@ Implement spec: $ARGUMENTS
    then `architecture-guardian` once on the branch diff. Fix what they find or report it to the user.
 8. Walk through the Definition of Done (constitution §4) with those reports, set the spec to `Hecho` in
    `spec.md` and `specs/README.md §6`, and report what was verified and what was not (e.g. not tested on Android).
+9. Run the `system-documenter` subagent with `spec NNN` and tell it to update the index in
+   `docs/systems/README.md`. Report the discrepancies it finds between code and spec or plan.
