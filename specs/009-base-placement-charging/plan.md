@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | **Spec** | [spec.md](spec.md) (debe estar *Aprobado*) |
-| **Estado** | Borrador (2026-11-17) |
+| **Estado** | Planificado (2026-11-17) |
 
 > Escrito contra el código de la spec 008 tal como está en el árbol de trabajo de `feat/008-death-recovery`
 > (`DeathController`, `DroppedItemSpawner`, `GameManager` con contador de visitas, `TransferScreen`). La 008 debe
@@ -557,7 +557,7 @@ Tests nuevos en `unit/`: `test_build_grid.gd`, `test_crafting_system.gd`, `test_
 
 | Requisito | Test (`game/tests/…`) o paso manual |
 |---|---|
-| R-009-01 | `unit/test_zone_resources.gd::test_r_009_01_zone_kinds_and_scenes`, `::test_r_009_01_scene_root_matches_kind_and_data` (`ResourceLoader.exists`, raíz `FarmZone`/`BaseZone` según `kind`, `data` es el mismo recurso), `::test_r_009_01_base_zone_id_from_architecture`; `unit/test_data_catalog.gd::test_r_009_01_zones_indexed_by_zone_id`, `::test_r_009_01_exactly_one_base_zone` |
+| R-009-01 | `unit/test_zone_resources.gd::test_r_009_01_zone_kinds_and_scenes`, `::test_r_009_01_scene_root_matches_kind_and_data` (`ResourceLoader.exists`, raíz `FarmZone`/`BaseZone` según `kind`, `data` es el mismo recurso), `::test_r_009_01_base_zone_id_from_architecture`; `unit/test_data_catalog.gd::test_r_009_01_zones_indexed_by_zone_id`, `::test_r_009_01_exactly_one_base_zone`, `::test_r_009_01_every_zone_tres_listed` (filtra `resources/zones/` por tipo: ahí viven también el navmesh y la `MeshLibrary`) |
 | R-009-02 | `integration/test_zone_loader.gd::test_r_009_02_one_zone_in_slot_after_each_travel` |
 | R-009-03 | `test_zone_loader.gd::test_r_009_03_robot_on_arrival_point`, `::test_r_009_03_zone_changed_once` |
 | R-009-04 | `test_zone_loader.gd::test_r_009_04_enemies_back_in_pool`, `::test_r_009_04_dropped_items_back_in_pool`; `integration/test_combat_feedback.gd::test_r_009_04_release_all_returns_sparks` |
@@ -579,7 +579,7 @@ Tests nuevos en `unit/`: `test_build_grid.gd`, `test_crafting_system.gd`, `test_
 | R-009-20 | `test_base_structures.gd::test_r_009_20_bench_not_pickable` |
 | R-009-21 | `test_base_zone.gd::test_r_009_21_battery_drains_in_base`; `test_zone_loader.gd::test_r_009_21_entering_base_does_not_recharge` (batería por debajo del máximo antes del viaje) |
 | R-009-22 | Manual (T-009-17): APK debug en el Android de gama media, base con el área llena (botón "Llenar base" del `DebugHud`), FPS ≥ 30 durante 60 s en el contador del `DebugHud`; triángulos y llamadas de dibujo con el monitor del editor en PC (remoto) |
-| R-009-23 | `unit/test_build_grid_data.gd::test_r_009_23_values_from_balance`, `::test_r_009_23_reserved_cells_inside_area` |
+| R-009-23 | `unit/test_build_grid_data.gd::test_r_009_23_values_from_balance`, `::test_r_009_23_reserved_cells_inside_area`; `test_base_zone.gd::test_r_009_23_same_grid_resource_and_origin` |
 | R-009-24 | `test_structure_resources.gd::test_r_009_24_charging_station_footprint`, `::test_r_009_24_no_rotation_field`; `test_data_catalog.gd::test_r_009_24_structures_listed` |
 | R-009-25 | `test_build_grid.gd::test_r_009_25_outside_limits`, `::test_r_009_25_reserved_cell`, `::test_r_009_25_occupied_cell`, `::test_r_009_25_blocked_cell`, `::test_r_009_25_footprint_partly_outside` |
 | R-009-26 | `test_build_grid.gd::test_r_009_26_move_frees_old_cells`, `::test_r_009_26_invalid_move_keeps_place` |
@@ -703,3 +703,31 @@ en headless fuera del repo):
   con ella y se recrean desde el estado.
 - **Rotación y huellas no cuadradas.** Fuera del PMV (pregunta 4).
 - **Viaje síncrono en un fotograma.** La pantalla de carga no llegaría a verse (R-009-07).
+
+### 7.1 Revisión de `architecture-guardian` (2026-11-17)
+
+Aplicado en este plan:
+- **Bloqueante — R-009-62.** El texto aprobado pedía la retirada de ingredientes dentro de `CraftingSystem`
+  tomando el inventario; el plan la hace el dueño (`InventoryComponent.remove_many`) con una regla pura de
+  `InventoryRules`. Se reescribió R-009-62 en el spec para que diga eso (§1 "Construir desde el banco").
+- El contador de visitas al salir sube al **descargar** la zona de origen, no al empezar el viaje: un fallo de carga
+  ya no deja el contador en N+1 con la zona de la visita N, y desaparece la excepción a R-008-09.
+- Escape y atrás de Android hacen lo mismo que "Cancelar" en cada modo (`UIScreen.handle_back`); limpieza al cerrar
+  por cualquier camino (`UIScreen.on_closed`).
+- Fallo de carga con test, y reaparición en el sitio si falla el viaje de reaparición.
+- `ZoneLoader` precalienta los pools al cargar una zona `FARM` (antes lo hacía `Main._ready`).
+- Tests nuevos: `test_build_flow.gd` (R-009-65), morir moviendo (R-009-53), Escape en `MOVE` (R-009-56), dos
+  viajes seguidos (R-009-11), entrar en la base con batería por debajo del máximo (R-009-21), punto de salida no
+  seleccionable (R-009-60), objeto caído en la base tras morir dentro (R-009-52), escena y `data` de cada
+  `ZoneData`, misma cuadrícula en base y `BaseStructures`.
+- `ExitPoint.destination` es un `ZoneData`, no un `Vector2i` copiado; `BuildGrid.occupy` / `move` devuelven
+  `ActionResult`; `kind` y clase de la escena se comprueban; vista previa en `BaseZone`; `base_grid.tres` en
+  `resources/config/`; una sola clave (`ERR_NOT_ENOUGH_MATERIALS`) para la falta de materiales; `blocked_changed`
+  solo al cambiar "algún motivo"; "Llenar base" usa `place`; R-009-08 anota que sustituye a R-004-05.
+
+En desacuerdo:
+- **`zone.gd` en `scripts/`.** Es el script base de las escenas de zona, no lógica reutilizable sin escena: va junto
+  a ellas, como `scenes/ui/ui_screen.gd` para las pantallas (architecture §4: presentación con su escena).
+
+Pendiente de la persona que revisa:
+- Bloquear el robot también en `EDIT_PICK` (§1 "Colocación y edición"). Si se acepta, se anota en R-009-57.
