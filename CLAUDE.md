@@ -7,11 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Specs 001 (project bootstrap), 002 (isometric scene and robot movement, ACTION_PLAN Tareas 0.2-0.3), 003
 (battery, ACTION_PLAN Tarea 0.4), 004 (green zone, ACTION_PLAN Tarea 1.1), 005 (inventory, ACTION_PLAN
 Tarea 1.2), 006 (zombies, ACTION_PLAN Tarea 1.3) and 007 (melee combat and XP on kill, ACTION_PLAN Tarea 1.4) are
-done and merged. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
+done and merged. Spec 008 (death, dropped items and recovery, ACTION_PLAN Tarea 1.5) is done. `game/` has its settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: the green farm zone generated from the world seed, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
-"Interact" button or E, a battery `Hud` and a provisional game over screen that spec 008 replaces). The robot owns
+"Interact" button or E and a battery `Hud`). The robot owns
 an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). A box keeps its roll
 in its own `InventoryComponent` and opens the loot screen, where the player takes stacks; the storage button (Tab)
 opens the inventory screen. Both screens go through `UIManager` (a node under `UI`, not an autoload), which blocks
@@ -25,8 +25,17 @@ placeholder made of primitives. The robot fights with one arm (`AttackStatsData`
 and its impact is one shape query that only sees `HurtboxComponent`s. A zombie killed by a player emits
 `EventBus.enemy_killed` and the killer's `ExperienceComponent` adds the XP of its `EnemyData` (shown in the debug
 HUD only). `CombatFeedback` wires the white hit flash, camera shake, pooled impact sparks and the red screen edge.
-The `EventBus`, `GameManager` and `DataRegistry` autoloads exist. There is no real death, saving, chests,
-crafting, pieces or chassis levels yet. The next spec is 008.
+Death is real (spec 008): at 0 battery `DeathController` applies the world's `RulesetData` (only `normal.tres`),
+the inventory falls where the robot died as a pooled `DroppedItem`, the zone's visit counter (in `GameManager`)
+goes up and the zone is repopulated (new zombies, boxes closed with the contents of the new visit), the
+`TransferScreen` covers the game for 2 s and the robot reappears on the zone's spawn point, which stands in for the
+base until spec 009. Dropped items are picked up with "Interact", expire after 5 minutes of real time
+(`DroppedItemRules`, read through `ITimeService` / `LocalTimeService` from `GameManager.get_time_service()`) and
+live under `World/DroppedItems`, outside the zone. Killed zombies roll a seeded drop table, and the inventory
+screen throws a chosen quantity of a stack (`QuantitySelector`, `InventoryRules.split`). Seeds that depend on the
+visit use `SeededRng.derive_seed_for_visit`. Nothing is saved yet: visit counters and dropped items live in memory.
+The `EventBus`, `GameManager` and `DataRegistry` autoloads exist. There is no base, saving, chests, crafting,
+pieces or chassis levels yet. The next spec is 009.
 
 ## Commands
 
@@ -146,7 +155,7 @@ Rules that follow from this:
   is not an inventory item. Chassis level-ups (XP threshold, then more inventory slots) are applied
   by ACTION_PLAN Tarea 2.7 from a `ChassisLevelData` `.tres`.
 - **Autoloads (singletons):** `GameManager` (global game state, not per-player state), `SaveManager`
-  (JSON encrypted with `EncryptionContext`, with a backup copy and fallback to it on corruption),
+  (JSON encrypted with `FileAccess` file encryption, AES-256, with a backup copy and fallback to it on corruption),
   `AudioManager`, plus `TutorialManager`. The architecture (ADR 0005) adds `EventBus` and `DataRegistry`
   (closed list in `specs/architecture.md` §5). Later: `OnlineManager`, `MultiplayerManager`.
 - **Per-player state lives in components, never in autoloads:** battery in `BatteryComponent`,

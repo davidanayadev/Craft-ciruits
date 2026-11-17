@@ -1,7 +1,6 @@
 class_name EnemyData
 extends Resource
-## One kind of enemy (BALANCE.md §3). Later specs add fields as they need them:
-## drops with the dropped item (spec 008).
+## One kind of enemy (BALANCE.md §3). Later specs add fields as they need them.
 
 ## Who the enemy sides with (SPECS.md §28). Only a data field until factions
 ## get relations (v1.2).
@@ -23,3 +22,5 @@ enum Faction { INFECTED, MACHINE, HUMAN }
 ## XP for the player who deals the final hit (BALANCE §3.1, §6.2).
 @export var xp_reward: int = 0
 @export var ai: EnemyAiData
+## Rolled once when a player kills it (BALANCE §3.1); null drops nothing.
+@export var drop_table: LootTableData

@@ -54,3 +54,41 @@ func test_r_007_19_bus_holds_no_state() -> void:
 		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			variables.append(property_name)
 	assert_eq(variables.size(), 0, "EventBus declares no variables: %s" % variables)
+
+
+## Spec 008: player_died and player_respawned carry the player's uid (R-008-25, R-008-31).
+func _signal_info_of(signal_name: String) -> Dictionary:
+	for info: Dictionary in EventBus.get_signal_list():
+		if info["name"] == signal_name:
+			return info
+	return {}
+
+
+func _assert_player_uid_signal(signal_name: String) -> void:
+	var info: Dictionary = _signal_info_of(signal_name)
+	assert_false(info.is_empty(), "EventBus declares %s" % signal_name)
+	if info.is_empty():
+		return
+	var args: Array = info["args"]
+	assert_eq(args.size(), 1, "one argument")
+	if args.size() != 1:
+		return
+	var first: Dictionary = args[0]
+	var first_name: String = first["name"]
+	var first_type: int = first["type"]
+	assert_eq(first_name, "player_uid", "the player uid")
+	assert_eq(first_type, TYPE_STRING, "typed as String")
+
+
+func test_r_008_25_player_died_signature() -> void:
+	_assert_player_uid_signal("player_died")
+	watch_signals(EventBus)
+	EventBus.player_died.emit(KILLER_UID)
+	assert_signal_emitted_with_parameters(EventBus, "player_died", [KILLER_UID])
+
+
+func test_r_008_31_player_respawned_signature() -> void:
+	_assert_player_uid_signal("player_respawned")
+	watch_signals(EventBus)
+	EventBus.player_respawned.emit(KILLER_UID)
+	assert_signal_emitted_with_parameters(EventBus, "player_respawned", [KILLER_UID])

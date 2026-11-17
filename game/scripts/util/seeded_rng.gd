@@ -12,6 +12,7 @@ const STREAM_BOX_PLACEMENT := &"box_placement"
 const STREAM_BOX_LOOT := &"box_loot"
 const STREAM_ENEMY_SPAWN := &"enemy_spawn"
 const STREAM_ENEMY_BRAIN := &"enemy_brain"
+const STREAM_ENEMY_DROP := &"enemy_drop"
 
 const _HEADER_SIZE := 20
 const _ZONE_X_OFFSET := 8
@@ -41,6 +42,16 @@ static func derive_seed(
 		push_error("SeededRng: SHA-256 failed (%s)." % error_string(error))
 		return 0
 	return context.finish().decode_s64(0)
+
+
+## Seed of one element of one visit (spec 008): the seed of the visit, then
+## the seed of the element from it. Two chained derive_seed(), so derive_seed
+## itself and everything it already placed stay as they are.
+static func derive_seed_for_visit(
+	world_seed: int, zone_id: Vector2i, stream: StringName, visit: int, index: int
+) -> int:
+	var visit_seed: int = derive_seed(world_seed, zone_id, stream, visit)
+	return derive_seed(visit_seed, zone_id, stream, index)
 
 
 static func create(

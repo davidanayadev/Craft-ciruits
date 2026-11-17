@@ -1,0 +1,266 @@
+extends GutTest
+## DroppedItemSpawner (spec 008): items keep a position local to their zone
+## (R-008-10), go back to the pool when emptied (R-008-14) and come clean from
+## it (R-008-18), record the clock when they fall (R-008-20), expire without
+## giving anything (R-008-22) and are independent of each other (R-008-32).
+
+const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
+const CONFIG_PATH := "res://resources/config/dropped_items.tres"
+const ZONE := Vector2i(3, 4)
+const ZONE_ORIGIN := Vector3(40.0, 0.0, -25.0)
+const START_TIME := 1000
+
+var _world: Node3D
+var _pool: ObjectPool
+var _spawner: DroppedItemSpawner
+var _zone_root: Node3D
+var _clock: FakeTimeService
+var _config: DroppedItemConfigData
+
+
+func before_each() -> void:
+	_config = load(CONFIG_PATH) as DroppedItemConfigData
+	_clock = FakeTimeService.new()
+	_clock.now = START_TIME
+	_world = Node3D.new()
+	add_child_autofree(_world)
+	_pool = ObjectPool.new()
+	_pool.scene = DROPPED_ITEM_SCENE
+	_world.add_child(_pool)
+	_spawner = DroppedItemSpawner.new()
+	_spawner.pool = _pool
+	_spawner.config = _config
+	_spawner.time_service = _clock
+	_world.add_child(_spawner)
+	_zone_root = Node3D.new()
+	_zone_root.position = ZONE_ORIGIN
+	_world.add_child(_zone_root)
+	_spawner.bind_zone(ZONE, _zone_root)
+
+
+func _new_inventory(slot_count: int) -> InventoryComponent:
+	var inventory: InventoryComponent = InventoryComponent.new()
+	add_child_autofree(inventory)
+	inventory.set_slot_count(slot_count)
+	return inventory
+
+
+func _source_with_loot() -> InventoryComponent:
+	var source: InventoryComponent = _new_inventory(5)
+	source.add(&"scrap", 6)
+	source.add(&"iron", 2)
+	return source
+
+
+func _stack(item_id: StringName, quantity: int) -> ItemStack:
+	return ItemStack.new(DataRegistry.get_item(item_id), quantity)
+
+
+func _pick_up(item: DroppedItem) -> InventoryComponent:
+	var picker: Node3D = Node3D.new()
+	add_child_autofree(picker)
+	var inventory: InventoryComponent = InventoryComponent.new()
+	picker.add_child(inventory)
+	inventory.set_slot_count(10)
+	var interactable: InteractableComponent = item.get_node("%Interactable") as InteractableComponent
+	interactable.interact(picker)
+	return inventory
+
+
+func test_r_008_10_position_is_local_to_the_zone() -> void:
+	var world_position: Vector3 = Vector3(45.0, 0.0, -20.0)
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), world_position)
+	assert_not_null(item, "an item was created")
+	if item == null:
+		return
+	assert_eq(item.global_position, world_position, "it lies at the world position")
+	assert_eq(item.local_position, _zone_root.to_local(world_position), "local to the zone")
+	assert_eq(item.local_position, world_position - ZONE_ORIGIN, "zone origin subtracted")
+	assert_eq(item.zone_id, ZONE, "zone as bound")
+
+
+func test_r_008_14_emptied_goes_back_to_pool() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var free_before: int = _pool.get_free_count()
+	_pick_up(item)
+	await wait_physics_frames(2)
+	assert_false(_spawner.get_items().has(item), "no longer an active item")
+	assert_false(item.is_inside_tree(), "outside the tree")
+	assert_gt(_pool.get_free_count(), free_before, "stored in the pool")
+
+
+func test_r_008_18_reused_item_is_clean() -> void:
+	var first: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var first_uid: String = first.uid
+	_pick_up(first)
+	await wait_physics_frames(2)
+	_clock.now = START_TIME + 50
+	var one: Array[ItemStack] = [_stack(&"cables", 4)]
+	var second: DroppedItem = _spawner.drop_stacks(one, Vector3(1.0, 0.0, 1.0))
+	assert_same(second, first, "the pooled instance is reused")
+	assert_eq(second.get_contents().get_slot_count(), 1, "one slot")
+	var expected: Dictionary[StringName, int] = {&"cables": 4}
+	var totals: Dictionary[StringName, int] = {}
+	for stack: ItemStack in second.get_contents().get_slots():
+		if stack != null:
+			totals[stack.item.id] = stack.quantity
+	assert_eq(totals, expected, "only the new stack")
+	assert_ne(second.uid, first_uid, "another uid")
+	assert_ne(second.uid, "", "a real uid")
+	assert_eq(second.dropped_at_unix, START_TIME + 50, "the new time")
+
+
+func test_r_008_18_items_come_from_the_pool() -> void:
+	_pool.prewarm(3)
+	assert_eq(_pool.get_free_count(), 3, "prewarmed")
+	var one: Array[ItemStack] = [_stack(&"scrap", 1)]
+	_spawner.drop_stacks(one, Vector3.ZERO)
+	assert_eq(_pool.get_free_count(), 2, "the first drop took a stored instance")
+	_spawner.drop_stacks(one, Vector3.ZERO)
+	_spawner.drop_stacks(one, Vector3.ZERO)
+	assert_eq(_pool.get_free_count(), 0, "three drops used the three, none was created")
+	assert_eq(_spawner.get_items().size(), 3, "three active items")
+
+
+func test_r_008_20_drop_records_now() -> void:
+	_clock.now = 1234
+	var from_inventory: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	assert_eq(from_inventory.dropped_at_unix, 1234, "drop_inventory")
+	_clock.now = 1300
+	var source: InventoryComponent = _new_inventory(3)
+	source.add(&"scrap", 5)
+	var result: ActionResult = _spawner.drop_from_slot(source, 0, 2, Vector3.ZERO)
+	assert_true(result.ok, "the split drop works")
+	var from_slot: DroppedItem = _spawner.get_items().back()
+	assert_eq(from_slot.dropped_at_unix, 1300, "drop_from_slot")
+	_clock.now = 1400
+	var one: Array[ItemStack] = [_stack(&"iron", 1)]
+	var from_stacks: DroppedItem = _spawner.drop_stacks(one, Vector3.ZERO)
+	assert_eq(from_stacks.dropped_at_unix, 1400, "drop_stacks")
+
+
+func test_r_008_22_expired_disappears_and_gives_nothing() -> void:
+	var source: InventoryComponent = _source_with_loot()
+	var item: DroppedItem = _spawner.drop_inventory(source, Vector3.ZERO)
+	var free_before: int = _pool.get_free_count()
+	var lifetime: int = _config.lifetime_s
+	assert_gt(lifetime, 0, "the config has a lifetime")
+	_spawner.discard_expired(START_TIME + lifetime - 1)
+	assert_true(_spawner.get_items().has(item), "one second before the end it stays")
+	_spawner.discard_expired(START_TIME + lifetime)
+	assert_false(_spawner.get_items().has(item), "at dropped_at + lifetime it is gone")
+	assert_false(item.is_inside_tree(), "outside the tree")
+	assert_gt(_pool.get_free_count(), free_before, "back in the pool")
+	assert_true(source.is_empty(), "the source did not get anything back")
+	assert_true(item.get_contents().is_empty(), "the stacks did not go anywhere")
+
+
+func test_r_008_22_timer_runs_only_with_items() -> void:
+	assert_false(_spawner.is_checking_expiry(), "no items, no check")
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	assert_true(_spawner.is_checking_expiry(), "running with an item")
+	_pick_up(item)
+	await wait_physics_frames(2)
+	assert_false(_spawner.is_checking_expiry(), "stopped when the last one left")
+	var one: Array[ItemStack] = [_stack(&"scrap", 1)]
+	_spawner.drop_stacks(one, Vector3.ZERO)
+	assert_true(_spawner.is_checking_expiry(), "running again")
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	assert_false(_spawner.is_checking_expiry(), "stopped after expiry too")
+
+
+func test_r_008_32_independent_items() -> void:
+	var older: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	_clock.now = START_TIME + 100
+	var newer: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ONE)
+	assert_ne(older, newer, "two items")
+	assert_ne(older.uid, newer.uid, "each with its own uid")
+	assert_eq(older.dropped_at_unix, START_TIME, "its own time")
+	assert_eq(newer.dropped_at_unix, START_TIME + 100, "its own time")
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	assert_eq(_spawner.get_items().size(), 1, "only the older one expired")
+	assert_same(_spawner.get_items()[0], newer, "the newer one stays")
+
+
+func test_r_008_10_drop_inventory_empty_creates_nothing() -> void:
+	_pool.prewarm(2)
+	var item: DroppedItem = _spawner.drop_inventory(_new_inventory(5), Vector3.ZERO)
+	assert_null(item, "nothing to drop")
+	assert_eq(_spawner.get_items().size(), 0, "no item")
+	assert_eq(_pool.get_free_count(), 2, "the pool was not touched")
+
+
+func test_r_008_10_drop_inventory_moves_everything() -> void:
+	var source: InventoryComponent = _source_with_loot()
+	var item: DroppedItem = _spawner.drop_inventory(source, Vector3.ZERO)
+	assert_true(source.is_empty(), "the source gave everything")
+	assert_eq(item.get_contents().count(&"scrap"), 6, "scrap moved")
+	assert_eq(item.get_contents().count(&"iron"), 2, "iron moved")
+
+
+func test_r_008_10_drop_from_slot_moves_exactly_the_quantity() -> void:
+	var source: InventoryComponent = _new_inventory(3)
+	source.add(&"scrap", 10)
+	var result: ActionResult = _spawner.drop_from_slot(source, 0, 4, Vector3.ZERO)
+	assert_true(result.ok, "ok")
+	assert_eq(source.count(&"scrap"), 6, "the rest stays in the slot")
+	assert_eq(_spawner.get_items().size(), 1, "one item")
+	var item: DroppedItem = _spawner.get_items()[0]
+	assert_eq(item.get_contents().count(&"scrap"), 4, "exactly the quantity")
+
+
+func test_r_008_10_drop_from_slot_invalid_creates_nothing() -> void:
+	var source: InventoryComponent = _new_inventory(3)
+	source.add(&"scrap", 10)
+	var cases: Array[Vector2i] = [Vector2i(7, 1), Vector2i(-1, 1), Vector2i(1, 1), Vector2i(0, 0), Vector2i(0, 11)]
+	for request: Vector2i in cases:
+		var result: ActionResult = _spawner.drop_from_slot(source, request.x, request.y, Vector3.ZERO)
+		assert_false(result.ok, "slot %d quantity %d is invalid" % [request.x, request.y])
+		assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST, "invalid request")
+	assert_eq(_spawner.get_items().size(), 0, "nothing created")
+	assert_eq(source.count(&"scrap"), 10, "the source is untouched")
+
+
+func test_r_008_10_drop_stacks_empty_is_null() -> void:
+	var none: Array[ItemStack] = []
+	assert_null(_spawner.drop_stacks(none, Vector3.ZERO), "no stacks, no item")
+	assert_eq(_spawner.get_items().size(), 0, "nothing created")
+
+
+func test_r_008_10_drop_stacks_holds_copies_of_the_stacks() -> void:
+	var stacks: Array[ItemStack] = [_stack(&"scrap", 3), _stack(&"iron", 2)]
+	var item: DroppedItem = _spawner.drop_stacks(stacks, Vector3.ZERO)
+	assert_eq(item.get_contents().count(&"scrap"), 3, "scrap")
+	assert_eq(item.get_contents().count(&"iron"), 2, "iron")
+
+
+func test_r_008_10_to_data_lists_one_dictionary_per_item() -> void:
+	_spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var one: Array[ItemStack] = [_stack(&"cables", 1)]
+	_spawner.drop_stacks(one, Vector3.ONE)
+	var data: Array[Dictionary] = _spawner.to_data()
+	assert_eq(data.size(), 2, "one per item")
+	var first_uid: String = data[0]["uid"]
+	assert_eq(first_uid, _spawner.get_items()[0].uid, "oldest first")
+
+
+func test_r_008_10_spawner_without_zone_reports_error() -> void:
+	var unbound: DroppedItemSpawner = DroppedItemSpawner.new()
+	unbound.pool = _pool
+	unbound.time_service = _clock
+	_world.add_child(unbound)
+	var one: Array[ItemStack] = [_stack(&"scrap", 1)]
+	assert_null(unbound.drop_stacks(one, Vector3.ZERO), "no zone bound")
+	assert_push_error("needs a pool, a time service and a bound zone")
+	assert_eq(unbound.get_items().size(), 0, "nothing created")
+
+
+func test_r_008_10_spawner_without_time_service_reports_error() -> void:
+	var no_clock: DroppedItemSpawner = DroppedItemSpawner.new()
+	no_clock.pool = _pool
+	_world.add_child(no_clock)
+	no_clock.bind_zone(ZONE, _zone_root)
+	var one: Array[ItemStack] = [_stack(&"scrap", 1)]
+	assert_null(no_clock.drop_stacks(one, Vector3.ZERO), "no clock")
+	assert_push_error("needs a pool, a time service and a bound zone")
+	assert_eq(no_clock.get_items().size(), 0, "nothing created")

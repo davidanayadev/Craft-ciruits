@@ -3,9 +3,16 @@ extends GutTest
 ## quantity, and an empty look for empty slots (R-005-25); it follows
 ## inventory_changed and never polls (R-005-26); its title is a translation
 ## key in ES and EN (R-005-30). Headless cannot click Controls (ADR 0002).
+## Spec 008: occupied cells can be pressed without taking focus (R-008-38), a
+## tap selects a stack and shows the quantity selector (R-008-38), the throw
+## button asks the thrower for slot and quantity (R-008-39), it needs a
+## selection (R-008-41) and the screen never changes the inventory
+## itself (R-008-42).
 
 const SCREEN_SCENE := preload("res://scenes/ui/inventory_screen.tscn")
+const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const TITLE_KEY := &"INVENTORY_TITLE"
+const THROW_KEY := &"INVENTORY_THROW"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const SLOT_COUNT := 5
 
@@ -25,6 +32,39 @@ func before_each() -> void:
 
 func _setup() -> void:
 	_screen.setup({InventoryScreen.CONTEXT_INVENTORY: _inventory})
+
+
+func _new_thrower() -> Robot:
+	var robot: Robot = ROBOT_SCENE.instantiate() as Robot
+	add_child_autofree(robot)
+	robot.set_physics_process(false)
+	return robot
+
+
+func _setup_with_thrower(robot: Robot) -> void:
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: _inventory, InventoryScreen.CONTEXT_THROWER: robot}
+	)
+
+
+func _selector() -> QuantitySelector:
+	return _screen.get_node("%QuantitySelector") as QuantitySelector
+
+
+func _selector_slider(selector: QuantitySelector) -> HSlider:
+	return selector.get_node("%Slider") as HSlider
+
+
+func _throw_button() -> Button:
+	return _screen.get_node("%ThrowButton") as Button
+
+
+## One "id x quantity" entry per slot, empty slots as "-".
+func _describe(inventory: InventoryComponent) -> Array[String]:
+	var lines: Array[String] = []
+	for stack: ItemStack in inventory.get_slots():
+		lines.append("-" if stack == null else "%s x%d" % [stack.item.id, stack.quantity])
+	return lines
 
 
 func _cells() -> Array[InventorySlotView]:
@@ -75,15 +115,127 @@ func test_r_005_25_cells_follow_slot_count() -> void:
 	assert_eq(_cells().size(), SLOT_COUNT + 2, "new slots get their cells")
 
 
-func test_r_005_25_cells_cannot_be_pressed() -> void:
+func test_r_008_38_cells_pressable_without_focus() -> void:
 	_inventory.add(&"scrap", 7)
+	_inventory.add(&"iron", 2)
 	_setup()
 	watch_signals(_grid)
-	for cell: InventorySlotView in _cells():
-		assert_true(cell.disabled, "the inventory screen only shows")
-		assert_eq(cell.focus_mode, Control.FOCUS_NONE, "cells never take keyboard focus")
-		cell.pressed.emit()
-	assert_signal_not_emitted(_grid, "slot_pressed")
+	var cells: Array[InventorySlotView] = _cells()
+	assert_eq(cells.size(), SLOT_COUNT, "one cell per slot")
+	for index: int in cells.size():
+		var occupied: bool = index < 2
+		assert_eq(cells[index].disabled, not occupied, "cell %d: only occupied cells are enabled" % index)
+		assert_eq(cells[index].focus_mode, Control.FOCUS_NONE, "cells never take keyboard focus")
+	cells[1].pressed.emit()
+	assert_signal_emit_count(_grid, "slot_pressed", 1, "pressing an occupied cell reports it")
+	assert_signal_emitted_with_parameters(_grid, "slot_pressed", [1])
+
+
+func test_r_008_38_tap_selects_and_shows_selector() -> void:
+	var robot: Robot = _new_thrower()
+	_inventory.add(&"scrap", 7)
+	_inventory.add(&"iron", 2)
+	_setup_with_thrower(robot)
+	var selector: QuantitySelector = _selector()
+	assert_false(selector.visible, "no selector before a selection")
+	var cells: Array[InventorySlotView] = _cells()
+	cells[1].pressed.emit()
+	for index: int in cells.size():
+		assert_eq(cells[index].is_selected(), index == 1, "only cell 1 is selected (cell %d)" % index)
+	assert_true(selector.visible, "the selector shows")
+	assert_eq(_selector_slider(selector).max_value, 2.0, "its maximum is the stack")
+	assert_eq(selector.get_value(), 2, "and it starts at the whole stack")
+	cells[0].pressed.emit()
+	assert_true(cells[0].is_selected(), "another tap moves the selection")
+	assert_false(cells[1].is_selected(), "and clears the previous one")
+	assert_eq(selector.get_value(), 7, "with the quantity of that stack")
+
+
+func test_r_008_39_throw_requests_slot_and_quantity() -> void:
+	var robot: Robot = _new_thrower()
+	_inventory.add(&"scrap", 7)
+	_setup_with_thrower(robot)
+	watch_signals(robot)
+	watch_signals(_screen)
+	_cells()[0].pressed.emit()
+	_throw_button().pressed.emit()
+	assert_signal_emit_count(robot, "throw_requested", 1, "one request")
+	assert_signal_emitted_with_parameters(robot, "throw_requested", [robot, 0, 7], 0)
+	var selector: QuantitySelector = _selector()
+	(selector.get_node("%MinusButton") as Button).pressed.emit()
+	(selector.get_node("%MinusButton") as Button).pressed.emit()
+	_throw_button().pressed.emit()
+	assert_signal_emit_count(robot, "throw_requested", 2, "a second request")
+	assert_signal_emitted_with_parameters(robot, "throw_requested", [robot, 0, 5], 1)
+	assert_signal_not_emitted(_screen, "close_requested", "the screen stays open")
+
+
+func test_r_008_41_throw_disabled_without_selection() -> void:
+	var robot: Robot = _new_thrower()
+	_inventory.add(&"scrap", 7)
+	_setup_with_thrower(robot)
+	watch_signals(robot)
+	assert_true(_throw_button().disabled, "no selection, no throwing")
+	_throw_button().pressed.emit()
+	assert_signal_not_emitted(robot, "throw_requested", "nothing is requested")
+
+
+func test_r_008_41_selection_cleared_when_slot_empties() -> void:
+	var robot: Robot = _new_thrower()
+	_inventory.add(&"scrap", 7)
+	_setup_with_thrower(robot)
+	var cells: Array[InventorySlotView] = _cells()
+	cells[0].pressed.emit()
+	assert_false(_throw_button().disabled, "a selection enables the button")
+	_inventory.remove(&"scrap", 3)
+	assert_true(cells[0].is_selected(), "a stack that only shrinks stays selected")
+	assert_eq(_selector_slider(_selector()).max_value, 4.0, "and the maximum follows it")
+	assert_eq(_selector().get_value(), 4, "the value too")
+	_inventory.remove(&"scrap", 4)
+	for cell: InventorySlotView in cells:
+		assert_false(cell.is_selected(), "no cell is selected")
+	assert_true(_throw_button().disabled, "the button is disabled")
+	assert_false(_selector().visible, "the selector hides")
+
+
+func test_r_008_42_screen_never_changes_inventory() -> void:
+	var robot: Robot = _new_thrower()
+	_inventory.add(&"scrap", 7)
+	_inventory.add(&"iron", 2)
+	_setup_with_thrower(robot)
+	var before: Array[String] = _describe(_inventory)
+	_cells()[0].pressed.emit()
+	_throw_button().pressed.emit()
+	_cells()[1].pressed.emit()
+	_throw_button().pressed.emit()
+	assert_eq(_describe(_inventory), before, "only the owner of the throw changes the inventory")
+
+
+func test_r_008_42_texts_translated_es_en() -> void:
+	var button: Button = _throw_button()
+	assert_eq(button.text, String(THROW_KEY), "the button text is a translation key")
+	assert_ne(button.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "and it is translated")
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
+		if translations.size() == 1:
+			var text: String = translations[0].get_message(THROW_KEY)
+			assert_ne(text, "", "'%s' has a text for %s" % [locale, THROW_KEY])
+
+
+func test_r_008_38_throw_controls_hidden_without_thrower() -> void:
+	_inventory.add(&"scrap", 7)
+	_setup()
+	assert_false((_screen.get_node("%ThrowControls") as Control).visible, "no thrower, no controls")
+	var with_thrower: InventoryScreen = SCREEN_SCENE.instantiate() as InventoryScreen
+	add_child_autofree(with_thrower)
+	with_thrower.setup(
+		{
+			InventoryScreen.CONTEXT_INVENTORY: _inventory,
+			InventoryScreen.CONTEXT_THROWER: _new_thrower(),
+		}
+	)
+	assert_true((with_thrower.get_node("%ThrowControls") as Control).visible, "with one they show")
 
 
 func test_r_005_26_updates_on_inventory_changed() -> void:

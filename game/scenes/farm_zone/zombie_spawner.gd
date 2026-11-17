@@ -5,12 +5,13 @@ extends Node3D
 ## stream; the brain seed of each zombie from the enemy_brain stream, in the
 ## order they are placed. Both use the visit as index, so a new visit spawns
 ## them again elsewhere, and changing the AI never moves where they appear.
+## The drop seed of each zombie comes from the enemy_drop stream, the visit
+## and its place in the spawn order (spec 008).
 ## Zombies come from a pool that outlives the zone and go back to it when they
 ## die or when the zone is unloaded.
 
-## Visit number of a zone that was never left. The caller passes it until
-## spec 010 adds the per-zone visit counter (BALANCE §7.2).
-const FIRST_VISIT := 0
+## A zombie of this spawner left loot where it died (spec 008).
+signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
 ## Parent of the zombies while they are active.
 @export var enemies_root: Node3D
@@ -40,8 +41,12 @@ func spawn(
 	var spawns: Array[ZonePopulation.EnemySpawn] = ZonePopulation.pick_enemy_spawns(
 		markers.size(), zone.enemy_count_min, zone.enemy_count_max, zone.enemy_spawns, spawn_rng
 	)
-	for enemy_spawn: ZonePopulation.EnemySpawn in spawns:
-		_place(enemy_spawn, markers[enemy_spawn.marker_index] as Marker3D, brain_rng.randi())
+	for i: int in spawns.size():
+		var drop_seed: int = SeededRng.derive_seed_for_visit(
+			world_seed, zone.zone_id, SeededRng.STREAM_ENEMY_DROP, visit, i
+		)
+		var marker: Marker3D = markers[spawns[i].marker_index] as Marker3D
+		_place(spawns[i], marker, brain_rng.randi(), drop_seed)
 
 
 ## Returns every active zombie to the pool (R-006-27).
@@ -55,7 +60,9 @@ func get_active() -> Array[Zombie]:
 	return _active
 
 
-func _place(enemy_spawn: ZonePopulation.EnemySpawn, marker: Marker3D, brain_seed: int) -> void:
+func _place(
+	enemy_spawn: ZonePopulation.EnemySpawn, marker: Marker3D, brain_seed: int, drop_seed: int
+) -> void:
 	if marker == null:
 		push_error(
 			"ZombieSpawner '%s': enemy marker %d is not a Marker3D."
@@ -74,14 +81,20 @@ func _place(enemy_spawn: ZonePopulation.EnemySpawn, marker: Marker3D, brain_seed
 	# would, any character it was overlapping (the robot, at the zone's origin).
 	zombie.position = enemies_root.to_local(marker.global_position)
 	enemies_root.add_child(zombie)
-	zombie.activate(enemy_spawn.enemy, marker.global_position, brain_seed)
+	zombie.activate(enemy_spawn.enemy, marker.global_position, brain_seed, drop_seed)
 	zombie.defeated.connect(_on_zombie_defeated)
+	zombie.loot_dropped.connect(_on_zombie_loot_dropped)
 	_active.append(zombie)
 
 
 func _release(zombie: Zombie) -> void:
 	zombie.defeated.disconnect(_on_zombie_defeated)
+	zombie.loot_dropped.disconnect(_on_zombie_loot_dropped)
 	_pool.release(zombie)
+
+
+func _on_zombie_loot_dropped(stacks: Array[ItemStack], world_position: Vector3) -> void:
+	enemy_loot_dropped.emit(stacks, world_position)
 
 
 func _on_zombie_defeated(zombie: Zombie) -> void:

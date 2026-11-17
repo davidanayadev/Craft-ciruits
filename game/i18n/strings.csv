@@ -1,7 +1,5 @@
 keys,en,es
 APP_TITLE,CyberScrap,CyberScrap
-GAME_OVER_TITLE,Battery depleted,Batería agotada
-GAME_OVER_RESTART,Restart,Reiniciar
 ITEM_SCRAP,Scrap,Chatarra
 ITEM_CABLES,Cables,Cables
 ITEM_IRON,Iron,Hierro
@@ -16,3 +14,6 @@ HUD_STORAGE,Storage,Almacén
 ENEMY_ZOMBIE_SLOW,Slow zombie,Zombie lento
 ENEMY_ZOMBIE_FAST,Fast zombie,Zombie rápido
 HUD_ATTACK,Attack,Atacar
+PROMPT_PICK_UP,Pick up,Recoger
+TRANSFER_TITLE,Consciousness Transfer,Transferencia de Consciencia
+INVENTORY_THROW,Drop,Tirar

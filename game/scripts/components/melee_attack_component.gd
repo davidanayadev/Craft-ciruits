@@ -63,6 +63,12 @@ func tick(delta: float, wants_to_swing: bool, battery_depleted: bool, input_bloc
 		swing_started.emit(attack.battery_cost)
 
 
+## Drops a pending impact: a dead owner does not hit (spec 008). The swing
+## still counts for the rhythm and its cost stays paid.
+func cancel_swing() -> void:
+	_impact_pending = false
+
+
 ## Deals the damage of the attack once to each distinct living target
 ## (R-007-11). Public so the rule is testable without physics.
 func apply_impact(targets: Array[HurtboxComponent]) -> void:

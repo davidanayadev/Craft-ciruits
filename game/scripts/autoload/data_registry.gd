@@ -36,3 +36,11 @@ func get_enemy(id: StringName) -> EnemyData:
 		push_error("DataRegistry: no catalog loaded; cannot return enemy '%s'." % id)
 		return null
 	return _catalog.get_enemy(id)
+
+
+## Unknown id → push_error and null.
+func get_ruleset(id: StringName) -> RulesetData:
+	if _catalog == null:
+		push_error("DataRegistry: no catalog loaded; cannot return ruleset '%s'." % id)
+		return null
+	return _catalog.get_ruleset(id)

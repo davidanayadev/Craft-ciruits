@@ -154,3 +154,38 @@ func test_r_007_03_zombies_xp_match_balance() -> void:
 
 func test_r_007_03_xp_reward_defaults_to_zero() -> void:
 	assert_eq(EnemyData.new().xp_reward, 0, "an enemy without the field gives no XP")
+
+
+# --- Zombie drops (spec 008, R-008-05) --------------------------------------
+
+const ZOMBIE_DROP_PATH := "res://resources/loot/zombie_drop.tres"
+const SCRAP_PATH := "res://resources/items/scrap.tres"
+
+
+func test_r_008_05_zombies_drop_table_matches_balance() -> void:
+	var table: LootTableData = load(ZOMBIE_DROP_PATH) as LootTableData
+	assert_not_null(table, "zombie_drop.tres exists and is a LootTableData")
+	if table == null:
+		return
+	var scrap: ItemData = load(SCRAP_PATH) as ItemData
+	assert_eq(table.entries.size(), 1, "a single entry: scrap (BALANCE §3.1)")
+	if table.entries.size() == 1:
+		var entry: LootEntryData = table.entries[0]
+		assert_not_null(entry, "the entry exists")
+		if entry != null:
+			assert_same(entry.item, scrap, "the entry gives scrap")
+			assert_eq(entry.min_quantity, 0, "minimum (BALANCE §3.1, §2.1)")
+			assert_eq(entry.max_quantity, 1, "maximum (BALANCE §3.1, §2.1)")
+	var problems: PackedStringArray = LootSystem.validate(table)
+	assert_eq(problems.size(), 0, "the table is valid: %s" % problems)
+	for id: StringName in EXPECTED_ZOMBIES:
+		var enemy: EnemyData = _load_enemy(id)
+		if enemy == null:
+			fail_test("%s.tres is missing" % id)
+			continue
+		assert_not_null(enemy.drop_table, "%s has a drop table" % id)
+		assert_same(enemy.drop_table, table, "%s uses zombie_drop.tres" % id)
+
+
+func test_r_008_05_drop_table_defaults_to_none() -> void:
+	assert_null(EnemyData.new().drop_table, "an enemy without the field drops nothing")

@@ -5,3 +5,4 @@
 [resource]
 script = ExtResource("1")
 world_seed = 20261115
+ruleset_id = &"normal"

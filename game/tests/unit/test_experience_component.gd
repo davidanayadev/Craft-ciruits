@@ -102,3 +102,23 @@ func test_r_007_21_missing_catalog_reports_error() -> void:
 	_experience.reward_kill(ENEMY_ID, OWNER_UID, OWNER_UID, null)
 	assert_push_error("Experience")
 	assert_eq(_experience.get_total(), 0, "nothing changed")
+
+
+# --- Spec 008: reset (ruleset that does not keep XP) ---------------------------
+
+
+func test_r_008_28_reset_sets_total_to_zero() -> void:
+	_experience.add_xp(7)
+	_experience.reset()
+	assert_eq(_experience.get_total(), 0, "the total is back to 0")
+	assert_signal_emit_count(_experience, "xp_changed", 2, "one for the gain, one for the reset")
+	assert_signal_emitted_with_parameters(_experience, "xp_changed", [0])
+	_experience.add_xp(2)
+	assert_eq(_experience.get_total(), 2, "it counts again from 0")
+
+
+func test_r_008_28_reset_at_zero_emits_nothing() -> void:
+	_experience.reset()
+	assert_eq(_experience.get_total(), 0)
+	assert_signal_not_emitted(_experience, "xp_changed", "nothing changed, nothing announced")
+	assert_push_error_count(0)

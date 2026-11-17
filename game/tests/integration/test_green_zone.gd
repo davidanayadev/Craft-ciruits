@@ -5,9 +5,11 @@ extends GutTest
 ## (R-004-11, R-004-21), and the zone relays the opened signal of each box
 ## (R-005-16). The zone is generated with seeds given here, never
 ## through GameManager.
+## Spec 008: contents depend on the visit (R-008-08), repopulate() starts a visit (R-008-09).
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
+const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
 const DEV_WORLD_PATH := "res://resources/config/dev_world.tres"
 const SEED_A := 1001
@@ -38,7 +40,7 @@ func _new_zone() -> FarmZone:
 
 func _generated_zone(world_seed: int) -> FarmZone:
 	var zone: FarmZone = _new_zone()
-	zone.generate(world_seed)
+	zone.generate(world_seed, ZonePopulation.FIRST_VISIT)
 	return zone
 
 
@@ -193,7 +195,7 @@ func test_r_004_11_other_seed_other_layout() -> void:
 func test_r_004_11_generate_twice_reports_error() -> void:
 	var zone: FarmZone = _generated_zone(SEED_A)
 	var before: Array[Vector3] = _box_positions(zone)
-	zone.generate(SEED_B)
+	zone.generate(SEED_B, ZonePopulation.FIRST_VISIT)
 	assert_push_error("already")
 	assert_eq(_box_positions(zone), before, "the second call changes nothing")
 
@@ -288,3 +290,123 @@ func test_r_005_16_zone_relays_box_opened() -> void:
 		var relayed_opener: Node3D = parameters[1]
 		assert_same(box, boxes[i], "box_opened says which box")
 		assert_same(relayed_opener, opener, "and who opened it")
+
+
+## Rolled contents of every box of the zone, in box order. Opens every box.
+func _describe_contents(zone: FarmZone) -> Array[String]:
+	var opener: Node3D = Node3D.new()
+	add_child_autofree(opener)
+	var contents: Array[String] = []
+	for box: LootBox in zone.get_boxes():
+		contents.append(_open_and_describe(box, opener))
+	return contents
+
+
+func _visit_zone(world_seed: int, visit: int) -> FarmZone:
+	var zone: FarmZone = _new_zone()
+	zone.generate(world_seed, visit)
+	return zone
+
+
+func _new_zombie_pool() -> ObjectPool:
+	var pool: ObjectPool = ObjectPool.new()
+	pool.scene = ZOMBIE_SCENE
+	add_child_autofree(pool)
+	return pool
+
+
+## One "id @ position" line per zombie, in spawn order.
+func _describe_enemies(zone: FarmZone) -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	for zombie: Zombie in zone.get_enemies():
+		lines.append("%s @ %s" % [zombie.get_data().id, zombie.global_position])
+	return lines
+
+
+func test_r_008_08_contents_change_with_visit() -> void:
+	var by_visit: Array[Array] = []
+	for visit: int in 3:
+		var zone: FarmZone = _visit_zone(SEED_A, visit)
+		by_visit.append(_describe_contents(zone))
+	assert_gt(by_visit[0].size(), 0, "the zone has boxes")
+	var all_equal: bool = by_visit[0] == by_visit[1] and by_visit[1] == by_visit[2]
+	assert_false(all_equal, "another visit rolls other contents for the same boxes")
+
+
+func test_r_008_08_positions_same_on_every_visit() -> void:
+	var reference: Array[Vector3] = _box_positions(_visit_zone(SEED_A, 0))
+	assert_gt(reference.size(), 0, "the zone has boxes")
+	for visit: int in [1, 5]:
+		assert_eq(
+			_box_positions(_visit_zone(SEED_A, visit)), reference, "visit %d: same boxes in the same places" % visit
+		)
+
+
+func test_r_008_09_repopulate_closes_boxes_with_new_contents() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var zone: FarmZone = _visit_zone(SEED_A, 0)
+	var positions: Array[Vector3] = _box_positions(zone)
+	var old_boxes: Array[LootBox] = zone.get_boxes().duplicate()
+	_describe_contents(zone)
+	zone.repopulate(SEED_A, 1, pool)
+	await wait_process_frames(1)
+	assert_eq(zone.get_boxes().size(), positions.size(), "same number of boxes")
+	assert_eq(_box_positions(zone), positions, "on the same markers")
+	for box: LootBox in zone.get_boxes():
+		assert_false(box.is_opened(), "a new visit closes every box")
+	for old_box: LootBox in old_boxes:
+		assert_false(is_instance_valid(old_box), "the old box is gone")
+	var expected: Array[String] = _describe_contents(_visit_zone(SEED_A, 1))
+	assert_eq(_describe_contents(zone), expected, "contents of visit 1, as if generated directly")
+
+
+func test_r_008_09_repopulate_discards_leftovers() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var zone: FarmZone = _visit_zone(SEED_A, 0)
+	_describe_contents(zone)
+	zone.repopulate(SEED_A, 1, pool)
+	await wait_process_frames(1)
+	for box: LootBox in zone.get_boxes():
+		assert_true(box.get_contents().is_empty(), "nothing left over from the previous visit")
+	var expected: Array[String] = _describe_contents(_visit_zone(SEED_A, 1))
+	var opener: Node3D = Node3D.new()
+	add_child_autofree(opener)
+	var boxes: Array[LootBox] = zone.get_boxes()
+	for i: int in boxes.size():
+		var described: String = _open_and_describe(boxes[i], opener)
+		var held: int = 0
+		for stack: ItemStack in boxes[i].get_contents().get_slots():
+			if stack != null:
+				held += stack.quantity
+		var rolled: int = 0
+		for part: String in described.split(", ", false):
+			rolled += int(part.get_slice(" x", 1))
+		assert_eq(held, rolled, "box %d holds only what its new roll gave" % i)
+		assert_eq(described, expected[i], "box %d: roll of visit 1" % i)
+
+
+func test_r_008_09_repopulate_places_enemies_of_the_visit() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var zone: FarmZone = _visit_zone(SEED_A, 0)
+	zone.spawn_enemies(SEED_A, 0, pool)
+	var before: int = zone.get_enemies().size()
+	zone.repopulate(SEED_A, 1, pool)
+	await wait_process_frames(1)
+	var fresh_pool: ObjectPool = _new_zombie_pool()
+	var fresh: FarmZone = _new_zone()
+	fresh.spawn_enemies(SEED_A, 1, fresh_pool)
+	assert_gt(zone.get_enemies().size(), 0, "the zone has zombies again")
+	assert_eq(_describe_enemies(zone), _describe_enemies(fresh), "the zombies of visit 1")
+	var after: int = zone.get_enemies().size()
+	assert_eq(
+		pool.get_free_count(), maxi(before - after, 0), "the zombies of visit 0 were reused, none leaked"
+	)
+
+
+func test_r_008_09_repopulate_before_generate_reports_error() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var zone: FarmZone = _new_zone()
+	zone.repopulate(SEED_A, 1, pool)
+	assert_push_error("generate")
+	assert_eq(zone.get_boxes().size(), 0, "no boxes were placed")
+	assert_eq(zone.get_enemies().size(), 0, "no zombies were placed")

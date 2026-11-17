@@ -40,3 +40,19 @@ func test_r_005_10_robot_owns_one_inventory() -> void:
 func test_r_005_10_inventory_uses_registry_catalog() -> void:
 	assert_same(_robot.inventory.catalog, DataRegistry.get_catalog(), "ids come from DataRegistry")
 	assert_true(_robot.inventory.add(&"scrap", 1).ok, "a catalog item can be added")
+
+
+## Spec 008 (R-008-39): the robot only asks to throw; whoever owns the dropped
+## items changes the inventory.
+func test_r_008_39_request_throw_emits() -> void:
+	_robot.set_physics_process(false)
+	_robot.inventory.add(&"scrap", 7)
+	watch_signals(_robot)
+	_robot.request_throw(0, 3)
+	assert_signal_emit_count(_robot, "throw_requested", 1, "one request")
+	assert_signal_emitted_with_parameters(_robot, "throw_requested", [_robot, 0, 3])
+	assert_eq(_robot.inventory.count(&"scrap"), 7, "the robot does not change its inventory by itself")
+	_robot.battery.consume(_robot.battery.get_current())
+	_robot.request_throw(0, 3)
+	assert_signal_emit_count(_robot, "throw_requested", 1, "a depleted battery requests nothing")
+	assert_eq(_robot.inventory.count(&"scrap"), 7, "and nothing changes")

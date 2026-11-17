@@ -132,7 +132,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 | **GDScript** | Suficiente para el PMV. No necesitas C#/GDExtension. Si el juego escala, migrar sistemas críticos a GDExtension (C++). |
 | **Export Android** | Necesitas: JDK 17+, Android SDK, keystore de firma. Google Play exige AAB (no APK). Cuenta developer: $25 (una vez). Nuevo requisito: 12 testers durante 14 días antes de publicar en producción. |
 | **Export iOS** | **Requiere Mac con Xcode** para compilar y firmar. No hay workaround. Apple Developer Program: $99/año. Prepararse para al menos 1 rechazo en el primer envío. |
-| **Guardado local** | `FileAccess` de Godot con JSON. Encriptar con `EncryptionContext` o AES para evitar trampas simples. |
+| **Guardado local** | `FileAccess` de Godot con JSON. Cifrado AES-256 con el cifrado de archivos de `FileAccess` para evitar trampas simples; la clave va en el cliente y es ofuscación, no un secreto (decisión nov 2026, spec 010). |
 | **Tamaño APK esperado** | 100-250 MB (3D low poly, modelos, texturas). Aceptable para el mercado. |
 
 ### 3.2 Rendimiento esperado (3D low poly)
@@ -460,6 +460,13 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Detalles del viaje**: ✅ sin confirmación y también con enemigos persiguiéndote; la pantalla de carga dura lo que tarde la carga y el mundo queda congelado mientras.
 - [x] **Techo y luces de la base**: ✅ sin techo (la cámara isométrica debe ver al robot) y como máximo 2 luces puntuales sin sombras más la direccional (§3.2).
 - [x] **Contador de visitas de la base**: ✅ el contador solo se aplica a las zonas de farmeo; morir o salir de la base no sube nada.
+
+**Guardado (spec 010)** (todas decididas en nov 2026)
+- [x] **Cifrado**: ✅ cifrado de archivos de `FileAccess` (AES-256); `EncryptionContext` no existe en Godot 4. Clave fija en el cliente, como ofuscación. En builds de depuración se puede guardar sin cifrar.
+- [x] **Cerrar dentro de la zona**: ✅ al reabrir, el robot vuelve a su zona y posición en la misma visita; los enemigos muertos de esa visita no vuelven (se guardan por índice de aparición) y los vivos reaparecen en su punto de aparición con la vida completa (BALANCE.md §7.2). Descartado: guardar posición y vida de los vivos, y cargar siempre en la base contando el cierre como salida.
+- [x] **Cuándo se guarda**: ✅ al entrar en la base, al recargar en una estación, tras morir, al construir o mover una estructura, al cerrar el juego y al pasar a segundo plano en el móvil. Nunca un estado intermedio (viaje, transferencia, modo colocación). Solo la estación muestra "Partida guardada".
+- [x] **Archivos dañados**: ✅ si fallan el principal y la copia, se apartan sin borrarlos y se empieza un mundo nuevo con aviso. Un guardado de una versión más nueva ni se carga ni se sobrescribe.
+- [x] **Mundo del PMV**: ✅ uno solo, creado al primer arranque con semilla aleatoria y sin nombre; borrar el mundo borra su copia y deja el Perfil.
 
 **Decidir antes de empezar v1.1**
 - [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).

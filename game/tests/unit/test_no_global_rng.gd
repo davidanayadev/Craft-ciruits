@@ -4,7 +4,8 @@ extends GutTest
 ## only from SeededRng. The check covers every game script, which is stricter
 ## than "generation code" and needs no list of generation files to maintain.
 ## Addons and tests are not game code and are left out.
-## The zombie spawn and AI scripts are among the checked ones (R-006-24).
+## The zombie spawn and AI scripts are among the checked ones (R-006-24), and
+## so is the zombie, whose drop roll takes its seed from the spawner (R-008-36).
 
 const GAME_CODE_DIRS: Array[String] = ["res://scripts", "res://scenes"]
 ## Global functions (not preceded by "." or an identifier, so rng.randi_range()
@@ -19,6 +20,7 @@ const SPAWN_SCRIPTS: PackedStringArray = [
 	"res://scenes/farm_zone/zombie_spawner.gd",
 	"res://scripts/systems/zone_population.gd",
 	"res://scripts/systems/enemy_brain.gd",
+	"res://scenes/entities/zombie.gd",
 ]
 
 var _regex: RegEx

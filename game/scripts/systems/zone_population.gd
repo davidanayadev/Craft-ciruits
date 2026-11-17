@@ -4,6 +4,9 @@ extends RefCounted
 ## enemies each visit puts in it (spec 006). Pure rules: the RNG comes by
 ## parameter, so the same seed always gives the same zone.
 
+## Visit number of a zone nobody died in or left yet (BALANCE §7.2).
+const FIRST_VISIT := 0
+
 
 ## One enemy to place: which kind on which marker.
 class EnemySpawn:

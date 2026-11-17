@@ -1,7 +1,8 @@
 class_name InventoryComponent
 extends Node
 ## Owner and only writer of a set of item slots (spec 005, architecture §9.3):
-## the robot's inventory, the contents of a loot box and, later, chests. It
+## the robot's inventory, the contents of a loot box or of a dropped item and,
+## later, chests. It
 ## validates each request, delegates the stacking to InventoryRules and reports
 ## the outcome as an ActionResult. Per-entity state (constitution P4).
 ##
@@ -44,6 +45,21 @@ func set_slot_count(count: int) -> ActionResult:
 	if count > _slots.size():
 		_slots.resize(count)
 		inventory_changed.emit()
+	return ActionResult.success()
+
+
+## Empties it and leaves it with count slots, for a container that is reused
+## (a pooled dropped item, spec 008). What it held is gone: move it out first.
+## count < 0 → push_error, ERR_INVALID_REQUEST and no change.
+func clear(count: int) -> ActionResult:
+	if count < 0:
+		push_error("InventoryComponent '%s': cannot clear to %d slots." % [name, count])
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	if is_empty() and _slots.size() == count:
+		return ActionResult.success()
+	_slots.clear()
+	_slots.resize(count)
+	inventory_changed.emit()
 	return ActionResult.success()
 
 
@@ -143,13 +159,36 @@ func take_from(source: InventoryComponent, slot_indices: Array[int]) -> Inventor
 	amounts.resize(source.get_slot_count())
 	amounts.fill(0)
 	var leftovers: Array[ItemStack] = _take_what_fits(source.get_slots(), slot_indices, amounts)
-	if amounts.any(_is_positive):
-		if not source.remove_from_slots(amounts).ok:
-			push_error(
-				"InventoryComponent '%s': '%s' did not give what was taken from it."
-				% [name, source.name]
-			)
-		inventory_changed.emit()
+	_settle_take(source, amounts)
+	return _report_leftovers(leftovers)
+
+
+## take_from() for a part of one slot: moves quantity of source's slot_index
+## into this inventory, as much as fits; source loses exactly what entered and
+## keeps the rest (spec 008). Same invalid requests as take_from(), plus an
+## empty slot or a quantity outside 1..its stack (InventoryRules.can_split).
+func take_amount_from(
+	source: InventoryComponent, slot_index: int, quantity: int
+) -> InventoryAddResult:
+	var leaving: ItemStack = null
+	if source != null and source != self:
+		leaving = InventoryRules.split(source.get_slots(), slot_index, quantity)
+	if leaving == null or not _knows(leaving.item.id):
+		push_error(
+			"InventoryComponent '%s': invalid take_amount_from() request for %d of slot %d."
+			% [name, quantity, slot_index]
+		)
+		return InventoryAddResult.not_added(ERR_INVALID_REQUEST, [])
+	var item: ItemData = catalog.get_item(leaving.item.id)
+	var leftover: int = InventoryRules.add(_slots, item, leaving.quantity)
+	var amounts: Array[int] = []
+	amounts.resize(source.get_slot_count())
+	amounts.fill(0)
+	amounts[slot_index] = leaving.quantity - leftover
+	_settle_take(source, amounts)
+	var leftovers: Array[ItemStack] = []
+	if leftover > 0:
+		leftovers.append(ItemStack.new(item, leftover))
 	return _report_leftovers(leftovers)
 
 
@@ -192,6 +231,19 @@ func _take_what_fits(
 		if leftover > 0:
 			leftovers.append(ItemStack.new(item, leftover))
 	return leftovers
+
+
+## Takes from source what already entered here (amounts per source slot) and
+## reports the change of this inventory. Nothing entered → nothing happens.
+func _settle_take(source: InventoryComponent, amounts: Array[int]) -> void:
+	if not amounts.any(_is_positive):
+		return
+	if not source.remove_from_slots(amounts).ok:
+		push_error(
+			"InventoryComponent '%s': '%s' did not give what was taken from it."
+			% [name, source.name]
+		)
+	inventory_changed.emit()
 
 
 func _report_leftovers(leftovers: Array[ItemStack]) -> InventoryAddResult:
