@@ -2,7 +2,7 @@
 
 > La base es una zona segura con un banco de reparación, una cuadrícula de construcción y estructuras que el jugador
 > coloca y mueve libremente. La única estructura de la spec 009 es la estación de carga, que recarga la batería al 100 %.
-> Specs: [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010
+> Specs: [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md) · Última actualización: spec 011
 
 ## Piezas
 
@@ -10,13 +10,13 @@
 |---|---|---|---|
 | `BaseZone` | Escena (`Zone`) | `game/scenes/base/base.tscn`, `base_zone.gd` | Suelo, límites, `SpawnPoint`, `ExitPoint`, banco, `BuildArea`, `%Structures`, `%PreviewRoot`; muestra la vista previa |
 | `BuildArea` | `Node3D` | `game/scenes/base/build_area.gd` | Origen de la cuadrícula y su dibujo (`ImmediateMesh`), oculto salvo al colocar |
-| `RepairBench` | `StaticBody3D` | `game/scenes/base/repair_bench.gd`, `.tscn` | Banco fijo con `InteractableComponent`; emite `used`, que la base reenvía como `bench_used` |
+| `RepairBench` | `StaticBody3D` | `game/scenes/base/repair_bench.gd`, `.tscn` | Banco fijo con `InteractableComponent`; emite `used`, que la base reenvía como `bench_used`; también atiende crear y reparar ([crafting.md](crafting.md)) |
 | `ChargingStation` | `StaticBody3D` | `game/scenes/base/charging_station.gd`, `.tscn` | Al interactuar: `battery.recharge_full()` y `EventBus.player_recharged` |
 | `BaseStructures` | Nodo bajo `World` | `game/scenes/base/base_structures.gd` | Dueño del estado de las estructuras (`BuildGrid`); coloca, mueve, instancia |
 | `BuildGrid` | Sistema puro (`RefCounted`) | `game/scripts/systems/build_grid.gd` | Ocupación, validez, celda ↔ posición, estado en JSON |
-| `CraftingSystem` | Sistema puro | `game/scripts/systems/crafting_system.gd` | `cost_of(recipe)` y `can_pay(slots, recipe)`; no retira nada |
-| `BuildFlow` | Nodo de `Main` | `game/scenes/base/build_flow.gd` | Banco → `BuildScreen` → `PlacementScreen`; botón "Editar base" |
-| `BuildScreen` | `UIScreen` | `game/scenes/ui/build_screen.gd`, `.tscn` | Lista las recetas del banco con coste; "Construir" con aviso si falta material o no cabe |
+| `CraftingSystem` | Sistema puro | `game/scripts/systems/crafting_system.gd` | `cost_of(recipe)` y `can_pay(slots, recipe)`; no retira nada. Crear y reparar: [crafting.md](crafting.md) |
+| `BuildFlow` | Nodo de `Main` | `game/scenes/base/build_flow.gd` | Banco → `BenchScreen` (con `BaseZone.get_bench()`) → `PlacementScreen`; botón "Editar base" |
+| `BenchScreen`, `BenchBuildSection` | `UIScreen` y sección | `game/scenes/ui/bench_screen.gd`, `bench_build_section.gd` | Pestaña Construir: recetas de estructura con coste; "Construir" con aviso si falta material o no cabe. Las pestañas Crear y Reparar: [crafting.md](crafting.md) |
 | `PlacementScreen` | `UIScreen` | `game/scenes/ui/placement_screen.gd`, `.tscn` | Modos `PLACE`, `EDIT_PICK`, `MOVE`; vista previa verde o roja |
 | `BuildGridData`, `StructureData`, `RecipeData`, `RecipeIngredientData` | Resources | `game/scripts/data/` | Cuadrícula, estructura (id, escena, huella), receta e ingrediente |
 | `base_grid.tres`, `structures/charging_station.tres`, `recipes/charging_station.tres`, `zones/base.tres` | Recursos | `game/resources/` | Datos de la base (ver Datos) |
@@ -24,8 +24,8 @@
 ## Cómo funciona
 
 **Construir.**
-1. El robot interactúa con el banco; `BaseZone` emite `bench_used`; `BuildFlow` (si es el robot local) abre `build`.
-2. `BuildScreen` lista las recetas `WORKBENCH` con resultado de estructura. Elegir una cierra la pantalla y llama a
+1. El robot interactúa con el banco; `BaseZone` emite `bench_used`; `BuildFlow` (si es el robot local) abre `bench` (en la pestaña Construir).
+2. `BenchBuildSection` lista las recetas `WORKBENCH` con resultado de estructura. Elegir una cierra la pantalla y llama a
    `Robot.request_build(recipe)` (no hace nada con la batería agotada); el robot emite `build_requested`.
 3. `BuildFlow` abre `placement` en modo `PLACE`. No se cobra nada todavía.
 4. `PLACE`: la vista previa empieza en la celda válida más cercana al robot. Un clic o toque sobre el suelo (rayo de
@@ -88,8 +88,8 @@ sin coste ni límite de usos, y avisa con `player_recharged`. Entrar en la base 
 
 Usa [inventory.md](inventory.md) (`remove_many`), [battery.md](battery.md) (`recharge_full`),
 [interaction.md](interaction.md), [ui.md](ui.md) (`UIManager`, `UIScreen`), [travel.md](travel.md) y
-[data_catalog.md](data_catalog.md). La spec 011 añadirá piezas y reparación al banco; la 012, el generador y los
-cofres como estructuras.
+[data_catalog.md](data_catalog.md). Crear piezas y reparar en el banco: [crafting.md](crafting.md) (spec 011). La 012
+añadirá el generador y los cofres como estructuras.
 
 ## Trampas y límites
 
@@ -106,7 +106,7 @@ cofres como estructuras.
 ## Cómo extenderlo
 
 Estructura nueva: escena, `StructureData` y `RecipeData` en `resources/`, ambos en `data_catalog.tres`, claves
-`STRUCTURE_*` en `strings.csv` y sus números antes en `BALANCE.md`. `BuildScreen` la lista sola.
+`STRUCTURE_*` en `strings.csv` y sus números antes en `BALANCE.md`. `BenchBuildSection` la lista sola.
 
 ## Tests
 
@@ -116,6 +116,6 @@ Estructura nueva: escena, `StructureData` y `RecipeData` en `resources/`, ambos 
 | `tests/unit/test_crafting_system.gd`, `test_recipe_resources.gd`, `test_structure_resources.gd` | Coste, "puede pagar", recetas y estructuras |
 | `tests/integration/test_base_zone.gd`, `test_base_structures.gd` | Escena de la base; colocar, cobrar, mover, persistir al descargar |
 | `tests/integration/test_charging_station.gd`, `tests/unit/test_repair_bench.gd` | Recarga, evento, banco |
-| `tests/unit/test_build_screen.gd`, `tests/integration/test_placement_screen.gd`, `test_build_flow.gd` | Pantallas y flujo banco → colocación |
+| `tests/unit/test_bench_screen.gd` (casos de construir), `tests/integration/test_placement_screen.gd`, `test_build_flow.gd` | Pantallas y flujo banco → colocación |
 | `tests/integration/test_save_load.gd` | Estructuras colocadas vuelven en su celda tras cerrar y abrir |
 | `tests/integration/test_base_loop.gd` | Bucle completo: ir a la zona, recoger chatarra, volver, construir, recargar, mover y comprobar tras otro viaje |

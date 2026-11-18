@@ -2,15 +2,15 @@
 
 > Ranuras de ítems por entidad (robot, cajas de loot, más adelante cofres), con reglas de apilado puras y las
 > pantallas que las muestran. Es la primera pieza de estado por jugador después de la batería.
-> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010 (guardado, `durability` y `uid`)
+> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md) · Última actualización: spec 011 (piezas únicas, `craft` y `repair`)
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
-| `InventoryRules` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/inventory_rules.gd` | Apila, cuenta y quita sobre un `Array[ItemStack]` recibido por parámetro (`null` = ranura vacía) |
-| `InventoryComponent` | Componente (`Node`) | `game/scripts/components/inventory_component.gd` | Dueño y único escritor de las ranuras; valida, delega en las reglas y devuelve resultados |
-| `ItemStack` | Dato (`RefCounted`) | `game/scripts/data/item_stack.gd` | `item`, `quantity`, `durability` (-1 si no aplica) y `uid` (vacío en pilas normales); `copy()` los conserva y no comparte estado |
+| `InventoryRules` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/inventory_rules.gd` | Apila, cuenta y quita sobre un `Array[ItemStack]` recibido por parámetro (`null` = ranura vacía). Spec 011: `add_stack`, `is_valid_stack`, `index_of_uid` |
+| `InventoryComponent` | Componente (`Node`) | `game/scripts/components/inventory_component.gd` | Dueño y único escritor de las ranuras; valida, delega en las reglas y devuelve resultados. Spec 011: `craft` y `repair` ([crafting.md](crafting.md)) |
+| `ItemStack` | Dato (`RefCounted`) | `game/scripts/data/item_stack.gd` | `item`, `quantity`, `durability` (-1 si no aplica) y `uid` (vacío en pilas normales); `copy()` los conserva y no comparte estado. Una pieza (`PieceData`) siempre lleva ambos |
 | `InventoryAddResult` | Dato (hereda de `ActionResult`) | `game/scripts/data/inventory_add_result.gd` | Resultado de añadir/mover: `ok`, `error_key` y `leftovers` |
 | `ChassisLevelData` | Recurso | `game/scripts/data/chassis_level_data.gd` | Tabla de XP y ranuras por nivel de chasis |
 | `chassis_levels.tres` | `.tres` | `game/resources/progression/chassis_levels.tres` | La tabla real |
@@ -70,11 +70,28 @@
 3. `get_saved_slot_count(data)` deja que un contenedor dimensionado por su contenido (una caja abierta) se ajuste antes
    de cargar ([loot.md](loot.md)).
 
+### Piezas únicas (spec 011)
+
+1. Una pieza es una pila de 1 con `durability` y `uid` propios. `stack_max` 1 hace que nunca se fusione: dos Brazos
+   ocupan dos ranuras.
+2. `InventoryRules.add(slots, item, n)` es `add_stack(slots, ItemStack.new(item, n))`; `add_stack` copia durabilidad y
+   `uid` a cada ranura nueva y `split` devuelve la parte con ambos. Por eso `add_stacks`, `take_from`,
+   `take_amount_from` y los sobrantes (`leftovers`) conservan la pieza al mover, tirar, morir y recoger.
+3. `is_valid_stack` solo exige algo a las pilas cuyo ítem del catálogo es `PieceData`: cantidad 1, durabilidad entre 1
+   y la máxima, `uid` no vacío. Los materiales siguen las reglas de la spec 005. Se valida después de cambiar el ítem
+   por el del catálogo.
+4. `add(id, n)` de una pieza y `add_stacks` con una pila de pieza inválida son `push_error` y `ERR_INVALID_REQUEST` sin
+   cambios: una pieza solo entra creada por `CraftingSystem.create_result` o con su `uid`.
+5. `craft(recipe)` y `repair(piece_uid, costs)` cambian las ranuras en un paso con un solo `inventory_changed`; la
+   decisión es de `CraftingSystem` ([crafting.md](crafting.md)). `index_of_uid` localiza la pieza.
+6. `from_save_data` descarta con `push_error` la ranura que no pase `is_valid_stack`; el resto carga.
+
 ## Datos
 
 | Recurso | Clase | Valores desde |
 |---|---|---|
 | `resources/progression/chassis_levels.tres` | `ChassisLevelData` | [BALANCE.md §6.1](../../BALANCE.md) (XP y ranuras por nivel) |
+| `resources/pieces/*.tres` (`durability_max`, `stack_max` 1) | `PieceData` | [BALANCE.md §4.1](../../BALANCE.md); ver [crafting.md](crafting.md) |
 | `resources/items/*.tres` (`stack_max`, `icon`) | `ItemData` | BALANCE.md §2; iconos SVG de marcador en `assets/textures/icons/items/` (ver [data_catalog.md](data_catalog.md)) |
 | `resources/ui/screens.tres` | `UIScreenCatalog` | No es balance; ver [ui.md](ui.md) |
 
@@ -98,6 +115,9 @@ Las ranuras de una caja no salen de ninguna tabla: son tantas como pilas dio la 
 | `take_amount_from` hermano de `take_from`, sobre `split` | La regla de dividir se escribe una sola vez | [plan 008 §1](../../specs/008-death-recovery/plan.md) |
 | El inventario no guarda su tamaño | Lo decide el chasis (`ChassisLevelData`) | R-010-24 |
 | Cargar emite `inventory_changed` y nada más | Es una señal de estado | [plan 010 §1.1 D15](../../specs/010-save-profile-world/plan.md) |
+| Un solo camino de llenado, `add_stack`, que copia durabilidad y `uid` | Arregla en un sitio lo que perdían `split` y los sobrantes | [plan 011 D3](../../specs/011-crafting-repair/plan.md), R-011-09 |
+| Las pilas se siguen fusionando solo por id; una pieza no se funde por su `stack_max` 1 | Sin regla de apilado nueva | plan 011 D2, R-011-08 |
+| Una pieza inválida no entra, ni por `add` ni por carga | Sin piezas sin identidad | plan 011 D1, R-011-07, R-011-11 |
 
 ## Relación con otros sistemas
 
@@ -106,7 +126,7 @@ Las ranuras de una caja no salen de ninguna tabla: son tantas como pilas dio la 
   `overflowed` para mostrar `MSG_INVENTORY_FULL` durante 3 s), [interaction.md](interaction.md) (el robot abre la
   caja con su `InteractorComponent`).
 - [death.md](death.md): la muerte, tirar items y recoger usan `take_from` / `take_amount_from` entre inventarios.
-- Lo guarda [save.md](save.md). Todavía no lo usan crafteo completo ni cofres (specs posteriores).
+- Lo guarda [save.md](save.md). [crafting.md](crafting.md) crea y repara piezas con `craft` y `repair`. Todavía no lo usan cofres ni el crafteo completo (specs posteriores).
 
 ## Trampas y límites
 
@@ -117,9 +137,8 @@ Las ranuras de una caja no salen de ninguna tabla: son tantas como pilas dio la 
 - No hay depositar, arrastrar, ordenar, cofres ni subida de nivel
   ([spec 005 §4](../../specs/005-inventory/spec.md)). Solo se puede dividir al tirar; mover una parte entre
   contenedores llega con la spec de cofres. Lo que queda en una caja se descarta al repoblar la zona.
-- `ItemStack` ya tiene `durability` y `uid` y se guardan en las ranuras del inventario, pero `InventoryRules`, tirar y
-  recoger aún no los respetan al apilar: es de la spec 014 (R-008-11). Los objetos caídos guardan solo `item_id` y
-  `quantity` ([death.md](death.md)).
+- `durability` y `uid` se conservan en todos los caminos de una pila (spec 011). Quien cree una pieza (botín de la
+  spec 015) debe usar `CraftingSystem.create_result`: `ItemStack.new` sin `uid` la haría rechazar.
 - Al caer, las pilas parciales del mismo item se fusionan: se conserva el total por item, no la ranura.
 - `remove_many(amounts)` (spec 009) cobra varios ítems a la vez, todo o nada y con un solo `inventory_changed`: ítem
   desconocido o cantidad no positiva es `ERR_INVALID_REQUEST`, falta de algo es `ERR_NOT_ENOUGH_ITEMS`. La regla pura
@@ -137,8 +156,8 @@ Las ranuras de una caja no salen de ninguna tabla: son tantas como pilas dio la 
 
 | Archivo | Verifica |
 |---|---|
-| `tests/unit/test_inventory_rules.gd` | Apilado, orden de relleno, `count`, `remove` de atrás hacia delante; `split` entero, parcial e inválido |
-| `tests/unit/test_inventory_component.gd` | Validación, señales una vez por operación, `take_from`, `take_amount_from`, `clear`, copias, `overflowed` |
+| `tests/unit/test_inventory_rules.gd` | Apilado, orden de relleno, `count`, `remove` de atrás hacia delante; `split` entero, parcial e inválido; piezas que no se fusionan, `add_stack` y `split` con durabilidad y `uid`, `is_valid_stack`, `index_of_uid` |
+| `tests/unit/test_inventory_component.gd` | Validación, señales una vez por operación, `take_from`, `take_amount_from`, `clear`, copias, `overflowed`; piezas (rechazo, conservación, carga inválida), `craft` y `repair` |
 | `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador |
 | `tests/unit/test_chassis_level_data.gd` | Tabla y `validate()` |
 | `tests/unit/test_item_stack.gd` | `durability`, `uid` y `copy()` |

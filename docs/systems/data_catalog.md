@@ -5,8 +5,9 @@
 > fallar.
 > Specs: [004](../../specs/004-green-zone/spec.md), [005](../../specs/005-inventory/spec.md),
 > [006](../../specs/006-zombies/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) ·
-> Última actualización: spec 010
+> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md),
+> [011](../../specs/011-crafting-repair/spec.md) ·
+> Última actualización: spec 011
 
 ## Piezas
 
@@ -15,9 +16,9 @@
 | `EventBus` | autoload | `game/scripts/autoload/event_bus.gd` | Señales de hechos globales; lista cerrada, sin estado |
 | `DataRegistry` | autoload | `game/scripts/autoload/data_registry.gd` | Carga el catálogo al arrancar y devuelve datos por id |
 | `GameManager` | autoload | `game/scripts/autoload/game_manager.gd` | Estado del mundo: id, nombre, semilla y ruleset del Mundo en juego, contadores de visitas por zona, zona actual, el reloj (`ITimeService`) y la tienda (`IStore`) |
-| `DataCatalog` | Resource | `game/scripts/data/data_catalog.gd` | Lista explícita de `items`, `enemies`, `rulesets`, `zones`, `structures` y `recipes`, más `new_world_ruleset`; construye los índices |
-| Catálogo | `.tres` | `game/resources/data_catalog.tres` | La lista real: ítems, enemigos, el ruleset `normal`, las zonas (base y verde), la estación de carga y su receta |
-| `ActionResult` | RefCounted | `game/scripts/data/action_result.gd` | `ok` + `error_key` (clave de traducción) |
+| `DataCatalog` | Resource | `game/scripts/data/data_catalog.gd` | Lista explícita de `items`, `enemies`, `rulesets`, `zones`, `structures` y `recipes`, más `new_world_ruleset` y `repair_costs` (`RepairCostData`, spec 011); construye los índices |
+| Catálogo | `.tres` | `game/resources/data_catalog.tres` | La lista real: ítems, enemigos, el ruleset `normal`, las zonas (base y verde), la estación de carga y su receta, las tres piezas básicas (`PieceData`) y sus recetas |
+| `ActionResult` | RefCounted | `game/scripts/data/action_result.gd` | `ok` + `error_key` (clave de traducción); define `ERR_INVALID_REQUEST` |
 
 ## Cómo funciona
 
@@ -52,9 +53,10 @@
    [death.md](death.md)); y, de la 009, `zone_changed(zone_id)` (`ZoneLoader`, [travel.md](travel.md)),
    `structure_built(structure_uid)` (`BaseStructures`) y `player_recharged(player_uid)` (`ChargingStation`,
    [base.md](base.md)); de la 010, `structure_moved(structure_uid)` (`BaseStructures`) y `game_saved(reason)`
-   (`SaveManager`, [save.md](save.md)). No guarda variables (un test lo vigila).
+   (`SaveManager`, [save.md](save.md)); de la 011, `item_crafted(recipe_id, player_uid)` y
+   `piece_repaired(piece_uid, player_uid)` (`RepairBench`, [crafting.md](crafting.md)). No guarda variables (un test lo vigila).
 7. `ActionResult.success()` / `ActionResult.failure(key)` son los únicos constructores. La UI muestra
-   `tr(error_key)`. Hoy lo usa `InventoryComponent` ([inventory.md](inventory.md)).
+   `tr(error_key)`. Lo usan `InventoryComponent` ([inventory.md](inventory.md)) y `CraftingSystem` ([crafting.md](crafting.md)).
 
 ## Datos
 
@@ -109,7 +111,7 @@ enemigo), [death.md](death.md) (ruleset, `player_died`, `player_respawned`, relo
 ## Cómo extenderlo
 
 - **Ítem, enemigo, ruleset, zona, estructura o receta nuevos**: crear el `.tres` en `resources/items/`,
-  `resources/enemies/`, `resources/rulesets/`, `resources/zones/`, `resources/structures/` o `resources/recipes/`, añadirlo al array en `data_catalog.tres`, añadir su nombre a `strings.csv` y sus números
+  `resources/enemies/`, `resources/rulesets/`, `resources/zones/`, `resources/structures/`, `resources/recipes/` o `resources/pieces/` (una pieza es un ítem), añadirlo al array en `data_catalog.tres`, añadir su nombre a `strings.csv` y sus números
   antes a `BALANCE.md`.
 - **Evento nuevo en el bus**: fila en architecture §7 (en el plan de la spec), señal tipada en `event_bus.gd` con
   `@warning_ignore("unused_signal")` y test de firma en `test_event_bus.gd`.
@@ -120,8 +122,8 @@ enemigo), [death.md](death.md) (ruleset, `player_died`, `player_respawned`, relo
 
 | Archivo | Verifica |
 |---|---|
-| `game/tests/unit/test_data_catalog.gd` | Ids únicos, catálogo completo, consulta por id, errores, ítems y enemigos según BALANCE |
+| `game/tests/unit/test_data_catalog.gd` | Ids únicos, catálogo completo, consulta por id, errores, ítems y enemigos según BALANCE; recetas con un único resultado, `WORKBENCH`/tier 1; tramos de reparación |
 | `game/tests/unit/test_game_manager.gd` | `begin_world`, contadores de visitas, guardado, solo estado del mundo, reloj, tienda |
-| `game/tests/unit/test_event_bus.gd` | Firmas de `enemy_killed`, `player_died`, `player_respawned`, `zone_changed`, `structure_built`, `structure_moved`, `game_saved`, `player_recharged`; el bus no guarda estado |
+| `game/tests/unit/test_event_bus.gd` | Firmas de `enemy_killed`, `player_died`, `player_respawned`, `zone_changed`, `structure_built`, `structure_moved`, `game_saved`, `player_recharged`, `item_crafted`, `piece_repaired`; el bus no guarda estado |
 | `game/tests/unit/test_action_result.gd` | `success` y `failure`, y su uso desde el inventario |
 | `game/tests/unit/test_project_settings.gd` | Autoloads registrados (`SaveManager` tras `GameManager`) |
