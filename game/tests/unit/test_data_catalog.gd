@@ -530,3 +530,113 @@ func test_r_010_19_new_world_ruleset_is_normal() -> void:
 		return
 	assert_eq(ruleset.resource_path, "res://resources/rulesets/normal.tres", "the NORMAL ruleset")
 	assert_true(catalog.rulesets.has(ruleset), "listed in rulesets")
+
+
+# --- Recipes with an item result and repair costs (spec 011) ------------------
+# The expected repair tiers mirror BALANCE.md §4.3.2; update both together.
+
+## up_to_percent → {item id → quantity}, ascending (BALANCE §4.3.2).
+const EXPECTED_REPAIR_TIERS: Array[Array] = [
+	[25, {&"iron": 3, &"cables": 2}],
+	[100, {&"iron": 2, &"cables": 1}],
+]
+
+
+func test_r_011_03_every_recipe_has_one_result() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	assert_gt(catalog.recipes.size(), 0, "the catalog has recipes")
+	for recipe: RecipeData in catalog.recipes:
+		if recipe == null:
+			fail_test("the catalog lists an empty recipe")
+			continue
+		var results: int = (
+			(1 if recipe.result_structure != null else 0) + (1 if recipe.result_item != null else 0)
+		)
+		assert_eq(results, 1, "%s has exactly one result" % recipe.id)
+
+
+func test_r_011_05_recipes_workbench_tier_1_no_requires() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	for recipe: RecipeData in catalog.recipes:
+		if recipe == null:
+			continue
+		assert_eq(recipe.station, RecipeData.Station.WORKBENCH, "%s is made at the workbench" % recipe.id)
+		assert_eq(recipe.tier, 1, "%s is tier 1" % recipe.id)
+		assert_eq(recipe.requires.size(), 0, "%s has no requirements" % recipe.id)
+
+
+func test_r_011_05_recipe_items_in_catalog() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	for recipe: RecipeData in catalog.recipes:
+		if recipe == null:
+			continue
+		for ingredient: RecipeIngredientData in recipe.ingredients:
+			if ingredient == null or ingredient.item == null:
+				fail_test("%s has an empty ingredient" % recipe.id)
+				continue
+			assert_true(catalog.items.has(ingredient.item), "%s: '%s' is listed" % [recipe.id, ingredient.item.id])
+		if recipe.result_item != null:
+			assert_true(
+				catalog.items.has(recipe.result_item),
+				"%s: result '%s' is listed" % [recipe.id, recipe.result_item.id]
+			)
+	for id: StringName in [&"basic_arms", &"basic_legs", &"basic_core"]:
+		assert_true(catalog.has_recipe(id), "the recipe of %s is listed" % id)
+
+
+func test_r_011_06_repair_costs_match_balance() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null:
+		fail_test("data_catalog.tres is missing")
+		return
+	var costs: RepairCostData = catalog.repair_costs
+	assert_not_null(costs, "the catalog names the repair costs")
+	if costs == null:
+		return
+	assert_eq(costs.tiers.size(), EXPECTED_REPAIR_TIERS.size(), "one tier per row of BALANCE §4.3.2")
+	for i: int in mini(costs.tiers.size(), EXPECTED_REPAIR_TIERS.size()):
+		var tier: RepairTierData = costs.tiers[i]
+		assert_not_null(tier, "tier %d is set" % i)
+		if tier == null:
+			continue
+		var expected_percent: int = EXPECTED_REPAIR_TIERS[i][0]
+		var expected_cost: Dictionary = EXPECTED_REPAIR_TIERS[i][1]
+		assert_eq(tier.up_to_percent, expected_percent, "tier %d covers up to %d%%" % [i, expected_percent])
+		var cost: Dictionary[StringName, int] = {}
+		for ingredient: RecipeIngredientData in tier.ingredients:
+			if ingredient == null or ingredient.item == null:
+				fail_test("tier %d has an empty ingredient" % i)
+				continue
+			assert_true(catalog.items.has(ingredient.item), "tier %d: '%s' is listed" % [i, ingredient.item.id])
+			cost[ingredient.item.id] = cost.get(ingredient.item.id, 0) + ingredient.quantity
+		assert_eq(cost.size(), expected_cost.size(), "tier %d: one entry per material" % i)
+		for item_id: StringName in expected_cost:
+			var quantity: int = expected_cost[item_id]
+			var listed: int = cost.get(item_id, 0)
+			assert_eq(listed, quantity, "tier %d: %s (BALANCE §4.3.2)" % [i, item_id])
+
+
+func test_r_011_06_repair_tiers_ascending_up_to_100() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null or catalog.repair_costs == null:
+		fail_test("the catalog has no repair costs")
+		return
+	var tiers: Array[RepairTierData] = catalog.repair_costs.tiers
+	assert_gt(tiers.size(), 0, "there is at least one tier")
+	var previous: int = 0
+	for tier: RepairTierData in tiers:
+		if tier == null:
+			fail_test("a repair tier is empty")
+			continue
+		assert_gt(tier.up_to_percent, previous, "tiers ascend")
+		previous = tier.up_to_percent
+	assert_eq(previous, CraftingSystem.PERCENT, "the last tier covers up to 100%")

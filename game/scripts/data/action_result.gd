@@ -3,6 +3,10 @@ extends RefCounted
 ## Result of an action that can fail (architecture §9.2): the one result type
 ## of the whole game. The UI shows tr(error_key).
 
+## A request that is malformed or names something unknown. Here, in the data
+## layer, so pure systems can return it without knowing any node (spec 011).
+const ERR_INVALID_REQUEST := &"ERR_INVALID_REQUEST"
+
 var ok: bool = false
 ## Translation key of the failure; empty when ok.
 var error_key: StringName = &""

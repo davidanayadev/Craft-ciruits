@@ -5,7 +5,8 @@ extends GutTest
 ## giving anything (R-008-22) and are independent of each other (R-008-32).
 ## Spec 010: the spawner is saved with the world, as spec 008 describes an item,
 ## discards expired items on loading and restores the rest when its zone is bound
-## (R-010-09, R-010-11, R-010-29, R-010-30).
+## (R-010-09, R-010-11, R-010-29, R-010-30). Spec 011: pieces keep durability
+## and uid when thrown, picked up, saved and loaded; a bad piece stack is lost (R-011-09 to R-011-11).
 
 const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
 const CONFIG_PATH := "res://resources/config/dropped_items.tres"
@@ -513,3 +514,103 @@ func test_r_010_11_unknown_id_skipped() -> void:
 	assert_eq(spawner.get_items().size(), 1, "the stack of the unknown item is lost, the rest loads")
 	if spawner.get_items().size() == 1:
 		assert_eq(spawner.get_items()[0].uid, "good", "the other entry")
+
+
+# --- Pieces (spec 011) --------------------------------------------------------
+
+## A crafted basic arms piece, damaged to durability.
+func _piece(durability: int) -> ItemStack:
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_arms"))
+	piece.durability = durability
+	return piece
+
+
+## The one piece stack of inventory; null when there is none.
+func _piece_in(inventory: InventoryComponent) -> ItemStack:
+	for stack: ItemStack in inventory.get_slots():
+		if stack != null and stack.item is PieceData:
+			return stack
+	return null
+
+
+func _piece_entry(uid: String, durability: Variant, piece_uid: Variant) -> Dictionary:
+	var entry: Dictionary = _entry(uid, FARM_ZONE, START_TIME)
+	var stacks: Array = [
+		{"item_id": "scrap", "quantity": 2},
+		{"item_id": "basic_arms", "quantity": 1, "durability": durability, "uid": piece_uid},
+	]
+	entry["stacks"] = stacks
+	return entry
+
+
+func test_r_011_09_throw_and_pick_up_keep_piece() -> void:
+	var source: InventoryComponent = _new_inventory(3)
+	var piece: ItemStack = _piece(55)
+	var offered: Array[ItemStack] = [piece]
+	assert_true(source.add_stacks(offered).ok, "the piece is in the inventory")
+	var thrown: ActionResult = _spawner.drop_from_slot(source, 0, 1, Vector3(41.0, 0.0, -24.0))
+	assert_true(thrown.ok, "the piece is thrown")
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "it lies on the ground")
+	if items.size() != 1:
+		return
+	var on_ground: ItemStack = _piece_in(items[0].get_contents())
+	assert_not_null(on_ground, "the dropped item holds the piece")
+	if on_ground != null:
+		assert_eq(on_ground.durability, 55, "durability kept on the ground")
+		assert_eq(on_ground.uid, piece.uid, "uid kept on the ground")
+	var picked: ItemStack = _piece_in(_pick_up(items[0]))
+	assert_not_null(picked, "the piece is picked up")
+	if picked != null:
+		assert_eq(picked.durability, 55, "durability kept when picked up")
+		assert_eq(picked.uid, piece.uid, "uid kept when picked up")
+
+
+func test_r_011_10_save_load_restores_piece() -> void:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.bind_zone(FARM_ZONE, _root())
+	var piece: ItemStack = _piece(30)
+	var stacks: Array[ItemStack] = [_stack(&"scrap", 2), piece]
+	spawner.drop_stacks(stacks, Vector3(1.0, 0.0, 1.0))
+	var saved: Dictionary = spawner.to_save_data()
+	var restored: DroppedItemSpawner = _fresh_spawner()
+	restored.from_save_data(saved)
+	restored.bind_zone(FARM_ZONE, _root())
+	var items: Array[DroppedItem] = restored.get_items()
+	assert_eq(items.size(), 1, "the dropped item is back")
+	if items.size() != 1:
+		return
+	var loaded: ItemStack = _piece_in(items[0].get_contents())
+	assert_not_null(loaded, "with its piece")
+	if loaded != null:
+		assert_eq(loaded.durability, 30, "durability restored")
+		assert_eq(loaded.uid, piece.uid, "uid restored")
+	assert_eq(items[0].get_contents().count(&"scrap"), 2, "and its material")
+
+
+func test_r_011_11_bad_saved_piece_stack_lost() -> void:
+	var data: Dictionary = {
+		"items":
+		[
+			_piece_entry("zero", 0, "p1"),
+			_piece_entry("above", 101, "p2"),
+			_piece_entry("no_uid", 50, ""),
+			_piece_entry("no_fields", -1, ""),
+			_piece_entry("good", 50, "p3"),
+		]
+	}
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data(data)
+	spawner.bind_zone(FARM_ZONE, _root())
+	assert_push_error_count(4)
+	var items: Array[DroppedItem] = spawner.get_items()
+	assert_eq(items.size(), 5, "every entry keeps its good stacks")
+	var pieces: int = 0
+	for item: DroppedItem in items:
+		assert_eq(item.get_contents().count(&"scrap"), 2, "%s keeps its material" % item.uid)
+		var piece: ItemStack = _piece_in(item.get_contents())
+		if piece != null:
+			pieces += 1
+			assert_eq(item.uid, "good", "only the good piece loads")
+			assert_eq(piece.uid, "p3", "with its uid")
+	assert_eq(pieces, 1, "the bad piece stacks are lost")

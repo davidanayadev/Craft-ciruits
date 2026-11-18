@@ -12,6 +12,8 @@ extends GutTest
 ## its first travel; a second test calls SaveManager.load_game() on a running
 ## scene. The hand-made World comes from tests/fixtures/saves/world_v1.json
 ## (re-keyed to the Profile's uuid), whose box markers are valid for KNOWN_SEED.
+## Spec 011 (R-011-10): a piece keeps its durability and uid in the inventory
+## and on the ground across a close and reopen.
 ## Manual: nothing here (the real files and the window are M1..M4 of plan 010
 ## §5.3).
 
@@ -442,8 +444,8 @@ func test_r_010_21_seed_never_changes() -> void:
 func test_r_010_23_player_state_saved() -> void:
 	var main: Node = await _open_main()
 	var robot: Robot = _robot_of(main)
-	# Stacking does not keep durability nor uid until spec 014 (plan 010 §7):
-	# the stack is loaded into its slot, as a save would.
+	# A material stack with a durability and a uid only comes from a save, so
+	# it is loaded into its slot (stacking keeps both since spec 011).
 	var scrap_uid: String = Uid.generate()
 	robot.inventory.from_save_data({"slots": [_slot_entry("scrap", 12, SCRAP_DURABILITY, scrap_uid)]})
 	robot.battery.consume(36.5)
@@ -686,8 +688,8 @@ func _check_location_goes_to_base(location: Dictionary) -> void:
 func test_r_010_37_save_load_same_state() -> void:
 	var a: Node = await _open_main()
 	var robot: Robot = _robot_of(a)
-	# Stacking does not keep durability nor uid until spec 014 (plan 010 §7):
-	# the stack is loaded into its slot, as a save would.
+	# A material stack with a durability and a uid only comes from a save, so
+	# it is loaded into its slot (stacking keeps both since spec 011).
 	robot.inventory.from_save_data(
 		{"slots": [_slot_entry("scrap", 14, SCRAP_DURABILITY, Uid.generate())]}
 	)
@@ -815,3 +817,47 @@ func test_r_010_63_close_and_reopen_keeps_progress() -> void:
 	assert_not_null(base_again, "the robot is back in the base")
 	if base_again != null:
 		assert_eq(base_again.get_structures_root().get_child_count(), 1, "and the station stands there")
+
+
+# --- R-011-10 -----------------------------------------------------------------
+
+
+## A crafted piece at durability, put in robot's inventory.
+func _give_piece(robot: Robot, piece_id: StringName, durability: int) -> ItemStack:
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(piece_id))
+	piece.durability = durability
+	var offered: Array[ItemStack] = [piece]
+	assert_true(robot.inventory.add_stacks(offered).ok, "the piece is in the inventory")
+	return piece
+
+
+## The stack holding piece_uid in inventory; null when none.
+func _piece_in(inventory: InventoryComponent, piece_uid: String) -> ItemStack:
+	var index: int = InventoryRules.index_of_uid(inventory.get_slots(), piece_uid)
+	return null if index < 0 else inventory.get_slots()[index]
+
+
+func test_r_011_10_piece_survives_close_and_reopen() -> void:
+	var a: Node = await _open_main()
+	var robot: Robot = _robot_of(a)
+	var carried: ItemStack = _give_piece(robot, &"basic_arms", 40)
+	var thrown: ItemStack = _give_piece(robot, &"basic_core", 70)
+	robot.request_throw(InventoryRules.index_of_uid(robot.inventory.get_slots(), thrown.uid), 1)
+	assert_null(_piece_in(robot.inventory, thrown.uid), "the core was thrown")
+	assert_eq(_spawner_of(a).get_items().size(), 1, "it lies on the ground")
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	await _close_main(a)
+	var b: Node = await _open_main()
+	var loaded: ItemStack = _piece_in(_robot_of(b).inventory, carried.uid)
+	assert_not_null(loaded, "the carried piece is back with its uid")
+	if loaded != null:
+		assert_eq(loaded.item.id, &"basic_arms", "the same piece")
+		assert_eq(loaded.durability, 40, "with its durability")
+	var items: Array[DroppedItem] = _spawner_of(b).get_items()
+	assert_eq(items.size(), 1, "the dropped item is back")
+	if items.size() != 1:
+		return
+	var on_ground: ItemStack = _piece_in(items[0].get_contents(), thrown.uid)
+	assert_not_null(on_ground, "the thrown piece is back on the ground with its uid")
+	if on_ground != null:
+		assert_eq(on_ground.durability, 70, "with its durability")

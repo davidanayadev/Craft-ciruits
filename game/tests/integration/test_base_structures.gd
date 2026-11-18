@@ -135,7 +135,7 @@ func test_r_009_39_cannot_pay_changes_nothing() -> void:
 	watch_signals(EventBus)
 	var result: ActionResult = _place(FREE_CELL)
 	assert_false(result.ok, "not enough scrap")
-	assert_eq(result.error_key, CraftingSystem.ERR_NOT_ENOUGH_MATERIALS, "the key BuildScreen shows")
+	assert_eq(result.error_key, CraftingSystem.ERR_NOT_ENOUGH_MATERIALS, "the key BenchScreen shows")
 	assert_eq(_robot.inventory.count(&"scrap"), _cost() - 1, "nothing charged")
 	assert_eq(_structures.structure_at(FREE_CELL), "", "nothing placed")
 	assert_signal_not_emitted(EventBus, "structure_built")

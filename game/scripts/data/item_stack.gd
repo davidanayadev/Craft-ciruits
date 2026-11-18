@@ -1,8 +1,8 @@
 class_name ItemStack
 extends RefCounted
 ## A quantity of one item (architecture §9.3). Only the fields used so far:
-## the inventory (spec 005), the save (spec 010); pieces (spec 014) add theirs.
-## The rules that keep durability and uid when stacking are spec 014's.
+## the inventory (spec 005), the save (spec 010) and pieces (spec 011), whose
+## stacks keep their durability and uid on every path (InventoryRules.add_stack).
 
 var item: ItemData
 var quantity: int

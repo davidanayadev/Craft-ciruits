@@ -9,6 +9,7 @@ extends GutTest
 ## state (R-008-34).
 ## Spec 009: only zones that count visits (FARM) count a death; the base does
 ## not (R-009-52). ZONE_ID is the green zone, so the catalog knows it.
+## Spec 011: a piece keeps its durability and uid when it falls and is recovered (R-011-09).
 ## The robot's physics is switched off: its battery only moves when the test says.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -306,3 +307,30 @@ func test_r_009_52_unknown_zone_counts_nothing_and_reports() -> void:
 	_kill_by_consume()
 	assert_eq(GameManager.get_visit_count(OTHER_ZONE_ID), ZonePopulation.FIRST_VISIT, "no visit")
 	assert_push_error("unknown zone")
+
+
+# --- Pieces (spec 011) --------------------------------------------------------
+
+func test_r_011_09_death_drops_and_recovers_piece() -> void:
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_legs"))
+	piece.durability = 65
+	var offered: Array[ItemStack] = [piece]
+	assert_true(_robot.inventory.add_stacks(offered).ok, "the robot carries the piece")
+	_kill_by_consume()
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() != 1:
+		return
+	var fallen: Array[ItemStack] = items[0].get_contents().get_slots()
+	assert_not_null(fallen[0], "the piece fell")
+	if fallen[0] != null:
+		assert_eq(fallen[0].durability, 65, "durability kept when it falls")
+		assert_eq(fallen[0].uid, piece.uid, "uid kept when it falls")
+	_controller.respawn(_robot, RESPAWN_POSITION)
+	var interactable: InteractableComponent = items[0].get_node("%Interactable") as InteractableComponent
+	interactable.interact(_robot)
+	var recovered: ItemStack = _robot.inventory.get_slots()[0]
+	assert_not_null(recovered, "the robot has it back")
+	if recovered != null:
+		assert_eq(recovered.durability, 65, "durability kept when recovered")
+		assert_eq(recovered.uid, piece.uid, "uid kept when recovered")

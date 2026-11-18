@@ -464,9 +464,17 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 **Guardado (spec 010)** (todas decididas en nov 2026)
 - [x] **Cifrado**: ✅ cifrado de archivos de `FileAccess` (AES-256); `EncryptionContext` no existe en Godot 4. Clave fija en el cliente, como ofuscación. En builds de depuración se puede guardar sin cifrar.
 - [x] **Cerrar dentro de la zona**: ✅ al reabrir, el robot vuelve a su zona y posición en la misma visita; los enemigos muertos de esa visita no vuelven (se guardan por índice de aparición) y los vivos reaparecen en su punto de aparición con la vida completa (BALANCE.md §7.2). Descartado: guardar posición y vida de los vivos, y cargar siempre en la base contando el cierre como salida.
-- [x] **Cuándo se guarda**: ✅ al entrar en la base, al recargar en una estación, tras morir, al construir o mover una estructura, al cerrar el juego y al pasar a segundo plano en el móvil. Nunca un estado intermedio (viaje, transferencia, modo colocación). Solo la estación muestra "Partida guardada".
+- [x] **Cuándo se guarda**: ✅ al entrar en la base, al recargar en una estación, tras morir, al construir o mover una estructura, al crear o reparar una pieza en el banco (spec 011), al cerrar el juego y al pasar a segundo plano en el móvil. Nunca un estado intermedio (viaje, transferencia, modo colocación). Solo la estación muestra "Partida guardada".
 - [x] **Archivos dañados**: ✅ si fallan el principal y la copia, se apartan sin borrarlos y se empieza un mundo nuevo con aviso. Un guardado de una versión más nueva ni se carga ni se sobrescribe.
 - [x] **Mundo del PMV**: ✅ uno solo, creado al primer arranque con semilla aleatoria y sin nombre; borrar el mundo borra su copia y deja el Perfil.
+
+**Crafteo y reparación (spec 011)** (decididas en nov 2026 salvo la última)
+- [x] **Piezas antes del equipo**: ✅ la spec 011 crea las tres piezas básicas como objetos únicos del inventario (con `uid` y durabilidad), sin efecto hasta que la spec 014 traiga el equipo, los stats y el desgaste. Su durabilidad y su `uid` se conservan al moverlas, tirarlas, morir y guardar.
+- [x] **Coste de reparación**: ✅ por tramos según la durabilidad que queda (BALANCE.md §4.3.2): reparar pronto sale más barato; una pieza rota no se repara.
+- [x] **Inventario lleno al crear**: ✅ si la pieza no cabe, contando la ranura que libera el pago, "Crear" está desactivado con aviso; no se deja en el suelo.
+- [x] **Pantalla del banco**: ✅ una sola, con pestañas Construir, Crear y Reparar; abre en Construir. Crear y reparar la dejan abierta; construir la cierra para colocar.
+- [x] **Reparar piezas equipadas**: ✅ llega con la spec 014, sin desequiparlas. Hasta entonces ninguna pieza se daña jugando y reparar se prueba con tests.
+- [ ] **Core de repuesto al morir** (§2.4): propuesta: se conserva solo el Core equipado; uno de repuesto en el inventario cae como cualquier objeto. Confirmar con la spec 014, que crea las ranuras.
 
 **Decidir antes de empezar v1.1**
 - [x] **Número de piezas avanzadas de v1.1**: ✅ Decidido (nov 2026): las **5** de SPECS.md §15 (más el Core Estándar). Los enemigos de v1.1 quedan en 2 zombies + 1 robot (SPECS §17).

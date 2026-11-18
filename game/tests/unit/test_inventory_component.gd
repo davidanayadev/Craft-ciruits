@@ -1037,3 +1037,381 @@ func test_r_010_11_slots_not_an_array_is_rejected() -> void:
 	var expected: Array[int] = [3, 0]
 	assert_eq(_quantities(inventory), expected, "no change")
 	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+# --- Pieces, crafting and repair (spec 011) --------------------------------------
+# R-011-03, 07, 08, 09, 11, 13, 14, 15, 19 and 20. Everything is built by hand.
+
+const PIECE_MAX: int = 100
+const PIECE_ID: StringName = &"arm"
+const OTHER_PIECE_ID: StringName = &"core"
+
+
+func _piece_item(id: StringName) -> PieceData:
+	var piece: PieceData = PieceData.new()
+	piece.id = id
+	piece.stack_max = 1
+	piece.durability_max = PIECE_MAX
+	return piece
+
+
+## Adds the two hand-made pieces to the test catalog.
+func _with_pieces() -> void:
+	_catalog.items.append(_piece_item(PIECE_ID))
+	_catalog.items.append(_piece_item(OTHER_PIECE_ID))
+
+
+func _piece_stack(durability: int, uid: String, id: StringName = PIECE_ID) -> ItemStack:
+	var stack: ItemStack = ItemStack.new(_catalog.get_item(id), 1)
+	stack.durability = durability
+	stack.uid = uid
+	return stack
+
+
+func _give_piece(inventory: InventoryComponent, durability: int, uid: String, id: StringName = PIECE_ID) -> void:
+	var stacks: Array[ItemStack] = [_piece_stack(durability, uid, id)]
+	var result: InventoryAddResult = inventory.add_stacks(stacks)
+	assert_true(result.ok, "test setup: piece %s fits" % uid)
+
+
+func _ingredient(id: StringName, quantity: int) -> RecipeIngredientData:
+	var ingredient: RecipeIngredientData = RecipeIngredientData.new()
+	ingredient.item = _catalog.get_item(id)
+	ingredient.quantity = quantity
+	return ingredient
+
+
+## A recipe for result_id costing the given item id -> quantity.
+func _recipe(result_id: StringName, cost: Dictionary[StringName, int]) -> RecipeData:
+	var recipe: RecipeData = RecipeData.new()
+	recipe.id = &"test_recipe"
+	recipe.result_item = _catalog.get_item(result_id)
+	for item_id: StringName in cost:
+		recipe.ingredients.append(_ingredient(item_id, cost[item_id]))
+	return recipe
+
+
+## Up to 50% left: 2 iron. Up to 100%: 1 scrap.
+func _repair_costs() -> RepairCostData:
+	var low: RepairTierData = RepairTierData.new()
+	low.up_to_percent = 50
+	low.ingredients.append(_ingredient(&"iron", 2))
+	var high: RepairTierData = RepairTierData.new()
+	high.up_to_percent = 100
+	high.ingredients.append(_ingredient(&"scrap", 1))
+	var costs: RepairCostData = RepairCostData.new()
+	costs.tiers.append(low)
+	costs.tiers.append(high)
+	return costs
+
+
+func _craft(inventory: InventoryComponent, recipe: RecipeData) -> ActionResult:
+	return inventory.craft(recipe)
+
+
+func _repair(inventory: InventoryComponent, uid: String, costs: RepairCostData) -> ActionResult:
+	return inventory.repair(uid, costs)
+
+
+## The first stack holding the piece uid, or null.
+func _find_uid(inventory: InventoryComponent, uid: String) -> ItemStack:
+	for stack: ItemStack in inventory.get_slots():
+		if stack != null and stack.uid == uid:
+			return stack
+	return null
+
+
+func test_r_011_03_craft_rejects_structure_recipe() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 5)
+	watch_signals(inventory)
+	var structure_recipe: RecipeData = RecipeData.new()
+	structure_recipe.id = &"test_structure"
+	structure_recipe.result_structure = StructureData.new()
+	structure_recipe.ingredients.append(_ingredient(&"scrap", 1))
+	var no_result: RecipeData = RecipeData.new()
+	no_result.id = &"test_empty"
+	var foreign: RecipeData = RecipeData.new()
+	foreign.id = &"test_foreign"
+	foreign.result_item = _item(&"ghost", 1)
+	foreign.ingredients.append(_ingredient(&"scrap", 1))
+	var recipes: Array[RecipeData] = [structure_recipe, no_result, foreign, null]
+	var errors: int = 0
+	for recipe: RecipeData in recipes:
+		var result: ActionResult = _craft(inventory, recipe)
+		errors += 1
+		assert_push_error_count(errors)
+		assert_false(result.ok)
+		assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	var expected: Array[int] = [5, 0, 0]
+	assert_eq(_quantities(inventory), expected, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_011_07_add_piece_by_id_rejected() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	watch_signals(inventory)
+	var result: InventoryAddResult = inventory.add(PIECE_ID, 1)
+	assert_push_error_count(1)
+	assert_false(result.ok)
+	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	assert_true(inventory.is_empty(), "no piece without a uid was created")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_011_07_invalid_piece_stack_rejected() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	watch_signals(inventory)
+	var two: ItemStack = _piece_stack(40, "u2")
+	two.quantity = 2
+	var bad: Array[ItemStack] = [
+		_piece_stack(0, "u1"),
+		_piece_stack(PIECE_MAX + 1, "u1"),
+		_piece_stack(40, ""),
+		two,
+	]
+	var errors: int = 0
+	for stack: ItemStack in bad:
+		var offered: Array[ItemStack] = [_stack(&"scrap", 3), stack]
+		var result: InventoryAddResult = inventory.add_stacks(offered)
+		errors += 1
+		assert_push_error_count(errors)
+		assert_false(result.ok)
+		assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	assert_true(inventory.is_empty(), "the valid scrap was not added either")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_011_08_two_crafted_arms_two_slots() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 4)
+	var cost: Dictionary[StringName, int] = {&"scrap": 1}
+	var recipe: RecipeData = _recipe(PIECE_ID, cost)
+	assert_true(_craft(inventory, recipe).ok)
+	assert_true(_craft(inventory, recipe).ok)
+	assert_eq(inventory.count(PIECE_ID), 2, "two arms")
+	var expected: Array[int] = [2, 1, 1]
+	assert_eq(_quantities(inventory), expected, "each arm has its own slot")
+	var slots: Array[ItemStack] = inventory.get_slots()
+	assert_ne(slots[1].uid, "", "first arm has a uid")
+	assert_ne(slots[2].uid, "", "second arm has a uid")
+	assert_ne(slots[1].uid, slots[2].uid, "the uids differ")
+	assert_eq(slots[1].durability, PIECE_MAX, "new pieces start at their maximum")
+	assert_eq(slots[2].durability, PIECE_MAX)
+
+
+func test_r_011_09_take_from_keeps_piece() -> void:
+	_with_pieces()
+	var source: InventoryComponent = _new_inventory(2)
+	_give_piece(source, 40, "u1")
+	var destination: InventoryComponent = _new_inventory(2)
+	var indices: Array[int] = [0]
+	assert_true(destination.take_from(source, indices).ok)
+	var moved: ItemStack = _find_uid(destination, "u1")
+	assert_not_null(moved, "the piece arrived with its uid")
+	if moved != null:
+		assert_eq(moved.durability, 40, "durability kept")
+	assert_true(source.is_empty(), "the source gave it")
+
+
+func test_r_011_09_take_amount_from_keeps_piece() -> void:
+	_with_pieces()
+	var source: InventoryComponent = _new_inventory(2)
+	_give_piece(source, 40, "u1")
+	var destination: InventoryComponent = _new_inventory(2)
+	assert_true(destination.take_amount_from(source, 0, 1).ok)
+	var moved: ItemStack = _find_uid(destination, "u1")
+	assert_not_null(moved, "the piece arrived with its uid")
+	if moved != null:
+		assert_eq(moved.durability, 40, "durability kept")
+	assert_true(source.is_empty(), "the source gave it")
+
+
+func test_r_011_09_add_stacks_keeps_piece() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	_give_piece(inventory, 40, "u1")
+	var stored: ItemStack = _find_uid(inventory, "u1")
+	assert_not_null(stored, "stored with its uid")
+	if stored != null:
+		assert_eq(stored.durability, 40, "durability kept")
+		assert_eq(stored.item.id, PIECE_ID)
+
+
+func test_r_011_09_leftover_keeps_piece() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(1)
+	_fill(inventory, &"scrap", 1)
+	watch_signals(inventory)
+	var offered: Array[ItemStack] = [_piece_stack(40, "u1")]
+	var result: InventoryAddResult = inventory.add_stacks(offered)
+	assert_false(result.ok, "no room")
+	assert_eq(result.error_key, InventoryComponent.MSG_INVENTORY_FULL)
+	assert_eq(result.leftovers.size(), 1)
+	if result.leftovers.size() == 1:
+		assert_eq(result.leftovers[0].uid, "u1", "the leftover keeps its uid")
+		assert_eq(result.leftovers[0].durability, 40, "and its durability")
+	var params: Array = get_signal_parameters(inventory, "overflowed", 0)
+	var emitted: Array[ItemStack] = params[0] as Array[ItemStack]
+	assert_eq(emitted.size(), 1)
+	if emitted.size() == 1:
+		assert_eq(emitted[0].uid, "u1", "overflowed carries the uid")
+		assert_eq(emitted[0].durability, 40, "and the durability")
+
+
+func test_r_011_11_material_over_stack_max_still_split() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	var offered: Array[ItemStack] = [_stack(&"scrap", 25)]
+	assert_true(inventory.add_stacks(offered).ok)
+	var expected: Array[int] = [10, 10, 5]
+	assert_eq(_quantities(inventory), expected, "spec 005 split kept for materials")
+
+
+func test_r_011_11_bad_saved_piece_dropped() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(5)
+	_load_slots(
+		inventory,
+		[
+			_saved("arm", 1, {"durability": 0, "uid": "a"}),
+			_saved("arm", 1, {"durability": PIECE_MAX + 1, "uid": "b"}),
+			_saved("arm", 1, {"durability": 40, "uid": ""}),
+			_saved("arm", 1, {"durability": 40, "uid": "ok"}),
+			_saved("scrap", 2),
+		]
+	)
+	assert_push_error_count(3)
+	var expected: Array[int] = [0, 0, 0, 1, 2]
+	assert_eq(_quantities(inventory), expected, "only the valid piece and the material load")
+	var kept: ItemStack = _find_uid(inventory, "ok")
+	assert_not_null(kept)
+	if kept != null:
+		assert_eq(kept.durability, 40)
+
+
+func test_r_011_13_craft_pays_and_adds_once() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 5)
+	_fill(inventory, &"iron", 1)
+	var cost: Dictionary[StringName, int] = {&"scrap": 3, &"iron": 1}
+	var recipe: RecipeData = _recipe(PIECE_ID, cost)
+	watch_signals(inventory)
+	var result: ActionResult = _craft(inventory, recipe)
+	assert_true(result.ok)
+	assert_eq(result.error_key, &"")
+	assert_eq(inventory.count(&"scrap"), 2, "scrap paid")
+	assert_eq(inventory.count(&"iron"), 0, "iron paid")
+	assert_eq(inventory.count(PIECE_ID), 1, "the piece was added in the same call")
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+	var piece: ItemStack = null
+	for stack: ItemStack in inventory.get_slots():
+		if stack != null and stack.item.id == PIECE_ID:
+			piece = stack
+	assert_not_null(piece)
+	if piece != null:
+		assert_eq(piece.durability, PIECE_MAX)
+		assert_ne(piece.uid, "")
+
+
+func test_r_011_14_craft_refused_changes_nothing() -> void:
+	_with_pieces()
+	var cost: Dictionary[StringName, int] = {&"scrap": 3}
+	var recipe: RecipeData = _recipe(PIECE_ID, cost)
+	# Not enough materials.
+	var poor: InventoryComponent = _new_inventory(2)
+	_fill(poor, &"scrap", 2)
+	watch_signals(poor)
+	var short: ActionResult = _craft(poor, recipe)
+	assert_false(short.ok)
+	assert_eq(short.error_key, CraftingSystem.ERR_NOT_ENOUGH_MATERIALS)
+	var expected_poor: Array[int] = [2, 0]
+	assert_eq(_quantities(poor), expected_poor, "no change")
+	assert_signal_not_emitted(poor, "inventory_changed")
+	# Enough materials, but paying leaves no slot free for the result.
+	var full: InventoryComponent = _new_inventory(1)
+	_fill(full, &"scrap", 5)
+	watch_signals(full)
+	var crowded: ActionResult = _craft(full, recipe)
+	assert_false(crowded.ok)
+	assert_eq(crowded.error_key, CraftingSystem.ERR_NO_ROOM_FOR_RESULT)
+	var expected_full: Array[int] = [5]
+	assert_eq(_quantities(full), expected_full, "no change")
+	assert_signal_not_emitted(full, "inventory_changed")
+
+
+func test_r_011_19_repair_restores_keeps_uid_and_slot() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 4)
+	_give_piece(inventory, 40, "u1")
+	_fill(inventory, &"iron", 3)
+	watch_signals(inventory)
+	var result: ActionResult = _repair(inventory, "u1", _repair_costs())
+	assert_true(result.ok)
+	assert_eq(result.error_key, &"")
+	var slots: Array[ItemStack] = inventory.get_slots()
+	assert_eq(slots[1].uid, "u1", "same slot, same uid")
+	assert_eq(slots[1].item.id, PIECE_ID)
+	assert_eq(slots[1].durability, PIECE_MAX, "restored to its maximum")
+	assert_eq(inventory.count(&"iron"), 1, "the 40% tier cost 2 iron")
+	assert_eq(inventory.count(&"scrap"), 4, "scrap untouched")
+	assert_signal_emit_count(inventory, "inventory_changed", 1)
+
+
+func test_r_011_20_repair_refused_changes_nothing() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(4)
+	_fill(inventory, &"iron", 1)
+	_give_piece(inventory, PIECE_MAX, "intact")
+	_give_piece(inventory, 40, "damaged", OTHER_PIECE_ID)
+	var before: Array[int] = _quantities(inventory)
+	watch_signals(inventory)
+	var intact: ActionResult = _repair(inventory, "intact", _repair_costs())
+	assert_false(intact.ok)
+	assert_eq(intact.error_key, CraftingSystem.ERR_PIECE_INTACT)
+	var poor: ActionResult = _repair(inventory, "damaged", _repair_costs())
+	assert_false(poor.ok, "needs 2 iron and has 1")
+	assert_eq(poor.error_key, CraftingSystem.ERR_NOT_ENOUGH_MATERIALS)
+	assert_eq(_quantities(inventory), before, "no change")
+	var damaged: ItemStack = _find_uid(inventory, "damaged")
+	assert_not_null(damaged)
+	if damaged != null:
+		assert_eq(damaged.durability, 40, "still damaged")
+	assert_eq(inventory.count(&"iron"), 1, "nothing was paid")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_011_20_unknown_uid_reports_error() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"iron", 2)
+	_give_piece(inventory, 40, "u1")
+	watch_signals(inventory)
+	var result: ActionResult = _repair(inventory, "ghost", _repair_costs())
+	assert_push_error_count(1)
+	assert_false(result.ok)
+	assert_eq(result.error_key, CraftingSystem.ERR_PIECE_NOT_FOUND)
+	assert_eq(inventory.count(&"iron"), 2, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_011_19_repair_without_costs_rejected() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	_give_piece(inventory, 40, "u1")
+	watch_signals(inventory)
+	var result: ActionResult = _repair(inventory, "u1", null)
+	assert_push_error_count(1)
+	assert_false(result.ok)
+	assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	var piece: ItemStack = _find_uid(inventory, "u1")
+	assert_not_null(piece)
+	if piece != null:
+		assert_eq(piece.durability, 40, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")

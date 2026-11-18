@@ -287,6 +287,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Guardar automáticamente al entrar en base
   - [ ] Guardar automáticamente al cerrar juego (notification NOTIFICATION_WM_CLOSE_REQUEST)
   - [ ] Guardar al pasar a segundo plano en el móvil, tras morir y al construir o mover una estructura; nunca en mitad de un viaje, la transferencia o el modo colocación (decisión nov 2026, spec 010)
+  - [ ] Guardar también tras crear o reparar una pieza en el banco (decisión nov 2026, spec 011)
 - [ ] Backup de save:
   - [ ] Crear copia de seguridad antes de sobrescribir (Perfil y Mundo)
   - [ ] Si save principal está corrupto, cargar backup
@@ -314,7 +315,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
     - [ ] Añadir a inventario (`InventoryComponent.add_item`)
 - [ ] Lógica de reparación:
   - [ ] Método `repair_piece(piece_id)`:
-    - [ ] Verificar materiales (2 hierro + 1 cable)
+    - [ ] Verificar materiales (coste por tramos según la durabilidad que queda, BALANCE.md §4.3.2; decisión nov 2026, spec 011)
     - [ ] Restar materiales
     - [ ] Restaurar durabilidad a 100%
 - [ ] Recetas de crafteo básicas (un `.tres` de `RecipeData` cada una, valores de BALANCE.md §4.3):
@@ -323,6 +324,8 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Core básico: 6 chatarra + 3 cables + 2 hierro
   - [ ] Estación de carga: 4 chatarra (BALANCE.md §5.3; la usa la Tarea 2.2)
 - [ ] Test: crear y reparar piezas funciona correctamente
+- Reparto de la lógica (decisión nov 2026, spec 011, como en la spec 009): `CraftingSystem` solo comprueba (materiales, ranura libre, coste de reparación) y crea la pieza nueva; `InventoryComponent.craft(recipe)` y `repair(piece_uid, costs)` cobran y cambian el inventario; el banco (`RepairBench`) recibe la petición del jugador y avisa al guardado
+- La spec 011 crea `PieceData` mínima (`durability_max` y `stack_max` 1) y conserva la durabilidad y el `uid` de las piezas al moverlas, tirarlas, morir y guardar; las piezas creadas no tienen efecto hasta la Tarea 3.1. El banco es una sola pantalla con pestañas Construir, Crear y Reparar; una pieza que no cabe en el inventario no se puede crear (decisión nov 2026, spec 011)
 
 **Entregable**: banco de reparaciones funcional con UI de crafteo.
 
@@ -405,14 +408,14 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 > Sigue `specs/architecture.md` §9.3-§9.4 (ADR 0005): la pieza es un objeto único en un `ItemStack` (con
 > `uid` y durabilidad propia) y sus stats son modificadores, no un diccionario.
 
-- [ ] Crear recurso `PieceData.gd` (extends `ItemData`):
-  - [ ] Variables: `slot_type` (Brazo/Pierna/Core), `durability_max`, `modifiers: Array[StatModifier]`
+- [ ] Ampliar el recurso `PieceData.gd` (extends `ItemData`; la spec 011 lo crea con `durability_max` y las tres piezas básicas):
+  - [ ] Variables: `slot_type` (Brazo/Pierna/Core), `modifiers: Array[StatModifier]`
   - [ ] Stats como `StatModifier` (`attack_damage`, `attack_speed`, `move_speed`, `run_speed`, `walk_drain`…)
 - [ ] Crear `RobotBaseStats.tres` (robot sin piezas) y 3 piezas básicas, con valores de BALANCE.md §4.2:
   - [ ] Brazos básicos: daño 10, velocidad 1.0 golpe/s
   - [ ] Piernas básicas: andar 3.0 m/s, correr 4.8 m/s
   - [ ] Core básico: batería máxima 100
-  - [ ] Archivos `.tres` para cada pieza
+  - [ ] Archivos `.tres` para cada pieza (ya existen desde la spec 011; esta tarea les añade stats)
 - [ ] `EquipmentComponent` en el jugador:
   - [ ] Tres ranuras (brazo, pierna, core) que guardan `ItemStack`
   - [ ] Métodos: `equip(stack) -> ActionResult`, `unequip(slot) -> ActionResult`; señal `equipment_changed`

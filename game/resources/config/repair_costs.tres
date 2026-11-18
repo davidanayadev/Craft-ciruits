@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="RepairCostData" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/repair_cost_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/repair_tier_data.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/recipe_ingredient_data.gd" id="3"]
+[ext_resource type="Resource" path="res://resources/items/iron.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/items/cables.tres" id="5"]
+
+[sub_resource type="Resource" id="very_damaged_iron"]
+script = ExtResource("3")
+item = ExtResource("4")
+quantity = 3
+
+[sub_resource type="Resource" id="very_damaged_cables"]
+script = ExtResource("3")
+item = ExtResource("5")
+quantity = 2
+
+[sub_resource type="Resource" id="very_damaged"]
+script = ExtResource("2")
+up_to_percent = 25
+ingredients = Array[ExtResource("3")]([SubResource("very_damaged_iron"), SubResource("very_damaged_cables")])
+
+[sub_resource type="Resource" id="damaged_iron"]
+script = ExtResource("3")
+item = ExtResource("4")
+quantity = 2
+
+[sub_resource type="Resource" id="damaged_cables"]
+script = ExtResource("3")
+item = ExtResource("5")
+quantity = 1
+
+[sub_resource type="Resource" id="damaged"]
+script = ExtResource("2")
+up_to_percent = 100
+ingredients = Array[ExtResource("3")]([SubResource("damaged_iron"), SubResource("damaged_cables")])
+
+[resource]
+script = ExtResource("1")
+tiers = Array[ExtResource("2")]([SubResource("very_damaged"), SubResource("damaged")])

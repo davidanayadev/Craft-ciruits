@@ -1,6 +1,6 @@
 extends GutTest
-## BuildFlow (spec 009): the bench opens the build screen for the local player
-## (R-009-64), a build request opens placement without charging (R-009-65),
+## BuildFlow (spec 009): the bench opens the bench screen (spec 011, which
+## replaced the build screen) for the local player (R-009-64), a build request opens placement without charging (R-009-65),
 ## and the "Edit base" button exists only in the base and toggles edit mode
 ## (R-009-59), never on top of another screen.
 
@@ -58,7 +58,7 @@ func _use_bench(user: Node3D) -> void:
 
 func test_r_009_64_bench_opens_build_screen() -> void:
 	_use_bench(_robot)
-	assert_true(_manager.is_open(BuildScreen.SCREEN_ID), "the build screen opens")
+	assert_true(_manager.is_open(BenchScreen.SCREEN_ID), "the bench screen opens")
 
 
 func test_r_009_64_other_player_opens_nothing() -> void:
@@ -82,14 +82,14 @@ func test_r_009_65_build_from_screen_replaces_it() -> void:
 	_use_bench(_robot)
 	var screen: Node = null
 	for child: Node in _manager.get_children():
-		if child is BuildScreen:
+		if child is BenchScreen:
 			screen = child
-	assert_not_null(screen, "the build screen is open")
+	assert_not_null(screen, "the bench screen is open")
 	if screen == null:
 		return
-	var entry: Node = screen.get_node("%Entries").get_child(0)
-	(entry.get_node("BuildButton") as Button).pressed.emit()
-	assert_false(_manager.is_open(BuildScreen.SCREEN_ID), "the build screen closed")
+	var entry: Node = screen.get_node("%BuildSection").get_node("charging_station")
+	(entry.get_node("ActionButton") as Button).pressed.emit()
+	assert_false(_manager.is_open(BenchScreen.SCREEN_ID), "the bench screen closed")
 	assert_true(_manager.is_open(PlacementScreen.SCREEN_ID), "placement is the only screen")
 
 
@@ -113,5 +113,5 @@ func test_r_009_59_edit_button_toggles() -> void:
 func test_r_009_59_edit_button_not_over_another_screen() -> void:
 	_use_bench(_robot)
 	_edit_button().pressed.emit()
-	assert_false(_manager.is_open(PlacementScreen.SCREEN_ID), "no placement over the build screen")
-	assert_true(_manager.is_open(BuildScreen.SCREEN_ID), "the build screen stays")
+	assert_false(_manager.is_open(PlacementScreen.SCREEN_ID), "no placement over the bench screen")
+	assert_true(_manager.is_open(BenchScreen.SCREEN_ID), "the bench screen stays")

@@ -67,7 +67,7 @@ func _screen_of(screen_id: StringName) -> UIScreen:
 	for child: Node in _ui.get_children():
 		var screen: UIScreen = child as UIScreen
 		if screen != null and not screen.is_queued_for_deletion():
-			if (screen_id == BuildScreen.SCREEN_ID and screen is BuildScreen) or (
+			if (screen_id == BenchScreen.SCREEN_ID and screen is BenchScreen) or (
 				screen_id == PlacementScreen.SCREEN_ID and screen is PlacementScreen
 			):
 				return screen
@@ -92,11 +92,12 @@ func test_r_009_54_full_loop() -> void:
 	assert_lt(_robot.battery.get_current(), _robot.battery.get_maximum(), "entering does not recharge")
 
 	await _interact_with(base.get_node("%RepairBench") as Node3D, Vector3(0.0, 0.0, 1.5))
-	var build: BuildScreen = _screen_of(BuildScreen.SCREEN_ID) as BuildScreen
-	assert_not_null(build, "the bench opens the build screen")
+	var build: BenchScreen = _screen_of(BenchScreen.SCREEN_ID) as BenchScreen
+	assert_not_null(build, "the bench opens the bench screen")
 	if build == null:
 		return
-	(build.get_node("%Entries").get_child(0).get_node("BuildButton") as Button).pressed.emit()
+	var entry: Node = build.get_node("%BuildSection").get_node("charging_station")
+	(entry.get_node("ActionButton") as Button).pressed.emit()
 	var placement: PlacementScreen = _screen_of(PlacementScreen.SCREEN_ID) as PlacementScreen
 	assert_not_null(placement, "placement starts")
 	if placement == null:

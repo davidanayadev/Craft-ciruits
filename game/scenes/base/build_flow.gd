@@ -1,7 +1,7 @@
 class_name BuildFlow
 extends Node
 ## Building and editing in the base (spec 009): the repair bench opens the
-## build screen for the local player, a picked recipe opens the placement
+## bench screen (spec 011) for the local player, a picked recipe opens the placement
 ## screen, and the HUD "Edit base" button, shown only while the base is
 ## loaded, opens and closes edit mode. It only opens screens: BaseStructures
 ## decides and changes the state.
@@ -11,6 +11,8 @@ extends Node
 
 var _player: Robot = null
 var _hud: Hud = null
+## The base while it is loaded; its bench crafts and repairs.
+var _base: BaseZone = null
 
 
 ## Hooks the flow to the local player and its HUD; zone_loader tells which
@@ -25,6 +27,7 @@ func bind(player: Robot, hud: Hud, zone_loader: ZoneLoader) -> void:
 
 func _on_zone_loaded(zone: Zone) -> void:
 	var base: BaseZone = zone as BaseZone
+	_base = base
 	_hud.set_edit_base_available(base != null)
 	if base != null and not base.bench_used.is_connected(_on_bench_used):
 		base.bench_used.connect(_on_bench_used)
@@ -32,11 +35,15 @@ func _on_zone_loaded(zone: Zone) -> void:
 
 ## Only the local player's screens (architecture §9.5).
 func _on_bench_used(user: Node3D) -> void:
-	if user != _player:
+	if user != _player or _base == null:
 		return
 	ui_manager.open(
-		BuildScreen.SCREEN_ID,
-		{BuildScreen.CONTEXT_PLAYER: _player, BuildScreen.CONTEXT_BASE: base_structures}
+		BenchScreen.SCREEN_ID,
+		{
+			BenchScreen.CONTEXT_PLAYER: _player,
+			BenchScreen.CONTEXT_BASE: base_structures,
+			BenchScreen.CONTEXT_BENCH: _base.get_bench(),
+		}
 	)
 
 

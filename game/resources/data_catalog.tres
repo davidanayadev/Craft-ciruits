@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DataCatalog" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="DataCatalog" load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/data_catalog.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/items/scrap.tres" id="2"]
@@ -11,13 +11,21 @@
 [ext_resource type="Resource" path="res://resources/zones/base.tres" id="9"]
 [ext_resource type="Resource" path="res://resources/structures/charging_station.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/recipes/charging_station.tres" id="11"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_arms.tres" id="12"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_legs.tres" id="13"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_core.tres" id="14"]
+[ext_resource type="Resource" path="res://resources/recipes/basic_arms.tres" id="15"]
+[ext_resource type="Resource" path="res://resources/recipes/basic_legs.tres" id="16"]
+[ext_resource type="Resource" path="res://resources/recipes/basic_core.tres" id="17"]
+[ext_resource type="Resource" path="res://resources/config/repair_costs.tres" id="18"]
 
 [resource]
 script = ExtResource("1")
-items = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4")])
+items = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("12"), ExtResource("13"), ExtResource("14")])
 enemies = Array[Resource]([ExtResource("5"), ExtResource("6")])
 rulesets = Array[Resource]([ExtResource("7")])
 new_world_ruleset = ExtResource("7")
 zones = Array[Resource]([ExtResource("8"), ExtResource("9")])
 structures = Array[Resource]([ExtResource("10")])
-recipes = Array[Resource]([ExtResource("11")])
+recipes = Array[Resource]([ExtResource("11"), ExtResource("15"), ExtResource("16"), ExtResource("17")])
+repair_costs = ExtResource("18")

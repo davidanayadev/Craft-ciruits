@@ -13,6 +13,8 @@ extends Resource
 @export var zones: Array[ZoneData] = []
 @export var structures: Array[StructureData] = []
 @export var recipes: Array[RecipeData] = []
+## Repair cost tiers of BALANCE §4.3.2 (spec 011, R-011-06).
+@export var repair_costs: RepairCostData
 
 var _items_by_id: Dictionary[StringName, ItemData] = {}
 var _enemies_by_id: Dictionary[StringName, EnemyData] = {}

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PieceData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/piece_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/icons/items/basic_arms.svg" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"basic_arms"
+name_key = &"ITEM_BASIC_ARMS"
+stack_max = 1
+icon = ExtResource("2")
+durability_max = 100

@@ -88,11 +88,11 @@ plan a *Planificado*.
 | [008](008-death-recovery/spec.md) | Muerte, `RulesetData`, objetos caídos y recuperación | 1.5 | Hecho |
 | [009](009-base-placement-charging/spec.md) | Escena de base, viaje entre zonas, colocación libre y estación de carga | 2.1, 2.8, 2.2 | Hecho |
 | [010](010-save-profile-world/spec.md) | Guardado Perfil/Mundo, `IStore` | 2.3 | Hecho |
-| 011 | Crafteo y `RecipeData` | 2.4 | Por crear |
+| [011](011-crafting-repair/spec.md) | Crafteo de piezas y reparación en el banco | 2.4 | Hecho |
 | 012 | Generador eólico y cofres | 2.5, 2.6 | Por crear |
 | 013 | Nivel de chasis | 2.7 | Por crear. Condición de entrada (spec 010, plan §7): al cargar, el nivel de chasis se aplica antes de que `InventoryComponent` lea sus ranuras, para no perder las de más |
-| 014 | Piezas, ranuras y degradación | 3.1, 3.2 | Por crear. Condición de entrada (spec 008, R-008-11; ampliada por la spec 010): la durabilidad y el `uid` de `ItemStack` (ya existen y `copy()` los conserva) pasan por `InventoryRules`, y `DroppedItem.to_data()` también los guarda, para que apilar, tirar y el objeto caído los conserven |
-| 015 | Robot hostil y drops | 3.3 | Por crear |
+| 014 | Piezas, ranuras y degradación | 3.1, 3.2 | Por crear. La condición de entrada de las specs 008 y 010 (durabilidad y `uid` conservados al apilar, tirar, morir y guardar el objeto caído) la cumple la spec 011, que también crea `PieceData` y las tres piezas. Pendiente para la 014 (spec 011, preguntas 6 y 8): "Reparar" lista también las piezas equipadas, y decidir si un Core de repuesto en el inventario cae al morir. Una pieza que llega a 0 se quita del inventario (BALANCE §4.1), no se queda a 0: `InventoryRules.is_valid_stack` rechaza una pieza a 0 al cargar (plan 011 §7) |
+| 015 | Robot hostil y drops | 3.3 | Por crear. Condición de entrada (plan 011 §7): las piezas del loot se crean con `uid` y durabilidad (`CraftingSystem.create_result` o un equivalente al 50 %), nunca con `ItemStack.new(item, n)`, que `add_stacks` rechaza para una pieza |
 | 016+ | Fases 4-6 (HUD, menús, audio, feedback, guía, export) | 4.x-6.x | Por crear |
 
 La numeración de "Por crear" es orientativa; se fija al crear cada spec.

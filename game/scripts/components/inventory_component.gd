@@ -8,13 +8,18 @@ extends Node
 ##
 ## add, add_stacks and take_from store copies: a stack the caller passes in is
 ## never kept, so nobody can change the slots through it.
+##
+## Pieces (spec 011) are unique: every path that moves a stack keeps its
+## durability and uid (R-011-09), and a piece only enters with a valid uid and
+## durability (InventoryRules.is_valid_stack, plan 011 D1). It also crafts and
+## repairs, the decision being CraftingSystem's (architecture §3).
 
 ## Once per operation that changed slots or slot count; never without a change.
 signal inventory_changed
 ## Something offered to this inventory did not fit (part or all). Not emitted for rejected requests.
 signal overflowed(leftovers: Array[ItemStack])
 
-const ERR_INVALID_REQUEST := &"ERR_INVALID_REQUEST"
+const ERR_INVALID_REQUEST := ActionResult.ERR_INVALID_REQUEST
 const ERR_NOT_ENOUGH_ITEMS := &"ERR_NOT_ENOUGH_ITEMS"
 const MSG_INVENTORY_FULL := &"MSG_INVENTORY_FULL"
 ## Save contract (spec 010, architecture §10.2).
@@ -90,22 +95,37 @@ func has(item_id: StringName, quantity: int) -> bool:
 	return count(item_id) >= quantity
 
 
-## quantity <= 0 or unknown id → push_error naming the item, ERR_INVALID_REQUEST, no change.
+## quantity <= 0, unknown id or a piece (it needs a uid, R-011-07) → push_error
+## naming the item, ERR_INVALID_REQUEST, no change.
 ## Not everything fits → adds what fits, MSG_INVENTORY_FULL with the leftover.
 func add(item_id: StringName, quantity: int) -> InventoryAddResult:
 	if not _is_valid_request(item_id, quantity, "add"):
+		return InventoryAddResult.not_added(ERR_INVALID_REQUEST, [])
+	if catalog.get_item(item_id) is PieceData:
+		push_error(
+			"InventoryComponent '%s': add() cannot create the piece '%s'; it needs a uid."
+			% [name, item_id]
+		)
 		return InventoryAddResult.not_added(ERR_INVALID_REQUEST, [])
 	var stacks: Array[ItemStack] = [ItemStack.new(catalog.get_item(item_id), quantity)]
 	return _add_valid_stacks(stacks)
 
 
-## Same rules for several stacks as one operation: validates all first, one inventory_changed.
+## Same rules for several stacks as one operation: validates all first, one
+## inventory_changed. A piece stack that is not valid with the catalog's item
+## (InventoryRules.is_valid_stack) is rejected like an unknown id (R-011-07).
 func add_stacks(stacks: Array[ItemStack]) -> InventoryAddResult:
 	for stack: ItemStack in stacks:
 		if stack == null or stack.item == null:
 			push_error("InventoryComponent '%s': add_stacks() got an empty stack." % name)
 			return InventoryAddResult.not_added(ERR_INVALID_REQUEST, _copies_of(stacks))
 		if not _is_valid_request(stack.item.id, stack.quantity, "add"):
+			return InventoryAddResult.not_added(ERR_INVALID_REQUEST, _copies_of(stacks))
+		if not InventoryRules.is_valid_stack(_with_catalog_item(stack, stack.quantity)):
+			push_error(
+				"InventoryComponent '%s': add_stacks() got an invalid piece '%s' (quantity %d, durability %d, uid '%s')."
+				% [name, stack.item.id, stack.quantity, stack.durability, stack.uid]
+			)
 			return InventoryAddResult.not_added(ERR_INVALID_REQUEST, _copies_of(stacks))
 	return _add_valid_stacks(stacks)
 
@@ -203,8 +223,7 @@ func take_amount_from(
 			% [name, quantity, slot_index]
 		)
 		return InventoryAddResult.not_added(ERR_INVALID_REQUEST, [])
-	var item: ItemData = catalog.get_item(leaving.item.id)
-	var leftover: int = InventoryRules.add(_slots, item, leaving.quantity)
+	var leftover: int = InventoryRules.add_stack(_slots, _with_catalog_item(leaving, leaving.quantity))
 	var amounts: Array[int] = []
 	amounts.resize(source.get_slot_count())
 	amounts.fill(0)
@@ -212,8 +231,52 @@ func take_amount_from(
 	_settle_take(source, amounts)
 	var leftovers: Array[ItemStack] = []
 	if leftover > 0:
-		leftovers.append(ItemStack.new(item, leftover))
+		leftovers.append(_with_catalog_item(leaving, leftover))
 	return _report_leftovers(leftovers)
+
+
+## Pays the recipe and adds its result (CraftingSystem.create_result) in one
+## step, one inventory_changed (R-011-13, R-011-15). No recipe, no result_item,
+## a result_structure, or a result this catalog does not know → push_error,
+## ERR_INVALID_REQUEST, no change. A CraftingSystem.check_craft refusal → its
+## key, no change (R-011-14).
+func craft(recipe: RecipeData) -> ActionResult:
+	if (
+		recipe == null or recipe.result_item == null or recipe.result_structure != null
+		or not _knows(recipe.result_item.id)
+	):
+		push_error("InventoryComponent '%s': craft() needs an item recipe of this catalog." % name)
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	var checked: ActionResult = CraftingSystem.check_craft(_slots, recipe)
+	if not checked.ok:
+		return checked
+	InventoryRules.remove_many(_slots, CraftingSystem.cost_of(recipe))
+	var made: ItemStack = CraftingSystem.create_result(catalog.get_item(recipe.result_item.id))
+	var leftover: int = InventoryRules.add_stack(_slots, made)
+	assert(leftover == 0, "check_craft guarantees a slot for the result once paid")
+	inventory_changed.emit()
+	return ActionResult.success()
+
+
+## Pays CraftingSystem.repair_cost and sets the piece piece_uid to its maximum
+## durability, keeping its uid and slot, in one step (R-011-19). Unknown uid →
+## push_error and ERR_PIECE_NOT_FOUND; any other CraftingSystem.check_repair
+## refusal → its key; no change either way (R-011-20). costs null →
+## push_error, ERR_INVALID_REQUEST.
+func repair(piece_uid: String, costs: RepairCostData) -> ActionResult:
+	if costs == null:
+		push_error("InventoryComponent '%s': repair() got no repair costs." % name)
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	var checked: ActionResult = CraftingSystem.check_repair(_slots, piece_uid, costs)
+	if not checked.ok:
+		if checked.error_key == CraftingSystem.ERR_PIECE_NOT_FOUND:
+			push_error("InventoryComponent '%s': no piece with uid '%s' to repair." % [name, piece_uid])
+		return checked
+	var piece: ItemStack = _slots[InventoryRules.index_of_uid(_slots, piece_uid)]
+	InventoryRules.remove_many(_slots, CraftingSystem.repair_cost(piece, costs))
+	piece.durability = (piece.item as PieceData).durability_max
+	inventory_changed.emit()
+	return ActionResult.success()
 
 
 func get_save_key() -> StringName:
@@ -243,7 +306,8 @@ static func get_saved_slot_count(data: Dictionary) -> int:
 
 ## Replaces every slot, keeping the slot count; one inventory_changed and
 ## never overflowed (R-010-09). A bad slot (unknown item, quantity outside
-## 1..stack_max, wrong field) → push_error and it stays empty, the rest loads
+## 1..stack_max, wrong field, an invalid piece, R-011-11) → push_error and it
+## stays empty, the rest loads
 ## (R-010-11); saved slots beyond the count are lost, reported. No slot list
 ## → push_error, no change.
 func from_save_data(data: Dictionary) -> void:
@@ -278,11 +342,10 @@ func _add_valid_stacks(stacks: Array[ItemStack]) -> InventoryAddResult:
 	var leftovers: Array[ItemStack] = []
 	var changed: bool = false
 	for stack: ItemStack in stacks:
-		var item: ItemData = catalog.get_item(stack.item.id)
-		var leftover: int = InventoryRules.add(_slots, item, stack.quantity)
+		var leftover: int = InventoryRules.add_stack(_slots, _with_catalog_item(stack, stack.quantity))
 		changed = changed or leftover < stack.quantity
 		if leftover > 0:
-			leftovers.append(ItemStack.new(item, leftover))
+			leftovers.append(_with_catalog_item(stack, leftover))
 	if changed:
 		inventory_changed.emit()
 	return _report_leftovers(leftovers)
@@ -298,11 +361,10 @@ func _take_what_fits(
 		var stack: ItemStack = offered[index]
 		if stack == null:
 			continue
-		var item: ItemData = catalog.get_item(stack.item.id)
-		var leftover: int = InventoryRules.add(_slots, item, stack.quantity)
+		var leftover: int = InventoryRules.add_stack(_slots, _with_catalog_item(stack, stack.quantity))
 		amounts[index] = stack.quantity - leftover
 		if leftover > 0:
-			leftovers.append(ItemStack.new(item, leftover))
+			leftovers.append(_with_catalog_item(stack, leftover))
 	return leftovers
 
 
@@ -332,13 +394,24 @@ func _stack_from_save(entry: Variant, index: int) -> ItemStack:
 		_knows(item_id) and quantity >= 1 and quantity <= catalog.get_item(item_id).stack_max
 		and SaveFields.is_whole_number(durability) and stack_uid is String
 	)
-	if not valid:
+	var stack: ItemStack = null
+	if valid:
+		stack = ItemStack.new(catalog.get_item(item_id), quantity)
+		stack.durability = SaveFields.to_int(durability, -1)
+		stack.uid = stack_uid
+	if stack == null or not InventoryRules.is_valid_stack(stack):
 		push_error("InventoryComponent '%s': saved slot %d %s is lost." % [name, index, entry])
 		return null
-	var stack: ItemStack = ItemStack.new(catalog.get_item(item_id), quantity)
-	stack.durability = SaveFields.to_int(durability, -1)
-	stack.uid = stack_uid
 	return stack
+
+
+## A copy of stack with quantity and this catalog's item, so a foreign
+## ItemData with a known id is stored as the catalog's one (R-005-11).
+func _with_catalog_item(stack: ItemStack, quantity: int) -> ItemStack:
+	var copy: ItemStack = stack.copy()
+	copy.item = catalog.get_item(stack.item.id)
+	copy.quantity = quantity
+	return copy
 
 
 func _report_leftovers(leftovers: Array[ItemStack]) -> InventoryAddResult:

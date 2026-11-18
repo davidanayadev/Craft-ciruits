@@ -247,7 +247,7 @@ func test_real_catalog_lists_both_screens() -> void:
 	if catalog == null:
 		return
 	for screen_id: StringName in [
-		InventoryScreen.SCREEN_ID, LootScreen.SCREEN_ID, BuildScreen.SCREEN_ID, PlacementScreen.SCREEN_ID
+		InventoryScreen.SCREEN_ID, LootScreen.SCREEN_ID, BenchScreen.SCREEN_ID, PlacementScreen.SCREEN_ID
 	]:
 		assert_true(catalog.screens.has(screen_id), "'%s' is registered" % screen_id)
 		if not catalog.screens.has(screen_id):

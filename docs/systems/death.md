@@ -3,7 +3,7 @@
 > Al llegar la batería a 0 el robot suelta su inventario donde cae, la zona `FARM` se repone con la visita siguiente y,
 > tras una pantalla de transferencia, reaparece en la base con la batería llena. Lo caído se recoge con "Interactuar",
 > caduca y sobrevive a descargar la zona.
-> Specs: [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010
+> Specs: [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md) · Última actualización: spec 011
 
 ## Piezas
 
@@ -80,8 +80,10 @@
 `DroppedItemSpawner` está en el grupo `persistent` con clave `dropped_items`: `to_save_data` junta los guardados de
 cada zona descargada y los vivos (`to_data()`); `from_save_data` reemplaza todo y descarta los caducados y los de zona
 desconocida o forma mala (`push_error`); los de la zona ligada se restauran y el resto espera a `bind_zone`. Las
-lecturas pasan por `SaveFields`; una pila con ítem desconocido o cantidad no positiva se pierde sola. Cargar no emite
-señales.
+lecturas pasan por `SaveFields`; una pila con ítem desconocido, cantidad no positiva o pieza inválida
+(`InventoryRules.is_valid_stack`) se pierde sola. Cada pila guarda `item_id`, `quantity`, `durability` y `uid`; los dos
+últimos son opcionales al leer (`-1` y `""`), así que un archivo de la spec 010 carga igual y no sube `schema_version`.
+Cargar no emite señales.
 
 ## Datos
 
@@ -121,13 +123,13 @@ señales.
 
 ## Trampas y límites
 
-- **R-008-11, durabilidad y `uid` de pila:** `ItemStack` solo tiene `item` y `quantity`, así que solo se garantiza que
-  esos dos datos pasan intactos. La spec 014 debe llevar la durabilidad y el `uid` por `InventoryRules` para que sigan
-  valiendo ([plan 008 §7](../../specs/008-death-recovery/plan.md)).
+- **Durabilidad y `uid` de pila (R-008-11):** desde la spec 011 se conservan al caer, recoger, tirar y guardar
+  ([inventory.md](inventory.md), R-011-09, R-011-10). La spec 014 debe quitar las piezas rotas del inventario o el
+  guardado las rechazará ([crafting.md](crafting.md)).
 - Se pierde y se conserva solo el inventario: `keeps_core` se declara pero no lo aplica nadie hasta la spec 014 (piezas).
-- Las pilas parciales del mismo item se fusionan al caer: "tal como estaban" se cumple por item y cantidad, no por ranura.
+- Las pilas parciales del mismo item se fusionan al caer: "tal como estaban" se cumple por item y cantidad, no por ranura. Una pieza no se fusiona nunca.
 - Contador de visitas y objetos caídos se guardan en disco ([save.md](save.md)). `DroppedItem.to_data()` usa solo tipos
-  JSON (`SaveFields`) y no guarda `durability` ni `uid` de pila.
+  JSON (`SaveFields`) y guarda `durability` y `uid` de cada pila.
 - `GameManager` es un autoload: una muerte en un test deja la visita en 1. Las suites que instancian `main.tscn` o un
   `DeathController` llaman a `clear_visit_counts()` **antes** de instanciar.
 - El bloqueo de input y el congelado de `World` van por motivos (`DEATH`, `TRAVEL`, `SCREEN`): terminar el viaje no
@@ -153,9 +155,9 @@ señales.
 | `tests/unit/test_ruleset_resources.gd` | `normal.tres`, configs contra BALANCE, sin comparaciones con el id |
 | `tests/unit/test_dropped_item_rules.gd` | Caducidad: límite exacto, tiempo negativo |
 | `tests/unit/test_time_service.gd` | Contrato, reloj local, solo `local_time_service.gd` lee `Time` |
-| `tests/unit/test_dropped_item.gd` | Pilas, uid, recoger (total y parcial), `reset`, JSON, prompt ES/EN |
+| `tests/unit/test_dropped_item.gd` | Pilas, uid, recoger (total y parcial), `reset`, JSON con `durability` y `uid`, prompt ES/EN |
 | `tests/unit/test_transfer_screen.gd` | Oculta hasta `play()`, `finished` una vez, absorbe toques, textos |
-| `tests/integration/test_dropped_item_spawner.gd` | Pool, hora, caducidad, objeto reutilizado limpio; guardar al descargar y restaurar (caducados descartados) |
+| `tests/integration/test_dropped_item_spawner.gd` | Pool, hora, caducidad, objeto reutilizado limpio; guardar al descargar y restaurar (caducados descartados); una pieza sobrevive a tirar, recoger y guardar; pila de pieza inválida perdida |
 | `tests/integration/test_save_load.gd`, `test_save_triggers.gd` | Objetos caídos tras cerrar y abrir, caducidad al cargar; guardar tras morir sin pisar la reaparición |
-| `tests/integration/test_death_controller.gd` | Una muerte, un `player_died`; XP y ranuras; reaparición; ruleset a mano; morir en la base no cuenta visita |
+| `tests/integration/test_death_controller.gd` | Una muerte, un `player_died`; XP y ranuras; reaparición; ruleset a mano; morir en la base no cuenta visita; una pieza cae y se recupera con su `uid` |
 | `tests/integration/test_main_scene.gd` | Pantallas cerradas, robot congelado, bucle morir-reaparecer en la base-recuperar, fallo del viaje de reaparición, muerte colocando o moviendo |

@@ -21,18 +21,56 @@ static func space_for(slots: Array[ItemStack], item: ItemData) -> int:
 ## Fills that item's stacks below stack_max in slot order, then empty slots in
 ## slot order. Returns the quantity that did not fit. quantity <= 0 or
 ## stack_max < 1 → push_error, no change, returns quantity.
+## Same as add_stack(slots, ItemStack.new(item, quantity)).
 static func add(slots: Array[ItemStack], item: ItemData, quantity: int) -> int:
 	if item == null:
 		push_error("InventoryRules: add() got no item.")
 		return quantity
-	if quantity <= 0 or item.stack_max < 1:
+	return add_stack(slots, ItemStack.new(item, quantity))
+
+
+## Like add() for one stack: the new slots it fills copy its durability and
+## uid (spec 011, R-011-09); the stack itself is never kept. A piece never
+## merges because its stack_max is 1 (R-011-08). Returns what did not fit.
+static func add_stack(slots: Array[ItemStack], stack: ItemStack) -> int:
+	if stack == null or stack.item == null:
+		push_error("InventoryRules: add_stack() got no stack or no item.")
+		return 0 if stack == null else stack.quantity
+	var item: ItemData = stack.item
+	if stack.quantity <= 0 or item.stack_max < 1:
 		push_error(
 			"InventoryRules: cannot add %d of '%s' (stack_max %d)."
-			% [quantity, item.id, item.stack_max]
+			% [stack.quantity, item.id, item.stack_max]
 		)
-		return quantity
-	var remaining: int = _fill_partial_stacks(slots, item, quantity)
-	return _fill_empty_slots(slots, item, remaining)
+		return stack.quantity
+	var remaining: int = _fill_partial_stacks(slots, item, stack.quantity)
+	return _fill_empty_slots(slots, stack, remaining)
+
+
+## True for a stack whose item is not a PieceData: materials keep the rules
+## of spec 005. A piece needs quantity 1, durability in 1..durability_max and a
+## non-empty uid (plan 011 D1, R-011-11). The caller passes the stack with the
+## catalog's item. null → false.
+static func is_valid_stack(stack: ItemStack) -> bool:
+	if stack == null or stack.item == null:
+		return false
+	var piece: PieceData = stack.item as PieceData
+	if piece == null:
+		return true
+	return (
+		stack.quantity == 1 and stack.durability >= 1 and stack.durability <= piece.durability_max
+		and not stack.uid.is_empty()
+	)
+
+
+## Slot holding uid; -1 when none or uid is empty.
+static func index_of_uid(slots: Array[ItemStack], uid: String) -> int:
+	if uid.is_empty():
+		return -1
+	for i: int in slots.size():
+		if slots[i] != null and slots[i].uid == uid:
+			return i
+	return -1
 
 
 ## Sum of item_id over every slot.
@@ -93,9 +131,9 @@ static func can_split(slots: Array[ItemStack], slot_index: int, quantity: int) -
 	return quantity >= 1 and quantity <= slots[slot_index].quantity
 
 
-## Takes quantity out of slot_index and returns it as a new stack; the slot
-## keeps the rest, or becomes null when nothing is left. A request can_split()
-## rejects → null and no change.
+## Takes quantity out of slot_index and returns it as a new stack with the
+## slot's durability and uid; the slot keeps the rest, or becomes null when
+## nothing is left. A request can_split() rejects → null and no change.
 static func split(slots: Array[ItemStack], slot_index: int, quantity: int) -> ItemStack:
 	if not can_split(slots, slot_index, quantity):
 		return null
@@ -103,7 +141,9 @@ static func split(slots: Array[ItemStack], slot_index: int, quantity: int) -> It
 	stack.quantity -= quantity
 	if stack.quantity == 0:
 		slots[slot_index] = null
-	return ItemStack.new(stack.item, quantity)
+	var taken: ItemStack = stack.copy()
+	taken.quantity = quantity
+	return taken
 
 
 static func _fill_partial_stacks(slots: Array[ItemStack], item: ItemData, quantity: int) -> int:
@@ -119,14 +159,17 @@ static func _fill_partial_stacks(slots: Array[ItemStack], item: ItemData, quanti
 	return remaining
 
 
-static func _fill_empty_slots(slots: Array[ItemStack], item: ItemData, quantity: int) -> int:
+## Each new slot is a copy of template with its own quantity.
+static func _fill_empty_slots(slots: Array[ItemStack], template: ItemStack, quantity: int) -> int:
 	var remaining: int = quantity
 	for i: int in slots.size():
 		if remaining == 0:
 			break
 		if slots[i] != null:
 			continue
-		var moved: int = mini(remaining, item.stack_max)
-		slots[i] = ItemStack.new(item, moved)
+		var moved: int = mini(remaining, template.item.stack_max)
+		var filled: ItemStack = template.copy()
+		filled.quantity = moved
+		slots[i] = filled
 		remaining -= moved
 	return remaining

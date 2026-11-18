@@ -5,8 +5,8 @@
 > dueña del estado.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [003](../../specs/003-battery/spec.md),
 > [005](../../specs/005-inventory/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) ·
-> Última actualización: spec 010
+> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md) ·
+> Última actualización: spec 011
 
 ## Piezas
 
@@ -18,7 +18,7 @@
 | `screens.tres` | `.tres` | `game/resources/ui/screens.tres` | Registra `inventory`, `loot`, `build` y `placement` |
 | `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería, botones Interact, almacenamiento, atacar y "Editar base" (solo con la base cargada), aviso corto (`show_notice`: inventario lleno, avisos de guardado, "Partida guardada") y borde rojo |
 | `LoadingScreen` | `Control` | `game/scenes/ui/loading_screen.gd` | Cubre el juego durante un viaje; fuera de `UIManager` ([travel.md](travel.md)) |
-| `BuildScreen`, `PlacementScreen` | Pantallas | [base.md](base.md) | Lista de recetas del banco y modo colocar/editar |
+| `BenchScreen`, `PlacementScreen` | Pantallas | [crafting.md](crafting.md), [base.md](base.md) | Banco con pestañas Construir, Crear y Reparar (sustituye a `BuildScreen`) y modo colocar/editar |
 | `AttackButton` | `Button` | `game/scenes/ui/attack_button.gd` | Botón grande de mantener, abajo a la derecha, visible en PC y móvil; emite `held_changed` |
 | `DamageFlash` | `TextureRect` | `game/scenes/ui/damage_flash.gd` | Borde rojo radial que se desvanece; `flash(duration_s)` |
 | `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, semilla del Mundo y botón "New world" (`new_world_requested`), solo en builds de depuración |
