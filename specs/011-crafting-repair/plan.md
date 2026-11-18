@@ -44,7 +44,7 @@ dice ACTION_PLAN 2.4. Rompe architecture §3 regla 3 (un único dueño del estad
 | D6 | Crear comprueba la ranura **después** de cobrar, sobre una copia **profunda** de las ranuras (`ItemStack.copy()` por ranura; `InventoryRules.remove` resta en la propia pila): `remove_many` en la copia y `space_for(result) ≥ 1`. Un test comprueba que `check_craft` no cambia las ranuras que recibe. Motivo `ERR_NO_ROOM_FOR_RESULT`, clave nueva. | Cuenta la ranura que libera un pago que vacía una pila (pregunta 3). Una clave propia dice más que "Inventario lleno". |
 | D7 | Quien emite los eventos es el banco (`RepairBench`), no el inventario: el componente no conoce el `player_uid` ni el bus, y architecture §7 ya nombra al banco como emisor de `item_crafted`. La pantalla recibe el banco en su contexto; `BaseZone.get_bench()` se lo da a `BuildFlow`. | Mismo patrón que `BaseStructures.place(player, …)` y `ChargingStation`. |
 | D8 | Evento nuevo `piece_repaired(piece_uid: String, player_uid: String)` (fila nueva en architecture §7); `item_crafted(recipe_id, player_uid)` ya estaba en la tabla y se declara ahora. `SaveManager` añade `REASON_ITEM_CRAFTED` y `REASON_PIECE_REPAIRED` y los conecta con `_on_save_fact`, como `structure_built`. | R-011-28. El guardado sigue diferido y agrupado (spec 010). |
-| D9 | `BenchScreen` (id `&"bench"`) sustituye a `BuildScreen` (id `&"build"`): se borran `build_screen.gd/.tscn`, `screens.tres` cambia la entrada y la lógica de construir pasa tal cual a `BenchBuildSection`. Los tests de R-009-38/39/64/65 de `test_build_screen.gd` pasan a `test_bench_screen.gd` con los mismos nombres y asserts (solo cambia cómo se llega a la fila). | R-011-21 pide una sola pantalla. Borrar archivos de la spec 009 se aprueba con este plan. |
+| D9 | `BenchScreen` (id `&"bench"`) sustituye a `BuildScreen` (id `&"build"`): se borran `build_screen.gd/.tscn`, `screens.tres` cambia la entrada y la lógica de construir pasa tal cual a `BenchBuildSection`. Los tests de R-009-38/39/64/65 de `test_build_screen.gd` pasan a `test_bench_screen.gd` con los mismos nombres y asserts (solo cambia cómo se llega a la fila). Son cinco (dos de R-009-64); el título esperado pasa de `BUILD_TITLE` a `BENCH_TITLE` por R-011-21, y `BUILD_TITLE` se sigue comprobando como título de la pestaña Construir (anotado al implementar). | R-011-21 pide una sola pantalla. Borrar archivos de la spec 009 se aprueba con este plan. |
 | D10 | Títulos de pestaña con `set_tab_title(i, tr(key))` en `setup()`. | No depende de si `TabBar` traduce solo sus títulos (la referencia de clases no lo dice, §5.1). No hay cambio de idioma en caliente en el PMV. |
 | D11 | Refresco: Construir y Crear tienen filas fijas (una por receta) y solo actualizan botón y aviso; Reparar rehace su lista (las piezas dañadas cambian). Las filas viejas salen con `remove_child` + `queue_free`. | R-011-25 sin leer estado en `_process`; liberar diferido porque el refresco llega dentro del `pressed` del botón que lo provocó. |
 | D12 | El formato del objeto caído gana `durability` y `uid` por pila, opcionales con los valores por defecto `-1` y `""`. No sube `schema_version`. La regla se deja escrita en architecture §10.2: añadir un campo opcional cuyo valor por defecto reproduce lo que se cargaba antes no sube la versión; quitar, renombrar o cambiar el significado de uno sí. | Un archivo de la spec 010 carga igual: no tenía piezas y sus pilas sin esos campos son materiales válidos. Es una lectura de la pregunta 10 de la spec 010 (la versión sube cuando cambia la forma de una clave existente), por eso se escribe la regla. |
@@ -59,6 +59,7 @@ dice ACTION_PLAN 2.4. Rompe architecture §3 regla 3 (un único dueño del estad
 | `scripts/data/repair_tier_data.gd` | Nuevo | Un tramo: `up_to_percent`, `ingredients` |
 | `scripts/data/repair_cost_data.gd` | Nuevo | Los tramos, ascendentes |
 | `scripts/data/data_catalog.gd` | Cambia | `repair_costs: RepairCostData` |
+| `scripts/data/action_result.gd` | Cambia | `ERR_INVALID_REQUEST` vive aquí (capa Datos) y `InventoryComponent` la toma como alias, para que `CraftingSystem` no conozca un nodo (revisión de `architecture-guardian` al implementar) |
 | `scripts/systems/inventory_rules.gd` | Cambia | `add_stack`, `is_valid_stack`, `index_of_uid`; `add` y `split` conservan durabilidad y `uid` |
 | `scripts/systems/crafting_system.gd` | Cambia | `check_craft`, `create_result`, `repair_cost`, `check_repair`, `is_damaged`; claves nuevas |
 | `scripts/components/inventory_component.gd` | Cambia | `craft`, `repair`; todos los caminos con `add_stack`; rechazo y validación de piezas (D1) |
@@ -335,7 +336,7 @@ No queda ningún punto **(verificar)**.
 | R-011-18 | `unit/test_crafting_system.gd::test_r_011_18_broken_refused`. Solo en el sistema: por D1 un `InventoryComponent` nunca tiene una pieza a 0 |
 | R-011-19 | `unit/test_inventory_component.gd::test_r_011_19_repair_restores_keeps_uid_and_slot`; `unit/test_repair_bench.gd::test_r_011_19_bench_repair_emits_piece_repaired` |
 | R-011-20 | `unit/test_crafting_system.gd::test_r_011_20_unknown_uid`; `unit/test_inventory_component.gd::test_r_011_20_repair_refused_changes_nothing`, `::test_r_011_20_unknown_uid_reports_error` |
-| R-011-21 | `unit/test_bench_screen.gd::test_r_011_21_three_tabs_open_on_build`, y los cuatro casos movidos de `test_build_screen.gd` (`test_r_009_64_*`, `test_r_009_39_*`, `test_r_009_38_*`, `test_r_009_65_*`); `integration/test_build_flow.gd::test_r_009_64_bench_opens_build_screen` (ahora `BenchScreen`) |
+| R-011-21 | `unit/test_bench_screen.gd::test_r_011_21_three_tabs_open_on_build`, y los cinco casos movidos de `test_build_screen.gd` (`test_r_009_64_*`, `test_r_009_39_*`, `test_r_009_38_*`, `test_r_009_65_*`); `integration/test_build_flow.gd::test_r_009_64_bench_opens_build_screen` (ahora `BenchScreen`) |
 | R-011-22 | `unit/test_bench_screen.gd::test_r_011_22_craft_lists_item_recipes` |
 | R-011-23 | `unit/test_bench_screen.gd::test_r_011_23_missing_materials_disables`, `::test_r_011_23_no_room_disables` |
 | R-011-24 | `unit/test_bench_screen.gd::test_r_011_24_lists_damaged_pieces`, `::test_r_011_24_cannot_pay_disables`, `::test_r_011_24_nothing_to_repair` |
@@ -356,6 +357,19 @@ No queda ningún punto **(verificar)**.
   tests (no se ve en el juego).
 - **M3 (Android, APK debug)**: las tres pestañas y los botones se pueden tocar con el dedo en horizontal
   1920x1080, los textos caben en ES y EN, y el botón atrás cierra la pantalla.
+
+### 5.4 Resultado de los pasos manuales (T-011-10, 2026-11-18)
+
+Hechos por la persona que revisa en PC (Windows) y en Android (APK debug). Resultado según su informe: todo pasa.
+
+| Paso | Resultado |
+|---|---|
+| M1 (PC) | ✅ El banco abre en Construir; Crear lista las tres piezas; crear unos Brazos resta los materiales, la pieza ocupa una ranura propia y la pantalla sigue abierta; sin materiales, botón desactivado con "Faltan materiales"; Reparar dice "No hay nada que reparar"; Escape cierra |
+| M2 (PC) | ✅ Tirar y recoger, morir y recuperar, y cerrar y abrir el juego dejan la pieza como una sola (mismo icono, una ranura) |
+| M3 (Android) | ✅ Pestañas y botones se tocan con el dedo en horizontal, los textos caben en ES y EN y el botón atrás cierra |
+
+**Desviaciones de implementación.** Las firmas de §3 se cumplen. Cambios anotados al implementar: se mueven cinco
+tests de `test_build_screen.gd`, no cuatro (D9); `ERR_INVALID_REQUEST` pasa a `ActionResult` (§2 y §7.2).
 
 ## 6. Check de constitución
 
@@ -379,7 +393,7 @@ No queda ningún punto **(verificar)**.
 
 - **Borrar `BuildScreen`** cambia tests de las specs 009 y 010 que la nombran (`test_build_flow.gd`,
   `test_base_loop.gd`, `test_main_scene.gd`, `test_ui_manager.gd`, y el comentario de `test_base_structures.gd`) → se actualizan a `BenchScreen` sin quitar
-  asserts; los cuatro tests de `test_build_screen.gd` se mueven con sus nombres (D9).
+  asserts; los cinco tests de `test_build_screen.gd` se mueven con sus nombres (D9).
 - **La spec 014 rompe piezas a 0**: si en vez de quitarlas las deja en el inventario, `is_valid_stack` las
   rechazaría al cargar → se anota en el cierre para la 014 (BALANCE §4.1 dice que una pieza rota se pierde).
 - **La spec 015 suelta piezas en el loot**: `LootSystem` crea pilas con `ItemStack.new(item, n)`, que `add_stacks`
@@ -388,6 +402,10 @@ No queda ningún punto **(verificar)**.
 - **Refrescar dentro de la señal del botón** que se libera (Reparar) → `remove_child` + `queue_free` (D11); un
   test pulsa "Reparar" y comprueba que la fila nueva está y la vieja no.
 - **Dos guardados seguidos** al crear varias piezas en un fotograma → `SaveManager` ya los agrupa (spec 010).
+- **Una pila de material con `uid` dividida por encima de `stack_max`** (revisión al implementar, 2026-11-18):
+  `InventoryRules._fill_empty_slots` copia la plantilla, así que el `uid` se repetiría en varias ranuras. Hoy no
+  pasa (los materiales no tienen `uid` y las piezas tienen `stack_max` 1). → Aceptado; a tener en cuenta en la 014
+  si algún item apilable gana `uid`.
 - **Descartado**: `craft_piece()` en `CraftingSystem` cambiando el inventario (§1); tres pantallas separadas y una
   lista mezclada (pregunta 4); un `uid` por pila de material (no hace falta identidad); subir `schema_version`
   por los campos nuevos del objeto caído (D12); confiar en que `TabBar` traduzca sus títulos (D10).
@@ -402,3 +420,10 @@ pilas de `PieceData`, contra el item del catálogo, y los materiales siguen con 
 ACTION_PLAN 2.4 recoge que `CraftingSystem` comprueba y `InventoryComponent` cambia el inventario. Pendiente fuera
 del plan: `main` aún no tiene la spec 010 (requisito previo de tasks.md) y la sección "Repository state" de
 CLAUDE.md nombra `BuildScreen` (se actualiza en el cierre).
+
+### 7.2 Revisión de `architecture-guardian` en el cierre (2026-11-18)
+
+Un bloqueante, corregido: `CraftingSystem` (sistema puro) devolvía una constante de `InventoryComponent` (un nodo).
+`ERR_INVALID_REQUEST` vive ahora en `ActionResult`, en la capa de datos, y el componente la expone como alias.
+Corregido también: nombres de tests con su id de requisito, orden de miembros de `BenchScreen`, la creación ya
+comprobada como `assert` en vez de rama de error, y `BuildFlow` guarda la base cargada en lugar de un `bind`.

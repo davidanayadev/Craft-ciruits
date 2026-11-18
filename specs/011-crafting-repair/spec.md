@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-17) |
+| **Estado** | Hecho (2026-11-18) |
 | **Tarea(s) ACTION_PLAN** | 2.4 |
 | **Fuentes** | ACTION_PLAN.md Tarea 2.4 (y 2.2, 2.3, 2.5, 2.6, 3.1, 3.2, 3.3, 4.3, 4.4, 5.4 para los límites) · PMV.md §2.1, §2.2, §2.3, §2.4, §4.5 gancho 5, §8.2, §10 (base y viaje; guardado; muerte) · BALANCE.md §2, §4.1, §4.3, §5.1, §8.1, §8.2 · SPECS.md §29 · architecture.md §3, §8, §9.2, §9.3, §9.5, §10.3 · README §6 (condición de entrada de la spec 014) · Constitución P1, P2, P3, P4, P5, P11, P13, P14 |
 | **Depende de** | 005 (`InventoryComponent`, `InventoryRules`, `UIManager`), 008 (objeto caído, dividir y tirar), 009 (`RecipeData`, `CraftingSystem`, banco, `BuildScreen`), 010 (guardado del inventario y del objeto caído, `Uid`) |
