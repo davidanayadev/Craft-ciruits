@@ -118,7 +118,7 @@
 | **Durabilidad máxima (pieza nueva)** | 100 puntos | Todas las piezas |
 | **Degradación por golpe recibido** | -5 puntos | Cada golpe recibido (zombies y robots) degrada solo la primera pieza equipada intacta, en orden: Brazos → Piernas → Core |
 | **Pieza rota** | 0 puntos | Se pierde, queda ranura vacía |
-| **Reparación (banco)** | Coste: 2 hierro + 1 cable | Restaura a 100% |
+| **Reparación (banco)** | Coste según el estado (§4.3.2) | Restaura a 100% |
 
 ### 4.2 Estadísticas de piezas básicas (PMV)
 
@@ -158,11 +158,14 @@
 
 #### 4.3.2 Reparación de piezas (en banco de reparaciones)
 
-| Estado de la pieza | Coste de reparación | Notas |
-|---|---|---|
-| **Pieza dañada (50% durabilidad)** | 2 hierro + 1 cable | Restauración completa |
-| **Pieza muy dañada (25% durabilidad)** | 3 hierro + 2 cables | Restauración completa |
-| **Pieza rota (0% durabilidad)** | No reparable | Se pierde, hay que crear otra |
+El coste va por tramos según la durabilidad que le queda a la pieza, en porcentaje de su máxima (decisión nov
+2026, spec 011): reparar pronto sale más barato. Una pieza intacta (100 %) no se repara.
+
+| Estado de la pieza | Durabilidad que queda | Coste de reparación | Notas |
+|---|---|---|---|
+| **Pieza dañada** | Más del 25 % y menos del 100 % | 2 hierro + 1 cable | Restauración completa |
+| **Pieza muy dañada** | Del 25 % para abajo, sin llegar a 0 | 3 hierro + 2 cables | Restauración completa |
+| **Pieza rota** | 0 | No reparable | Se pierde, hay que crear otra |
 
 ---
 
@@ -172,7 +175,7 @@
 
 | Acción | Coste | Resultado |
 |---|---|---|
-| **Reparar pieza (a 100%)** | 2 hierro + 1 cable | Pieza restaurada |
+| **Reparar pieza (a 100%)** | Según el estado (§4.3.2) | Pieza restaurada |
 | **Crear Brazos básicos** | 4 chatarra + 2 cables | Brazos básicos (100% durabilidad) |
 | **Crear Piernas básicas** | 4 chatarra + 2 hierro | Piernas básicas (100% durabilidad) |
 | **Crear Core básico** | 6 chatarra + 3 cables + 2 hierro | Core básico (100% durabilidad) |
