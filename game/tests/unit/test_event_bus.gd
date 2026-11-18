@@ -130,3 +130,27 @@ func test_r_009_49_player_recharged_signature() -> void:
 ## Spec 010: structure_moved (R-010-31, architecture §7).
 func test_r_010_31_structure_moved_signature() -> void:
 	_assert_one_arg_signal("structure_moved", "structure_uid", TYPE_STRING)
+
+
+## Spec 011: item_crafted(recipe_id, player_uid) and piece_repaired(piece_uid,
+## player_uid), architecture §7; the bench emits them and the save listens (R-011-28).
+func _assert_two_arg_signal(signal_name: String, names: Array[String], types: Array[int]) -> void:
+	var info: Dictionary = _signal_info_of(signal_name)
+	assert_false(info.is_empty(), "EventBus declares %s" % signal_name)
+	if info.is_empty():
+		return
+	var args: Array = info["args"]
+	assert_eq(args.size(), 2, "%s has two arguments" % signal_name)
+	if args.size() != 2:
+		return
+	for i: int in 2:
+		var arg: Dictionary = args[i]
+		var arg_name: String = arg["name"]
+		var arg_type: int = arg["type"]
+		assert_eq(arg_name, names[i], "%s: argument %d name" % [signal_name, i])
+		assert_eq(arg_type, types[i], "%s: argument %d type" % [signal_name, i])
+
+
+func test_r_011_28_bench_event_signatures() -> void:
+	_assert_two_arg_signal("item_crafted", ["recipe_id", "player_uid"], [TYPE_STRING_NAME, TYPE_STRING])
+	_assert_two_arg_signal("piece_repaired", ["piece_uid", "player_uid"], [TYPE_STRING, TYPE_STRING])

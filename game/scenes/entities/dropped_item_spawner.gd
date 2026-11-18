@@ -254,21 +254,40 @@ func _restore(data: Dictionary) -> void:
 		push_error("DroppedItemSpawner '%s': a restored item lost stacks." % name)
 
 
+## durability and uid are optional, -1 and "" by default: a file saved before
+## spec 011 has no pieces, so its stacks load as they did (plan 011 D12).
 func _restore_stacks(stack_list: Array) -> Array[ItemStack]:
 	var stacks: Array[ItemStack] = []
-	var catalog: DataCatalog = DataRegistry.get_catalog()
 	for entry: Variant in stack_list:
 		var stack_data: Dictionary = entry if entry is Dictionary else {}
-		var item_id: StringName = StringName(str(stack_data.get("item_id", "")))
-		var quantity: int = SaveFields.to_int(stack_data.get("quantity"), 0)
-		if catalog == null or not catalog.has_item(item_id) or quantity <= 0:
+		var stack: ItemStack = _stack_from_data(stack_data)
+		if stack == null:
 			push_error(
-				"DroppedItemSpawner '%s': stack %s lost on restore (unknown item or bad quantity)."
+				"DroppedItemSpawner '%s': stack %s lost on restore (unknown item, bad quantity or invalid piece)."
 				% [name, stack_data]
 			)
 			continue
-		stacks.append(ItemStack.new(catalog.get_item(item_id), quantity))
+		stacks.append(stack)
 	return stacks
+
+
+## Null when the item is unknown, a field is malformed or the piece is not
+## valid (InventoryRules.is_valid_stack, R-011-11).
+func _stack_from_data(stack_data: Dictionary) -> ItemStack:
+	var catalog: DataCatalog = DataRegistry.get_catalog()
+	var item_id: StringName = StringName(str(stack_data.get("item_id", "")))
+	var quantity: int = SaveFields.to_int(stack_data.get("quantity"), 0)
+	var durability: Variant = stack_data.get("durability", -1)
+	var stack_uid: Variant = stack_data.get("uid", "")
+	if (
+		catalog == null or not catalog.has_item(item_id) or quantity <= 0
+		or not SaveFields.is_whole_number(durability) or not stack_uid is String
+	):
+		return null
+	var stack: ItemStack = ItemStack.new(catalog.get_item(item_id), quantity)
+	stack.durability = SaveFields.to_int(durability, -1)
+	stack.uid = stack_uid
+	return stack if InventoryRules.is_valid_stack(stack) else null
 
 
 func _now_unix() -> int:

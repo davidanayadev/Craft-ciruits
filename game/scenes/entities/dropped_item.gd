@@ -58,12 +58,18 @@ func get_contents() -> InventoryComponent:
 	return _contents
 
 
-## Its state in JSON types only, as spec 010 saves it (R-010-29).
+## Its state in JSON types only, as spec 010 saves it (R-010-29). Each stack
+## carries its durability and uid, so a piece survives the save (R-011-10).
 func to_data() -> Dictionary:
 	var stacks: Array[Dictionary] = []
 	for stack: ItemStack in _contents.get_slots():
 		if stack != null:
-			stacks.append({"item_id": String(stack.item.id), "quantity": stack.quantity})
+			stacks.append({
+				"item_id": String(stack.item.id),
+				"quantity": stack.quantity,
+				"durability": stack.durability,
+				"uid": stack.uid,
+			})
 	return {
 		"uid": uid,
 		"zone_id": SaveFields.vector2i_to_array(zone_id),

@@ -307,3 +307,88 @@ func test_r_009_62_rules_remove_many() -> void:
 	assert_null(slots[1], "an emptied slot becomes null")
 	assert_eq(slots.size(), 3, "the slot count does not change")
 	assert_eq(_quantities(slots), [3, 0, 0] as Array[int], "like remove(): last slot first")
+
+
+# --- Pieces (spec 011) --------------------------------------------------------
+
+func _piece(id: StringName, durability_max: int = 100) -> PieceData:
+	var piece: PieceData = PieceData.new()
+	piece.id = id
+	piece.stack_max = 1
+	piece.durability_max = durability_max
+	return piece
+
+
+func _piece_stack(piece: PieceData, durability: int, stack_uid: String) -> ItemStack:
+	var stack: ItemStack = ItemStack.new(piece, 1)
+	stack.durability = durability
+	stack.uid = stack_uid
+	return stack
+
+
+func test_r_011_08_pieces_never_merge() -> void:
+	var arms: PieceData = _piece(&"basic_arms")
+	var slots: Array[ItemStack] = [_piece_stack(arms, 100, "a"), null, null]
+	assert_eq(InventoryRules.add_stack(slots, _piece_stack(arms, 60, "b")), 0, "the second one fits")
+	assert_eq(_quantities(slots), [1, 1, 0] as Array[int], "two pieces, two slots")
+	assert_eq(slots[0].uid, "a", "the first piece is untouched")
+	assert_eq(slots[1].uid, "b", "the second piece has its own slot")
+	var full: Array[ItemStack] = [_piece_stack(arms, 100, "a")]
+	assert_eq(InventoryRules.add_stack(full, _piece_stack(arms, 100, "b")), 1, "no merge into the piece")
+	assert_eq(full[0].uid, "a", "the held piece did not change")
+
+
+func test_r_011_09_add_stack_keeps_durability_and_uid() -> void:
+	var arms: PieceData = _piece(&"basic_arms")
+	var slots: Array[ItemStack] = [null, null]
+	var offered: ItemStack = _piece_stack(arms, 42, "abc")
+	assert_eq(InventoryRules.add_stack(slots, offered), 0, "it fits")
+	assert_eq(slots[0].durability, 42, "durability kept")
+	assert_eq(slots[0].uid, "abc", "uid kept")
+	assert_ne(slots[0], offered, "the slot holds its own stack, not the one offered")
+	# A plain material keeps adding as before.
+	var scrap: ItemData = _item(&"scrap", 10)
+	var materials: Array[ItemStack] = _slots(scrap, [8, 0])
+	assert_eq(InventoryRules.add_stack(materials, ItemStack.new(scrap, 5)), 0)
+	assert_eq(_quantities(materials), [10, 3] as Array[int], "partial stacks first, then empty slots")
+	assert_eq(materials[1].durability, -1, "a material has no durability")
+	assert_eq(materials[1].uid, "", "a material has no uid")
+
+
+func test_r_011_09_split_keeps_durability_and_uid() -> void:
+	var arms: PieceData = _piece(&"basic_arms")
+	var slots: Array[ItemStack] = [_piece_stack(arms, 37, "xyz")]
+	var taken: ItemStack = InventoryRules.split(slots, 0, 1)
+	assert_not_null(taken, "the piece leaves")
+	if taken == null:
+		return
+	assert_eq(taken.durability, 37, "durability kept")
+	assert_eq(taken.uid, "xyz", "uid kept")
+	assert_null(slots[0], "the slot is empty")
+
+
+func test_r_011_11_is_valid_stack() -> void:
+	var arms: PieceData = _piece(&"basic_arms", 100)
+	assert_true(InventoryRules.is_valid_stack(_piece_stack(arms, 100, "a")), "intact piece")
+	assert_true(InventoryRules.is_valid_stack(_piece_stack(arms, 1, "a")), "piece at 1")
+	assert_false(InventoryRules.is_valid_stack(_piece_stack(arms, 0, "a")), "piece at 0")
+	assert_false(InventoryRules.is_valid_stack(_piece_stack(arms, 101, "a")), "above its maximum")
+	assert_false(InventoryRules.is_valid_stack(_piece_stack(arms, -1, "a")), "no durability")
+	assert_false(InventoryRules.is_valid_stack(_piece_stack(arms, 50, "")), "empty uid")
+	var two: ItemStack = _piece_stack(arms, 50, "a")
+	two.quantity = 2
+	assert_false(InventoryRules.is_valid_stack(two), "more than one piece")
+	# Materials keep the rules of spec 005: no durability or uid needed.
+	var scrap: ItemData = _item(&"scrap", 10)
+	assert_true(InventoryRules.is_valid_stack(ItemStack.new(scrap, 3)), "a material stack")
+	assert_true(InventoryRules.is_valid_stack(ItemStack.new(scrap, 25)), "a material above stack_max")
+	assert_false(InventoryRules.is_valid_stack(null), "no stack")
+
+
+func test_r_011_19_index_of_uid() -> void:
+	var arms: PieceData = _piece(&"basic_arms")
+	var scrap: ItemData = _item(&"scrap", 10)
+	var slots: Array[ItemStack] = [ItemStack.new(scrap, 3), null, _piece_stack(arms, 50, "p")]
+	assert_eq(InventoryRules.index_of_uid(slots, "p"), 2, "the piece's slot")
+	assert_eq(InventoryRules.index_of_uid(slots, "q"), -1, "an unknown uid")
+	assert_eq(InventoryRules.index_of_uid(slots, ""), -1, "an empty uid never matches a material")

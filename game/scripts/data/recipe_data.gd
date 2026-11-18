@@ -1,7 +1,8 @@
 class_name RecipeData
 extends Resource
-## A recipe (ACTION_PLAN 2.4, PMV §4.5 hook 5). Spec 009 only brings the
-## structure recipes built at the repair bench; spec 011 adds pieces.
+## A recipe (ACTION_PLAN 2.4, PMV §4.5 hook 5): the structures built at the
+## repair bench (spec 009) and the items crafted there (spec 011). Every catalog
+## recipe sets exactly one of result_structure and result_item (R-011-03).
 
 ## Where it is crafted (SPECS.md §29): by hand, with nanobots or at the workbench.
 enum Station { SELF, NANOBOTS, WORKBENCH }
@@ -14,3 +15,5 @@ enum Station { SELF, NANOBOTS, WORKBENCH }
 ## Ids of what must be unlocked first; none in the MVP.
 @export var requires: Array[StringName] = []
 @export var result_structure: StructureData
+## The item it makes, one unit (spec 011); null for a structure recipe.
+@export var result_item: ItemData

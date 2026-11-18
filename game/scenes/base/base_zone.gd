@@ -29,6 +29,11 @@ func _ready() -> void:
 	_bench.used.connect(_on_bench_used)
 
 
+## The fixed repair bench of the base (spec 011): the bench screen asks it to craft and repair.
+func get_bench() -> RepairBench:
+	return _bench
+
+
 func get_structures_root() -> Node3D:
 	return _structures_root
 

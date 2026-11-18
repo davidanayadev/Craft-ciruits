@@ -1202,7 +1202,7 @@ func test_r_009_64_bench_opens_build_screen() -> void:
 	_robot().global_position = bench.global_position + Vector3(0.0, 0.0, 1.5)
 	await wait_physics_frames(4)
 	_robot().request_interact()
-	assert_true(_ui_manager().is_open(BuildScreen.SCREEN_ID), "the bench opens the build screen")
+	assert_true(_ui_manager().is_open(BenchScreen.SCREEN_ID), "the bench opens the bench screen")
 
 
 func test_r_009_06_respawn_travel_failure_respawns_in_place() -> void:

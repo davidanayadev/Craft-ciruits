@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/data/ui_screen_catalog.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/inventory_screen.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/loot_screen.tscn" id="3"]
-[ext_resource type="PackedScene" path="res://scenes/ui/build_screen.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/bench_screen.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/placement_screen.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/notice_screen.tscn" id="6"]
 
@@ -12,7 +12,7 @@ script = ExtResource("1")
 screens = Dictionary[StringName, PackedScene]({
 &"inventory": ExtResource("2"),
 &"loot": ExtResource("3"),
-&"build": ExtResource("4"),
+&"bench": ExtResource("4"),
 &"placement": ExtResource("5"),
 &"notice": ExtResource("6")
 })

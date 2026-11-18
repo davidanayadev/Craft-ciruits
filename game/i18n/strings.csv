@@ -3,6 +3,9 @@ APP_TITLE,CyberScrap,CyberScrap
 ITEM_SCRAP,Scrap,Chatarra
 ITEM_CABLES,Cables,Cables
 ITEM_IRON,Iron,Hierro
+ITEM_BASIC_ARMS,Basic arms,Brazos básicos
+ITEM_BASIC_LEGS,Basic legs,Piernas básicas
+ITEM_BASIC_CORE,Basic core,Core básico
 PROMPT_OPEN,Open,Abrir
 ERR_INVALID_REQUEST,Invalid request,Petición no válida
 ERR_NOT_ENOUGH_ITEMS,Not enough items,No hay suficientes objetos
@@ -28,6 +31,17 @@ STRUCTURE_CHARGING_STATION,Charging station,Estación de carga
 ERR_NOT_ENOUGH_MATERIALS,Not enough materials,Faltan materiales
 ERR_INVALID_PLACEMENT,It does not fit here,No cabe aquí
 MSG_BASE_FULL,No room left in the base,No queda sitio en la base
+BENCH_TITLE,Repair bench,Banco de reparaciones
+CRAFT_TITLE,Create,Crear
+REPAIR_TITLE,Repair,Reparar
+CRAFT_BUTTON,Create,Crear
+REPAIR_BUTTON,Repair,Reparar
+BENCH_DURABILITY,Durability %d/%d,Durabilidad %d/%d
+ERR_NO_ROOM_FOR_RESULT,No free slot for it,No hay ranura libre para la pieza
+ERR_PIECE_INTACT,It is in perfect condition,Está como nueva
+ERR_PIECE_BROKEN,"Broken, it cannot be repaired","Está rota, no se puede reparar"
+ERR_PIECE_NOT_FOUND,That piece is not in the inventory,Esa pieza no está en el inventario
+MSG_NOTHING_TO_REPAIR,Nothing to repair,No hay nada que reparar
 PLACEMENT_CONFIRM,Confirm,Confirmar
 PLACEMENT_CANCEL,Cancel,Cancelar
 PLACEMENT_HINT_PLACE,Tap a cell to place the structure,Toca una celda para colocar la estructura

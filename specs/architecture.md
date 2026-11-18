@@ -151,10 +151,11 @@ Main (Node)                          main.gd: arranque y cableado
 | `zone_changed` | `zone_id: Vector2i` | `ZoneLoader` | Audio (música), guardado, guía |
 | `game_saved` | `reason: StringName` | `SaveManager` | Notificaciones |
 | `enemy_killed` | `enemy_id: StringName`, `killer_uid: String` | Enemigo | Progresión, guía, audio |
-| `item_crafted` | `recipe_id: StringName`, `player_uid: String` | Banco | Guía, audio |
+| `item_crafted` | `recipe_id: StringName`, `player_uid: String` | `RepairBench` (spec 011) | Guardado (spec 011), guía, audio |
 | `structure_built` | `structure_uid: String` | Colocación (Tarea 2.8) | Guardado, guía |
 | `player_recharged` | `player_uid: String` | Estación de carga (spec 009) | Guardado (spec 010), guía |
 | `structure_moved` | `structure_uid: String` | `BaseStructures` (spec 010) | Guardado |
+| `piece_repaired` | `piece_uid: String`, `player_uid: String` | `RepairBench` (spec 011) | Guardado, guía, audio |
 
 **Señales de estado y de hecho** (spec 010, D15). Las **de estado** dicen cuál es un valor ahora y repetirlas no
 tiene efectos (`battery_changed`, `inventory_changed`, `xp_changed`, `health_changed`); por convención se llaman
@@ -185,6 +186,7 @@ extends Resource
 @export var zones: Array[ZoneData] = []
 @export var rulesets: Array[RulesetData] = []
 @export var structures: Array[StructureData] = []   # estructuras colocables (spec 009)
+@export var repair_costs: RepairCostData             # tramos de reparación de BALANCE §4.3.2 (spec 011)
 ```
 
 `DataRegistry` expone `get_item(id: StringName) -> ItemData`, `get_recipe(id)`, etc., y `push_error()` si un
@@ -256,7 +258,10 @@ var durability: int = -1                     # -1 = no aplica (materiales); 0-10
 var uid: String = ""                         # solo objetos únicos (piezas): identidad estable
 ```
 
-- `PieceData extends ItemData` añade `slot_type`, `durability_max` y `modifiers: Array[StatModifier]`.
+- `PieceData extends ItemData` nace en la spec 011 con `durability_max` y `stack_max = 1`; la spec 014 añade
+  `slot_type` y `modifiers: Array[StatModifier]`. Una pieza en un inventario siempre tiene cantidad 1,
+  durabilidad entre 1 y su máxima y `uid` (`InventoryRules.is_valid_stack`), y todo camino que mueve una pila
+  conserva su durabilidad y su `uid` (`InventoryRules.add_stack`).
 - `InventoryComponent` gestiona ranuras (`add`, `remove`, `has`, `get_slots`) y emite `inventory_changed`; las
   reglas de apilado viven en un sistema puro (`InventoryRules`) que se testea solo.
 - `EquipmentComponent` guarda las tres ranuras y emite `equipment_changed`.
@@ -346,6 +351,9 @@ sobrescriben (ONLINE.md). `SaveManager` recibe la implementación al arrancar; n
   pero no `level_up`.
 - El archivo lleva `schema_version`. Cada cambio de formato añade una función `migrate_vN_to_vN1(data)`; cargar
   aplica la cadena hasta la versión actual (Tarea 2.3).
+- Añadir un campo **opcional** cuyo valor por defecto reproduce lo que se cargaba antes **no** sube
+  `schema_version` (por ejemplo `durability` y `uid` en las pilas del objeto caído, spec 011). Quitar, renombrar o
+  cambiar el significado de un campo sí la sube.
 - **Nunca** se guardan ni cargan `Resource` de Godot en `user://`: un recurso cargado desde un archivo editable
   puede ejecutar código **(verificar en la documentación de seguridad de Godot)**.
 - Ajustes del jugador (sensibilidad, volumen, calidad) van aparte, en `user://settings.cfg` con `ConfigFile`; no

@@ -37,3 +37,11 @@ signal structure_moved(structure_uid: String)
 ## spec 010 saves on it.
 @warning_ignore("unused_signal")
 signal player_recharged(player_uid: String)
+## A player crafted an item at the bench and paid it. Emitted by RepairBench,
+## once per craft (spec 011); the save listens.
+@warning_ignore("unused_signal")
+signal item_crafted(recipe_id: StringName, player_uid: String)
+## A player repaired a piece at the bench and paid it. Emitted by RepairBench,
+## once per repair (spec 011); the save listens.
+@warning_ignore("unused_signal")
+signal piece_repaired(piece_uid: String, player_uid: String)

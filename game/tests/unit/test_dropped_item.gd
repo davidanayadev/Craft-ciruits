@@ -5,7 +5,8 @@ extends GutTest
 ## English (R-008-12), interacting takes everything in slot order (R-008-13),
 ## it announces once that it was emptied (R-008-14), a partial pick-up keeps
 ## the rest and the time (R-008-15), its data is JSON only (R-008-17) and a
-## reset leaves nothing of the previous use (R-008-18).
+## reset leaves nothing of the previous use (R-008-18). Spec 011: its data
+## carries the durability and uid of each stack (R-011-10).
 
 const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
 const PROMPT_KEY := &"PROMPT_PICK_UP"
@@ -253,3 +254,29 @@ func test_r_008_18_reset_leaves_nothing() -> void:
 	assert_eq(item.get_contents().get_slot_count(), 2, "a new use with another slot count")
 	assert_true(item.get_contents().is_empty(), "starts empty")
 	assert_true(_interactable(item).enabled, "interactable again")
+
+
+# --- Pieces (spec 011) --------------------------------------------------------
+
+func test_r_011_10_to_data_has_durability_and_uid() -> void:
+	var item: DroppedItem = _new_item()
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_arms"))
+	piece.durability = 40
+	var offered: Array[ItemStack] = [ItemStack.new(DataRegistry.get_item(&"scrap"), 3), piece]
+	assert_true(item.get_contents().add_stacks(offered).ok, "both stacks enter")
+	var data: Dictionary = item.to_data()
+	var stacks: Array = data["stacks"]
+	assert_eq(stacks.size(), 2, "one entry per stack")
+	if stacks.size() != 2:
+		return
+	var material: Dictionary = stacks[0]
+	var material_durability: int = material["durability"]
+	var material_uid: String = material["uid"]
+	assert_eq(material_durability, -1, "a material has no durability")
+	assert_eq(material_uid, "", "a material has no uid")
+	var saved_piece: Dictionary = stacks[1]
+	var piece_durability: int = saved_piece["durability"]
+	var piece_uid: String = saved_piece["uid"]
+	assert_eq(piece_durability, 40, "the piece's durability")
+	assert_eq(piece_uid, piece.uid, "the piece's uid")
+	_assert_json_types(data, "data")

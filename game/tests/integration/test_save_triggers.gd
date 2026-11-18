@@ -13,6 +13,7 @@ extends GutTest
 ## R-010-44: one game_saved per save, with the first reason noted.
 ## R-010-65: "New world" is ignored during a travel (the branch that reloads
 ## the scene would replace the one GUT runs in, so it is not tested here).
+## R-011-28: crafting and repairing at the bench save once each (spec 011).
 ## The transfer is driven by advance(), never by real time.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
@@ -381,3 +382,54 @@ func test_r_010_65_new_world_ignored_while_travelling() -> void:
 	assert_eq(_store.list_world_ids(), PackedStringArray([world_id]), "and so is its file")
 	assert_eq(GameManager.get_world_id(), world_id, "the same World")
 	await wait_for_signal(_loader.travel_finished, TRAVEL_TIMEOUT_S)
+
+
+# --- R-011-28 -----------------------------------------------------------------
+
+
+## The saved inventory slot that holds piece_uid; empty when none.
+func _saved_piece(piece_uid: String) -> Dictionary:
+	var part: Dictionary = _saved_player_part("inventory")
+	var slots: Array = part.get("slots", [])
+	for entry: Variant in slots:
+		if entry is Dictionary:
+			var fields: Dictionary = entry
+			if str(fields.get("uid", "")) == piece_uid:
+				return fields
+	return {}
+
+
+func test_r_011_28_craft_and_repair_save() -> void:
+	var base: BaseZone = _loader.get_current_zone() as BaseZone
+	assert_not_null(base, "the game starts in the base")
+	if base == null:
+		return
+	var bench: RepairBench = base.get_bench()
+	var recipe: RecipeData = DataRegistry.get_recipe(&"basic_arms")
+	var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+	for item_id: StringName in cost:
+		_robot.inventory.add(item_id, cost[item_id])
+	assert_true(bench.craft(_robot, recipe).ok, "the arms are crafted")
+	await _settle()
+	_assert_one_save(SaveManager.REASON_ITEM_CRAFTED)
+	var crafted: ItemStack = null
+	for stack: ItemStack in _robot.inventory.get_slots():
+		if stack != null and stack.item.id == &"basic_arms":
+			crafted = stack
+	assert_not_null(crafted, "the crafted piece is in the inventory")
+	if crafted == null:
+		return
+	assert_false(_saved_piece(crafted.uid).is_empty(), "the crafted piece is saved with its uid")
+	_forget_saves()
+	var damaged: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_legs"))
+	damaged.durability = 40
+	var offered: Array[ItemStack] = [damaged]
+	assert_true(_robot.inventory.add_stacks(offered).ok, "a damaged piece is injected")
+	_robot.inventory.add(&"iron", 2)
+	_robot.inventory.add(&"cables", 1)
+	assert_true(bench.repair(_robot, damaged.uid).ok, "the legs are repaired")
+	await _settle()
+	_assert_one_save(SaveManager.REASON_PIECE_REPAIRED)
+	var saved: Dictionary = _saved_piece(damaged.uid)
+	var durability: int = SaveFields.to_int(saved.get("durability"), -1)
+	assert_eq(durability, 100, "the repaired durability is saved")
