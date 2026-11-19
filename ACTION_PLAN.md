@@ -288,6 +288,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Guardar automáticamente al cerrar juego (notification NOTIFICATION_WM_CLOSE_REQUEST)
   - [ ] Guardar al pasar a segundo plano en el móvil, tras morir y al construir o mover una estructura; nunca en mitad de un viaje, la transferencia o el modo colocación (decisión nov 2026, spec 010)
   - [ ] Guardar también tras crear o reparar una pieza en el banco (decisión nov 2026, spec 011)
+  - [ ] Guardar también al recoger baterías del generador y al cerrar un cofre cuyo contenido cambió (decisión nov 2026, spec 012)
 - [ ] Backup de save:
   - [ ] Crear copia de seguridad antes de sobrescribir (Perfil y Mundo)
   - [ ] Si save principal está corrupto, cargar backup
@@ -332,9 +333,11 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 ### Tarea 2.5: Generador eólico (mejora de batería + generación de baterías) (10h)
 - [ ] Crear escena `WindGenerator.tscn` (Area3D + MeshInstance):
   - [ ] Modelo 3D: generador con aspas (animación de rotación)
-  - [ ] Interacción: botón "Construir" (primera vez)
+  - [ ] Huella 2x2 en la cuadrícula de la base (BALANCE.md §5.6)
 - [ ] Lógica de construcción:
+  - [ ] En banco de reparaciones: opción "Construir generador eólico"; se coloca en la cuadrícula (modo colocación, Tarea 2.8) como la estación (decisión nov 2026, spec 012)
   - [ ] Coste: 5 chatarra + 3 cables + 2 hierro
+  - [ ] Límite: uno por base (BALANCE.md §5.2)
   - [ ] Al construir:
     - [ ] Restar materiales
     - [ ] Activar efecto: +20 batería máxima
@@ -344,6 +347,8 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Máximo 3 baterías almacenadas en el generador
   - [ ] UI: mostrar baterías disponibles para recoger
   - [ ] Interacción: botón "Recoger" para tomar baterías generadas
+  - [ ] Reloj con `ITimeService`: empieza vacío, cuenta con la app cerrada y no acumula tiempo con el máximo lleno (BALANCE.md §5.2)
+- [ ] Usar baterías portátiles (decisión nov 2026, spec 012): botón "Usar" en la pantalla de inventario y acción `use_consumable` (Q); +20 puntos sin pasar de la máxima (BALANCE.md §1.1). El botón de consumibles del HUD sigue en la Tarea 4.1
 - [ ] Test: generador aumenta batería máxima y genera baterías portátiles
 
 **Entregable**: generador eólico funcional con generación de baterías.
@@ -365,7 +370,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [ ] Coste: 3 chatarra + 1 hierro
   - [ ] Al construir: el jugador lo coloca en la cuadrícula de la base (modo colocación, Tarea 2.8)
   - [ ] Límite: máximo 5 cofres en base (PMV simplificado)
-- [ ] Cajas de loot vaciadas como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2)
+- [ ] Cajas de loot como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2). Desde que se abren, no solo vaciadas, y con "Coger todo" (decisión nov 2026, spec 012)
 - [ ] Test: construir cofres, guardar items, recuperar items
 
 **Entregable**: cofres funcionales con UI de almacenamiento.
