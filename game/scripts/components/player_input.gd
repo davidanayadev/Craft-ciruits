@@ -60,6 +60,12 @@ func is_interact_just_pressed() -> bool:
 	return not is_input_blocked() and Input.is_action_just_pressed(&"interact")
 
 
+## True only on the physics frame the use_consumable action goes down (Q, spec
+## 012, R-012-25); false while blocked.
+func is_use_consumable_just_pressed() -> bool:
+	return not is_input_blocked() and Input.is_action_just_pressed(&"use_consumable")
+
+
 ## True while the attack is held (action or HUD button) or if it was pressed
 ## since the last call; the call clears that press, so one that cannot become a
 ## swing is not kept for later (R-007-07). Call it once per physics step.

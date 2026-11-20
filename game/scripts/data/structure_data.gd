@@ -11,3 +11,5 @@ extends Resource
 @export var scene: PackedScene
 ## Cells it covers (x, z), counted from the cell it is placed on.
 @export var footprint: Vector2i = Vector2i.ONE
+## How many can stand in the base at once (BALANCE §5.2, §5.4); 0 = no limit (R-012-03).
+@export var max_count: int = 0

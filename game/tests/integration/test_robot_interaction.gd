@@ -73,7 +73,9 @@ func test_r_004_14_nothing_in_range_does_nothing() -> void:
 	assert_false(_box.is_opened(), "a box out of range stays closed")
 
 
-func test_r_005_21_emptied_box_is_no_longer_offered() -> void:
+## Replaces test_r_005_21_emptied_box_is_no_longer_offered (plan 012 §5.4): an
+## opened box is a container for the whole visit, also empty (R-012-37).
+func test_r_012_37_emptied_box_still_offered() -> void:
 	await _tap_interact()
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_not_null(_robot.interactor.get_target(), "an opened box with loot is still a target")
@@ -82,7 +84,9 @@ func test_r_005_21_emptied_box_is_no_longer_offered() -> void:
 	every_slot.assign(range(contents.get_slot_count()))
 	assert_true(_robot.inventory.take_from(contents, every_slot).ok, "the robot takes everything")
 	await wait_physics_frames(SETTLE_FRAMES)
-	assert_null(_robot.interactor.get_target(), "the emptied box is not a target any more")
+	assert_not_null(_robot.interactor.get_target(), "the emptied box is still a target")
+	_robot.request_interact()
+	assert_signal_emit_count(_box, "opened", 2, "and it opens again, empty")
 
 
 func test_r_004_16_depleted_robot_does_not_interact() -> void:

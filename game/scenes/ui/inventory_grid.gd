@@ -15,6 +15,7 @@ var _inventory: InventoryComponent = null
 var _cells: Array[InventorySlotView] = []
 ## -1 = none.
 var _selected_index: int = -1
+var _empty_cells_pressable: bool = false
 
 
 ## Paints now and on every inventory_changed.
@@ -34,6 +35,14 @@ func set_selected_index(index: int) -> void:
 		_cells[i].set_selected(i == index)
 
 
+## Empty cells of an interactive grid can be pressed too (spec 012, plan D14);
+## false by default, so the inventory screen does not change.
+func set_empty_cells_pressable(pressable: bool) -> void:
+	_empty_cells_pressable = pressable
+	for cell: InventorySlotView in _cells:
+		cell.set_empty_pressable(pressable)
+
+
 func _refresh() -> void:
 	var slots: Array[ItemStack] = _inventory.get_slots()
 	_set_cell_count(slots.size())
@@ -49,6 +58,7 @@ func _set_cell_count(count: int) -> void:
 		var cell: InventorySlotView = SLOT_SCENE.instantiate() as InventorySlotView
 		add_child(cell)
 		cell.set_interactive(interactive)
+		cell.set_empty_pressable(_empty_cells_pressable)
 		cell.set_selected(_cells.size() == _selected_index)
 		cell.pressed.connect(_on_cell_pressed.bind(_cells.size()))
 		_cells.append(cell)

@@ -4,6 +4,9 @@ extends GutTest
 ## again in the same visit (R-010-27, R-010-32); a new visit discards it
 ## (R-010-28). It is saved in the World file (R-010-09), skipping zones that
 ## the catalog does not know (R-010-11).
+##
+## Spec 012 (R-012-38): what the player leaves in an opened box stays in it
+## after saving and reloading in the same visit.
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
@@ -235,3 +238,25 @@ func test_r_010_11_unknown_id_skipped() -> void:
 	assert_true(unknown.is_empty(), "the unknown zone is not kept")
 	var known: Dictionary = _memory.take_state(zone_id, 2)
 	assert_eq(known, state, "the known one loads")
+
+
+func test_r_012_38_deposited_item_stays_after_reload() -> void:
+	var farm: FarmZone = _farm(VISIT, {})
+	var box: LootBox = farm.get_boxes()[0]
+	_open(box)
+	_take_first_slot(box)
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_core"))
+	var offered: Array[ItemStack] = [piece]
+	assert_true(box.get_contents().add_stacks(offered).ok, "the item is left in the box")
+	_memory.bind_farm(farm)
+	_memory.unbind_farm()
+	var saved: Dictionary = _memory.to_save_data()
+	var restored: ZoneMemory = ZoneMemory.new()
+	add_child_autofree(restored)
+	restored.from_save_data(saved)
+	var kept: Dictionary = restored.take_state(_zone_id(farm), VISIT)
+	var again: FarmZone = _farm(VISIT, kept)
+	var reopened: LootBox = again.get_boxes()[0]
+	assert_true(reopened.is_opened(), "the box is still open")
+	var index: int = InventoryRules.index_of_uid(reopened.get_contents().get_slots(), piece.uid)
+	assert_gte(index, 0, "the item left in it is still there")

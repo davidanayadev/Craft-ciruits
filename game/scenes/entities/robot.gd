@@ -21,6 +21,8 @@ signal throw_requested(player: Robot, slot_index: int, quantity: int)
 ## The player picked a recipe to build; nothing is charged until it is placed
 ## (R-009-65). Whoever owns the placement flow opens it.
 signal build_requested(player: Robot, recipe: RecipeData)
+## A request to use a consumable was refused; the HUD shows tr(error_key) (spec 012, plan D19).
+signal use_refused(error_key: StringName)
 
 ## Group of every player entity; set in robot.tscn. Enemies look their target
 ## up here instead of holding a reference, so co-op needs no change.
@@ -63,6 +65,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if player_input.is_interact_just_pressed():
 		request_interact()
+	if player_input.is_use_consumable_just_pressed():
+		request_use_consumable()
 	_move(delta)
 	# After moving and turning: the impact uses the facing of this very step
 	# (R-007-14).
@@ -94,6 +98,45 @@ func request_build(recipe: RecipeData) -> void:
 	if battery.is_depleted():
 		return
 	build_requested.emit(self, recipe)
+
+
+## Uses one unit of the consumable in slot_index: it leaves that slot and its
+## battery_points go to the battery through BatteryComponent.add, in one call
+## (spec 012, R-012-23). A ConsumableRules.check_use refusal → its key,
+## use_refused, no change (R-012-24). A depleted robot → ERR_INVALID_REQUEST,
+## nothing else.
+func use_consumable(slot_index: int) -> ActionResult:
+	if battery.is_depleted():
+		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
+	var slots: Array[ItemStack] = inventory.get_slots()
+	var checked: ActionResult = ConsumableRules.check_use(
+		slots, slot_index, battery.get_current(), battery.get_maximum()
+	)
+	if not checked.ok:
+		if checked.error_key != ActionResult.ERR_INVALID_REQUEST:
+			use_refused.emit(checked.error_key)
+		return checked
+	var amounts: Array[int] = []
+	amounts.resize(slots.size())
+	amounts.fill(0)
+	amounts[slot_index] = 1
+	var removed: ActionResult = inventory.remove_from_slots(amounts)
+	if not removed.ok:
+		return removed
+	battery.add((slots[slot_index].item as ConsumableData).battery_points)
+	return ActionResult.success()
+
+
+## The use_consumable action and the inventory's "Use" button (R-012-25):
+## slot_index, or the first consumable slot when NO_SLOT (plan D4). Without
+## one, ERR_NO_PORTABLE_BATTERY through use_refused. A depleted robot asks for nothing.
+func request_use_consumable(slot_index: int = ConsumableRules.NO_SLOT) -> void:
+	if battery.is_depleted():
+		return
+	var index: int = slot_index
+	if index == ConsumableRules.NO_SLOT:
+		index = ConsumableRules.first_consumable_slot(inventory.get_slots())
+	use_consumable(index)
 
 
 ## Radius of the floor circle the robot stands on (R-009-58).

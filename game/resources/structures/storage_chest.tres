@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StorageChestData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/storage_chest_data.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/base/storage_chest.tscn" id="2"]
+[ext_resource type="Resource" path="res://resources/config/container.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = &"storage_chest"
+name_key = &"STRUCTURE_STORAGE_CHEST"
+scene = ExtResource("2")
+footprint = Vector2i(1, 1)
+max_count = 5
+container = ExtResource("3")

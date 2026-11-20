@@ -9,6 +9,9 @@ extends GutTest
 ## of the file (KNOWN_SEED); its dropped item is dated in 2100, so the real
 ## clock never expires it.
 
+## Spec 012 (R-012-43): the version 1 World, saved before chests and generators,
+## loads with no change in behaviour.
+
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WORLD_PATH := "res://tests/fixtures/saves/world_v1.json"
 const PROFILE_PATH := "res://tests/fixtures/saves/profile_v1.json"
@@ -133,3 +136,30 @@ func test_r_010_54_profile_v1_loads() -> void:
 	assert_true(loaded.ok, "SaveManager loads it")
 	assert_eq(SaveManager.get_player_uuid(), PLAYER_UID, "its uuid is the player's")
 	assert_eq(store.write_count, 0, "a valid Profile is not rewritten on load")
+
+
+const BATTERY_CONFIG_PATH := "res://resources/battery/robot_battery.tres"
+
+
+func test_r_012_43_world_v1_loads_unchanged() -> void:
+	var store: MemorySaveStore = SaveTestSupport.reset()
+	store.put("profile", ISaveStore.Copy.MAIN, FileAccess.get_file_as_bytes(PROFILE_PATH))
+	store.put("world_" + WORLD_ID, ISaveStore.Copy.MAIN, FileAccess.get_file_as_bytes(WORLD_PATH))
+	var main: Node = MAIN_SCENE.instantiate()
+	add_child_autofree(main)
+	var loader: ZoneLoader = main.get_node("%ZoneLoader") as ZoneLoader
+	if loader.is_travelling():
+		await wait_for_signal(loader.travel_finished, TRAVEL_TIMEOUT_S)
+	var robot: Robot = main.get_node("%Robot") as Robot
+	var structures: BaseStructures = main.get_node("%BaseStructures") as BaseStructures
+	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
+	assert_eq(robot.battery.get_maximum(), config.maximum, "the maximum is the configured one")
+	assert_eq(structures.get_max_battery_bonus(), 0.0, "no generator, no bonus")
+	assert_almost_eq(robot.battery.get_current(), 63.5, BATTERY_TOLERANCE, "the saved charge")
+	assert_eq(structures.structure_at(STATION_CELL), STATION_UID, "the station is on its cell")
+	assert_eq(structures.count_of(&"wind_generator"), 0, "no generator")
+	assert_eq(structures.count_of(&"storage_chest"), 0, "no chest")
+	var part: Dictionary = structures.to_save_data()
+	assert_false(part.has("chests"), "a base without chests saves no chests")
+	assert_false(part.has("generators"), "nor generators")
+	assert_push_error_count(0, "StructureStates reports nothing")

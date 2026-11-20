@@ -329,3 +329,18 @@ func test_r_009_56_pause_in_move_back_to_edit() -> void:
 	assert_eq(_structures.get_cell(uid), PLACED_CELL, "the structure stayed")
 	_manager.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
 	assert_false(_manager.is_open(PlacementScreen.SCREEN_ID), "back again leaves edit mode")
+
+
+## Spec 012 (R-012-48): a tap outside the panel still picks a cell and never
+## closes the placement screen.
+func test_r_012_48_not_closed_by_outside_tap() -> void:
+	var screen: PlacementScreen = _open_place()
+	assert_false(screen.closes_on_outside_tap, "placement keeps its taps")
+	watch_signals(screen)
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = Vector2(8, 8)
+	screen._gui_input(click)
+	assert_signal_not_emitted(screen, "back_requested", "no back request")
+	assert_true(_manager.is_open(PlacementScreen.SCREEN_ID), "still open")

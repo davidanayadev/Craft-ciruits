@@ -28,6 +28,7 @@ const EXPECTED_ITEMS: Dictionary[StringName, Array] = {
 	&"scrap": [&"ITEM_SCRAP", 99],
 	&"cables": [&"ITEM_CABLES", 50],
 	&"iron": [&"ITEM_IRON", 50],
+	&"portable_battery": [&"ITEM_PORTABLE_BATTERY", 5],
 }
 const EXPECTED_ENEMY_IDS: Array[StringName] = [&"zombie_slow", &"zombie_fast"]
 

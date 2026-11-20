@@ -6,6 +6,8 @@ extends GutTest
 ## (R-005-16). The zone is generated with seeds given here, never
 ## through GameManager.
 ## Spec 008: contents depend on the visit (R-008-08), repopulate() starts a visit (R-008-09).
+## Spec 012 (R-012-38): what the player left in an opened box is lost when the
+## zone's next visit starts.
 ## Spec 009: one exit point next to the spawn point, towards the base (R-009-10, R-009-12).
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
@@ -447,3 +449,27 @@ func test_r_009_10_zone_relays_exit_request() -> void:
 	assert_signal_emitted_with_parameters(
 		zone, "exit_requested", [DataRegistry.get_base_zone(), traveller]
 	)
+
+
+func test_r_012_38_deposited_item_lost_next_visit() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var zone: FarmZone = _visit_zone(SEED_A, 0)
+	var _rolled: Array[String] = _describe_contents(zone)
+	var box: LootBox = zone.get_boxes()[0]
+	var taker: InventoryComponent = InventoryComponent.new()
+	add_child_autofree(taker)
+	taker.set_slot_count(box.get_contents().get_slot_count())
+	var first: Array[int] = [0]
+	taker.take_from(box.get_contents(), first)
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_core"))
+	var offered: Array[ItemStack] = [piece]
+	assert_true(box.get_contents().add_stacks(offered).ok, "the item is left in the box")
+	zone.repopulate(SEED_A, 1, pool)
+	await wait_process_frames(1)
+	var opener: Node3D = Node3D.new()
+	add_child_autofree(opener)
+	for new_box: LootBox in zone.get_boxes():
+		assert_false(new_box.is_opened(), "the next visit closes the box")
+		(new_box.get_node("%Interactable") as InteractableComponent).interact(opener)
+		var index: int = InventoryRules.index_of_uid(new_box.get_contents().get_slots(), piece.uid)
+		assert_eq(index, -1, "the item left in the previous visit is gone")

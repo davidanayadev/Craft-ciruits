@@ -24,7 +24,7 @@
 | **Recarga en base** | Instantánea al 100% | Al interactuar con una Estación de carga (ver §5.3). Sin recarga automática: la batería se consume también dentro de la base (decisión nov 2026) |
 | **Batería al reaparecer** | 100% | Tras morir, en la base (PMV.md §2.4) |
 | **Umbral de batería baja** | 20% de la batería máxima | Dispara el aviso "Batería baja" (decisión nov 2026). Con la máxima base, 20 puntos |
-| **Baterías portátiles (item)** | +20 puntos | Usar en zona de farmeo |
+| **Baterías portátiles (item)** | +20 puntos | Pensadas para la zona de farmeo, pero se pueden usar en cualquier sitio, también en la base. Sin pasar de la máxima; con la batería llena no se gastan (decisión nov 2026, spec 012) |
 | **Tiempo máximo en zona (quieto)** | ~16 minutos | 100 / 0.1 = 1000s ≈ 16.6 min |
 | **Tiempo máximo en zona (moviéndose)** | ~6.6 minutos | 100 / 0.25 = 400s ≈ 6.6 min |
 
@@ -56,7 +56,7 @@
 | **Chatarra** | Cajas, robot hostil | Crafteo básico (piezas) | 99 |
 | **Cables** | Cajas, robot hostil | Reparación, crafteo | 50 |
 | **Hierro** | Cajas, robot hostil | Reparación de piezas, estructura | 50 |
-| **Baterías (item)** | Cajas raras, generador eólico | Recargar batería (+20 puntos) | 10 |
+| **Baterías (item)** | Cajas raras, generador eólico | Recargar batería (+20 puntos) | 5 (decisión nov 2026, spec 012) |
 
 > **XP (núcleos de datos)**: no es un item. Se otorga directamente al matar un enemigo (ver §6.2), no ocupa slot y no se pierde al morir. "Núcleos" es solo el nombre de la unidad de XP.
 
@@ -189,6 +189,9 @@ El coste va por tramos según la durabilidad que le queda a la pieza, en porcent
 | **Coste de construcción** | 5 chatarra + 3 cables + 2 hierro | Banco de reparaciones |
 | **Efecto** | +20 batería máxima | Permanente mientras exista |
 | **Generación de baterías** | 1 batería portátil cada 4 horas | Máximo 3 almacenadas |
+| **Reloj de la generación** | Empieza vacío al construirlo | Cuenta también con la app cerrada y con la base sin cargar. Con el máximo lleno el tiempo no se acumula: el periodo siguiente empieza al recoger. Tiempo negativo (hora del móvil atrasada) = 0, como en §7.2 (decisión nov 2026, spec 012) |
+| **Máximo en base** | 1 | Por ahora uno por base; con los mundos abiertos de v1.1 se revisa el número (decisión nov 2026, spec 012) |
+| **Carga al construirlo** | Sin cambio | Sube la máxima, la carga actual se queda; se llena en una estación (decisión nov 2026, spec 012) |
 | **Mantenimiento** | Ninguno en PMV | Funciona siempre |
 
 **Nota**: en v1.1, el generador puede requerir mantenimiento (1 cable cada 24h).
@@ -236,7 +239,9 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 | **Tamaño de la base** | 20x20 m | Escena fija, centrada en su celda del mapa global (§7) |
 | **Tamaño de celda** | 1.0 m | Cuadrícula de colocación (ACTION_PLAN Tarea 2.8) |
 | **Área edificable** | 12x8 celdas | 96 celdas, menos las reservadas (punto de aparición, frente del banco y del punto de salida), que son dato de la escena de la base |
-| **Huella de la estación de carga** | 1x1 celdas | La huella es dato de cada estructura. La del generador y la del cofre se fijan con la spec 012 |
+| **Huella de la estación de carga** | 1x1 celdas | La huella es dato de cada estructura |
+| **Huella del generador eólico** | 2x2 celdas | Decisión nov 2026, spec 012 |
+| **Huella del cofre** | 1x1 celdas | Decisión nov 2026, spec 012. La base completa (1 generador, 5 cofres y unas estaciones) ocupa unas 12 de las 92 celdas libres |
 | **Rotación de estructuras** | No | En el PMV no se giran |
 | **Mover una estructura** | Sin coste | Modo edición |
 | **Desmontar una estructura** | No | En el PMV las estructuras se mueven, no se quitan |
@@ -299,7 +304,7 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Items tirados del inventario** | Misma regla que los soltados al morir: siguen en la zona hasta que se recogen o caducan, con la misma duración (decisión nov 2026) |
 | **Cajas abiertas** | Se guardan mientras dura la visita: cerrar y abrir la app devuelve la misma visita con las mismas cajas abiertas |
 | **Loot que no cabe en el inventario** | Se queda en la caja durante la visita; se recoge al volver a interactuar, sin nueva tirada. Se pierde al empezar la visita siguiente (decisión nov 2026) |
-| **Caja vaciada** | Sigue en la zona como contenedor, con la capacidad de un cofre (§5.4), para dejar items del inventario. Lo depositado se pierde al empezar la visita siguiente: no es un almacén entre visitas (decisión nov 2026) |
+| **Caja como contenedor** | Desde que se abre, la caja es un contenedor con la capacidad de un cofre (§5.4): se coge lo que se quiera y se deja lo que no, también antes de vaciarla. Lo depositado se pierde al empezar la visita siguiente: no es un almacén entre visitas (decisión nov 2026; spec 012: siempre contenedor, no solo vaciada) |
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
 | **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
 | **Enemigos** | Reaparecen con el mismo contador de visitas (spec 006) |

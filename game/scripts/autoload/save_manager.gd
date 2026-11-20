@@ -25,6 +25,8 @@ const REASON_STRUCTURE_BUILT := &"structure_built"
 const REASON_STRUCTURE_MOVED := &"structure_moved"
 const REASON_ITEM_CRAFTED := &"item_crafted"
 const REASON_PIECE_REPAIRED := &"piece_repaired"
+const REASON_BATTERIES_COLLECTED := &"batteries_collected"
+const REASON_CHEST_CLOSED := &"chest_closed"
 const REASON_CLOSE := &"close"
 const REASON_BACKGROUND := &"background"
 const ERR_SAVE_FAILED := ISaveStore.ERR_SAVE_FAILED
@@ -78,6 +80,8 @@ func _ready() -> void:
 	EventBus.structure_moved.connect(_on_save_fact.bind(REASON_STRUCTURE_MOVED).unbind(1))
 	EventBus.item_crafted.connect(_on_save_fact.bind(REASON_ITEM_CRAFTED).unbind(2))
 	EventBus.piece_repaired.connect(_on_save_fact.bind(REASON_PIECE_REPAIRED).unbind(2))
+	EventBus.batteries_collected.connect(_on_save_fact.bind(REASON_BATTERIES_COLLECTED).unbind(2))
+	EventBus.chest_closed.connect(_on_save_fact.bind(REASON_CHEST_CLOSED).unbind(2))
 
 
 func _notification(what: int) -> void:

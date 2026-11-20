@@ -55,3 +55,25 @@ func test_r_008_19_fake_clock_returns_what_it_was_set_to() -> void:
 	assert_eq(service.now_unix(), 1_700_000_123, "returns the set time")
 	fake.now = 5
 	assert_eq(service.now_unix(), 5, "follows changes")
+
+
+## Spec 012 (R-012-19): the generator reads the time through ITimeService too.
+## Stricter than R-008-19: no game script but the local service reads any
+## system clock or date, so neither the generator nor any later rule can.
+const SYSTEM_CLOCK_CALLS: PackedStringArray = [
+	"Time.get_unix_time", "Time.get_datetime", "Time.get_date", "Time.get_time", "OS.get_unix_time"
+]
+
+
+func test_r_012_19_only_local_time_service_reads_the_clock() -> void:
+	var readers: PackedStringArray = PackedStringArray()
+	for dir_path: String in GAME_CODE_DIRS:
+		for script_path: String in _collect_scripts(dir_path):
+			var source: String = FileAccess.get_file_as_string(script_path)
+			for call: String in SYSTEM_CLOCK_CALLS:
+				if source.contains(call) and not readers.has(script_path):
+					readers.append(script_path)
+	assert_eq(readers, PackedStringArray([CLOCK_READER]), "only the local service reads a system clock")
+	var generator_source: String = FileAccess.get_file_as_string("res://scripts/components/wind_generator_component.gd")
+	assert_ne(generator_source, "", "the generator component exists")
+	assert_false(generator_source.contains("Time."), "the generator gets the time by parameter")

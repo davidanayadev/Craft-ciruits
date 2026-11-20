@@ -14,6 +14,10 @@ extends GutTest
 ## (re-keyed to the Profile's uuid), whose box markers are valid for KNOWN_SEED.
 ## Spec 011 (R-011-10): a piece keeps its durability and uid in the inventory
 ## and on the ground across a close and reopen.
+## Spec 012: a charge above the base maximum survives a reload (R-012-14),
+## generators count while the app is closed (R-012-16), chests keep their
+## contents (R-012-36) and the World holds both (R-012-39); the clock is a
+## FakeTimeService.
 ## Manual: nothing here (the real files and the window are M1..M4 of plan 010
 ## §5.3).
 
@@ -861,3 +865,116 @@ func test_r_011_10_piece_survives_close_and_reopen() -> void:
 	assert_not_null(on_ground, "the thrown piece is back on the ground with its uid")
 	if on_ground != null:
 		assert_eq(on_ground.durability, 70, "with its durability")
+
+
+# --- Spec 012: generators and chests (R-012-14, 16, 36, 39) -------------------
+
+const GENERATOR_RECIPE_PATH := "res://resources/recipes/wind_generator.tres"
+const CHEST_RECIPE_PATH := "res://resources/recipes/storage_chest.tres"
+const GENERATOR_CELL := Vector2i(1, 2)
+const CHEST_CELL := Vector2i(0, 5)
+const CLOCK_START := 1_700_000_000
+const CHEST_IRON := 3
+
+
+func _open_main_with_clock(clock: FakeTimeService) -> Node:
+	var main: Node = _instance_main()
+	(_child(main, "BaseStructures") as BaseStructures).time_service = clock
+	add_child_autofree(main)
+	await _await_travel(main)
+	return main
+
+
+## Gives the robot the cost of the recipe and places it; the uid.
+func _build_at(main: Node, recipe_path: String, cell: Vector2i) -> String:
+	var recipe: RecipeData = load(recipe_path) as RecipeData
+	var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+	for item_id: StringName in cost:
+		_robot_of(main).inventory.add(item_id, cost[item_id])
+	var placed: ActionResult = _structures_of(main).place(_robot_of(main), recipe, cell)
+	assert_true(placed.ok, "%s is placed" % recipe.id)
+	return _structures_of(main).structure_at(cell)
+
+
+func _generator_data() -> WindGeneratorData:
+	var recipe: RecipeData = load(GENERATOR_RECIPE_PATH) as RecipeData
+	return recipe.result_structure as WindGeneratorData
+
+
+func test_r_012_14_charge_above_base_maximum_survives_reload() -> void:
+	var clock: FakeTimeService = FakeTimeService.new()
+	clock.now = CLOCK_START
+	var a: Node = await _open_main_with_clock(clock)
+	var robot: Robot = _robot_of(a)
+	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
+	var generator: WindGeneratorData = _generator_data()
+	var _uid: String = _build_at(a, GENERATOR_RECIPE_PATH, GENERATOR_CELL)
+	assert_eq(robot.battery.get_maximum(), config.maximum + generator.max_battery_bonus, "the bonus is applied")
+	robot.battery.add(generator.max_battery_bonus / 2.0)
+	var charge: float = robot.battery.get_current()
+	assert_gt(charge, config.maximum, "the charge is above the base maximum")
+	assert_lte(charge, config.maximum + generator.max_battery_bonus, "and within the new one")
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	await _close_main(a)
+	var b: Node = await _open_main_with_clock(clock)
+	var again: Robot = _robot_of(b)
+	assert_eq(again.battery.get_maximum(), config.maximum + generator.max_battery_bonus, "the bonus is back")
+	assert_almost_eq(again.battery.get_current(), charge, BATTERY_TOLERANCE, "the charge above 100 is kept")
+	assert_gt(again.battery.get_current(), config.maximum, "still above the base maximum")
+
+
+func test_r_012_16_counts_while_app_closed() -> void:
+	var clock: FakeTimeService = FakeTimeService.new()
+	clock.now = CLOCK_START
+	var a: Node = await _open_main_with_clock(clock)
+	var generator: WindGeneratorData = _generator_data()
+	var uid: String = _build_at(a, GENERATOR_RECIPE_PATH, GENERATOR_CELL)
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	await _close_main(a)
+	var closed_periods: int = mini(2, generator.max_stored)
+	assert_gt(closed_periods, 0, "the generator can hold batteries")
+	clock.now = CLOCK_START + generator.seconds_per_battery * closed_periods + generator.seconds_per_battery / 2
+	var b: Node = await _open_main_with_clock(clock)
+	assert_eq(_structures_of(b).structure_at(GENERATOR_CELL), uid, "the generator is back")
+	var robot: Robot = _robot_of(b)
+	assert_true(_structures_of(b).collect_batteries(robot, uid).ok, "batteries were made while closed")
+	assert_eq(robot.inventory.count(generator.battery_item.id), closed_periods, "one per full period, no more")
+
+
+func test_r_012_36_chest_survives_close_and_reopen() -> void:
+	var a: Node = await _open_main()
+	var uid: String = _build_at(a, CHEST_RECIPE_PATH, CHEST_CELL)
+	assert_true(_structures_of(a).get_chest_contents(uid).add(&"iron", CHEST_IRON).ok, "iron left in the chest")
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	await _close_main(a)
+	var b: Node = await _open_main()
+	assert_eq(_structures_of(b).structure_at(CHEST_CELL), uid, "the chest is on its cell")
+	var contents: InventoryComponent = _structures_of(b).get_chest_contents(uid)
+	assert_not_null(contents, "the chest has contents")
+	if contents != null:
+		assert_eq(contents.count(&"iron"), CHEST_IRON, "with what was left in it")
+
+
+func test_r_012_39_world_holds_chests_and_generators() -> void:
+	var clock: FakeTimeService = FakeTimeService.new()
+	clock.now = CLOCK_START
+	var a: Node = await _open_main_with_clock(clock)
+	var chest_uid: String = _build_at(a, CHEST_RECIPE_PATH, CHEST_CELL)
+	var generator_uid: String = _build_at(a, GENERATOR_RECIPE_PATH, GENERATOR_CELL)
+	assert_true(_structures_of(a).get_chest_contents(chest_uid).add(&"iron", CHEST_IRON).ok, "iron in the chest")
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	var part: Dictionary = _world_parts(_read_world()).get(String(BaseStructures.SAVE_KEY), {})
+	var chests: Dictionary = part.get("chests", {})
+	var generators: Dictionary = part.get("generators", {})
+	assert_eq(chests.keys(), [chest_uid], "one chest, by its uid")
+	assert_eq(generators.keys(), [generator_uid], "one generator, by its uid")
+	var chest: Dictionary = chests.get(chest_uid, {})
+	var slots: Array = chest.get("slots", [])
+	var chest_data: StorageChestData = (load(CHEST_RECIPE_PATH) as RecipeData).result_structure as StorageChestData
+	assert_eq(slots.size(), chest_data.container.slot_count, "one entry per slot")
+	var first: Dictionary = slots[0] if not slots.is_empty() and slots[0] is Dictionary else {}
+	assert_eq(str(first.get("item_id", "")), "iron", "the iron is in the first slot")
+	assert_eq(SaveFields.to_int(first.get("quantity"), -1), CHEST_IRON, "with its quantity")
+	var saved_generator: Dictionary = generators.get(generator_uid, {})
+	assert_eq(SaveFields.to_int(saved_generator.get("stored"), -1), 0, "starts empty")
+	assert_eq(SaveFields.to_int(saved_generator.get("since_unix"), -1), CLOCK_START, "counting from its building")

@@ -14,6 +14,8 @@ extends GutTest
 ## R-010-65: "New world" is ignored during a travel (the branch that reloads
 ## the scene would replace the one GUT runs in, so it is not tested here).
 ## R-011-28: crafting and repairing at the bench save once each (spec 011).
+## Spec 012 (R-012-44): collecting batteries and closing a chest whose contents
+## changed save once each; an unchanged chest and a loot box save nothing.
 ## The transfer is driven by advance(), never by real time.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
@@ -433,3 +435,108 @@ func test_r_011_28_craft_and_repair_save() -> void:
 	var saved: Dictionary = _saved_piece(damaged.uid)
 	var durability: int = SaveFields.to_int(saved.get("durability"), -1)
 	assert_eq(durability, 100, "the repaired durability is saved")
+
+
+# --- R-012-44 (spec 012) ------------------------------------------------------
+
+const GENERATOR_RECIPE_PATH := "res://resources/recipes/wind_generator.tres"
+const CHEST_RECIPE_PATH := "res://resources/recipes/storage_chest.tres"
+const GENERATOR_CELL := Vector2i(1, 2)
+const CHEST_CELL := Vector2i(0, 5)
+const CLOCK_START := 1_700_000_000
+
+
+## Gives the robot the cost of the recipe and places it; the uid.
+func _build_012(recipe_path: String, cell: Vector2i) -> String:
+	var recipe: RecipeData = load(recipe_path) as RecipeData
+	var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+	for item_id: StringName in cost:
+		_robot.inventory.add(item_id, cost[item_id])
+	assert_true(_structures.place(_robot, recipe, cell).ok, "%s is placed" % recipe.id)
+	return _structures.structure_at(cell)
+
+
+func _use_clock() -> FakeTimeService:
+	var clock: FakeTimeService = FakeTimeService.new()
+	clock.now = CLOCK_START
+	_structures.time_service = clock
+	return clock
+
+
+func test_r_012_44_collect_saves() -> void:
+	var clock: FakeTimeService = _use_clock()
+	var uid: String = _build_012(GENERATOR_RECIPE_PATH, GENERATOR_CELL)
+	var generator: WindGeneratorData = (load(GENERATOR_RECIPE_PATH) as RecipeData).result_structure as WindGeneratorData
+	await _settle()
+	_forget_saves()
+	clock.now = CLOCK_START + generator.seconds_per_battery
+	assert_true(_structures.collect_batteries(_robot, uid).ok, "a battery is collected")
+	assert_eq(_new_writes(), 0, "nothing is written during the signal that asks for it")
+	await _settle()
+	_assert_one_save(SaveManager.REASON_BATTERIES_COLLECTED)
+
+
+## Opens the container screen of the chest as the use of the chest does.
+func _open_chest(uid: String) -> InventoryComponent:
+	_structures.structure_used.emit(uid, _robot)
+	assert_true(_ui.is_open(ContainerScreen.SCREEN_ID), "the container screen is open")
+	return _structures.get_chest_contents(uid)
+
+
+func test_r_012_44_chest_closed_after_change_saves() -> void:
+	_use_clock()
+	var uid: String = _build_012(CHEST_RECIPE_PATH, CHEST_CELL)
+	await _settle()
+	var contents: InventoryComponent = _open_chest(uid)
+	_robot.inventory.add(&"iron", 2)
+	assert_true(_robot.inventory.transfer_to(contents, _slot_of(&"iron"), 2).ok, "iron left in the chest")
+	_forget_saves()
+	_ui.close_all()
+	await _settle()
+	_assert_one_save(SaveManager.REASON_CHEST_CLOSED)
+	var document: Dictionary = _read_world()
+	var world: Dictionary = document[SaveDocuments.KEY_WORLD]
+	var part: Dictionary = world.get(String(BaseStructures.SAVE_KEY), {})
+	var chests: Dictionary = part.get("chests", {})
+	assert_true(chests.has(uid), "what was left is in the saved chest")
+
+
+func _slot_of(item_id: StringName) -> int:
+	var slots: Array[ItemStack] = _robot.inventory.get_slots()
+	for index: int in slots.size():
+		if slots[index] != null and slots[index].item.id == item_id:
+			return index
+	return -1
+
+
+func test_r_012_44_chest_closed_unchanged_does_not_save() -> void:
+	_use_clock()
+	var uid: String = _build_012(CHEST_RECIPE_PATH, CHEST_CELL)
+	await _settle()
+	_open_chest(uid)
+	_forget_saves()
+	watch_signals(EventBus)
+	_ui.close_all()
+	await _settle()
+	assert_signal_not_emitted(EventBus, "chest_closed", "nothing changed")
+	assert_eq(_new_writes(), 0, "no write")
+	assert_eq(_saved.size(), 0, "no game_saved")
+
+
+func test_r_012_44_loot_box_does_not_save_on_close() -> void:
+	await _travel(GREEN_ZONE_ID)
+	var farm: FarmZone = _loader.get_current_zone() as FarmZone
+	var box: LootBox = farm.get_boxes()[0]
+	(box.get_node("%Interactable") as InteractableComponent).interact(_robot)
+	assert_true(_ui.is_open(ContainerScreen.SCREEN_ID), "the box opened the container screen")
+	var contents: InventoryComponent = box.get_contents()
+	assert_false(contents.is_empty(), "the box has something to take")
+	_forget_saves()
+	var first: Array[int] = [0]
+	_robot.inventory.take_from(contents, first)
+	watch_signals(EventBus)
+	_ui.close_all()
+	await _settle()
+	assert_signal_not_emitted(EventBus, "chest_closed", "a box is not a chest")
+	assert_eq(_new_writes(), 0, "no write")
+	assert_eq(_saved.size(), 0, "no game_saved")

@@ -394,7 +394,7 @@ func test_r_005_16_ui_manager_below_hud() -> void:
 	assert_lt(manager.get_index(), _hud().get_index(), "UIManager comes before Hud in UI")
 
 
-func test_r_005_16_interacting_opens_loot_screen() -> void:
+func test_r_012_37_box_opens_container_screen() -> void:
 	var box: LootBox = await _go_to_first_box()
 	assert_false(_ui_manager().is_modal_open(), "no screen before interacting")
 	_robot().request_interact()
@@ -403,8 +403,8 @@ func test_r_005_16_interacting_opens_loot_screen() -> void:
 	assert_eq(screens.size(), 1, "one screen")
 	if screens.size() != 1:
 		return
-	assert_true(screens[0] is LootScreen, "the loot screen")
-	var source_grid: InventoryGrid = screens[0].get_node("%SourceGrid") as InventoryGrid
+	assert_true(screens[0] is ContainerScreen, "the container screen")
+	var source_grid: InventoryGrid = screens[0].get_node("%ContainerGrid") as InventoryGrid
 	var player_grid: InventoryGrid = screens[0].get_node("%PlayerGrid") as InventoryGrid
 	assert_eq(
 		source_grid.get_child_count(), box.get_contents().get_slot_count(), "showing the box's slots"
@@ -421,14 +421,14 @@ func test_r_005_19_open_box_take_all_fills_inventory() -> void:
 	assert_gt(loot.size(), 0, "the box holds loot")
 	var screens: Array[UIScreen] = _open_screens()
 	if screens.size() != 1:
-		fail_test("the loot screen did not open")
+		fail_test("the container screen did not open")
 		return
 	(screens[0].get_node("%TakeAllButton") as Button).pressed.emit()
 	assert_eq(_held(_robot().inventory), loot, "the robot now holds what the box had")
 	assert_true(box.get_contents().is_empty(), "and the box is empty")
-	assert_false(_ui_manager().is_modal_open(), "the loot screen closed by itself (R-005-21)")
+	assert_true(_ui_manager().is_modal_open(), "the container screen stays open when the box is empty (R-012-35)")
 	var interactable: InteractableComponent = box.get_node("%Interactable") as InteractableComponent
-	assert_false(interactable.enabled, "and the box is disabled (R-005-21)")
+	assert_true(interactable.enabled, "and the box is never disabled (R-012-37)")
 
 
 func test_r_005_20_full_inventory_keeps_rest_in_box() -> void:
@@ -439,7 +439,7 @@ func test_r_005_20_full_inventory_keeps_rest_in_box() -> void:
 	var loot: Dictionary[StringName, int] = _held(box.get_contents())
 	var screens: Array[UIScreen] = _open_screens()
 	if screens.size() != 1:
-		fail_test("the loot screen did not open")
+		fail_test("the container screen did not open")
 		return
 	(screens[0].get_node("%TakeAllButton") as Button).pressed.emit()
 	assert_eq(_held(box.get_contents()), loot, "what does not fit stays in the box")
@@ -492,10 +492,10 @@ func test_r_005_24_storage_toggles_inventory() -> void:
 	assert_false(_ui_manager().is_modal_open(), "and the action closes it")
 
 
-func test_r_005_24_storage_closes_loot_screen() -> void:
+func test_r_005_24_storage_closes_container_screen() -> void:
 	await _go_to_first_box()
 	_robot().request_interact()
-	assert_true(_ui_manager().is_modal_open(), "the loot screen is open")
+	assert_true(_ui_manager().is_modal_open(), "the container screen is open")
 	_storage_button().pressed.emit()
 	assert_false(_ui_manager().is_modal_open(), "storage closes the top screen")
 	assert_eq(_open_screens().size(), 0, "and does not open the inventory on top")
@@ -1273,3 +1273,53 @@ func test_r_009_51_transfer_ends_during_exit_travel() -> void:
 	assert_false(robot.battery.is_depleted(), "alive")
 	assert_eq(_world().process_mode, Node.PROCESS_MODE_INHERIT, "the world runs again")
 	assert_false(robot.player_input.is_input_blocked(), "with its input")
+
+
+# --- Closing by tapping outside (spec 012, R-012-47) -------------------------
+
+## A point on the left edge, halfway down: outside the inventory panel and, in
+## the left half, where the floating joystick would take a finger.
+func _outside_point() -> Vector2:
+	return Vector2(24.0, get_viewport().get_visible_rect().size.y * 0.5)
+
+
+func _push(event: InputEvent) -> void:
+	var runner: CanvasLayer = get_tree().root.find_child("GutLayer", true, false) as CanvasLayer
+	if runner != null:
+		runner.visible = false
+	get_viewport().push_input(event, true)
+	if runner != null:
+		runner.visible = true
+
+
+func test_r_012_47_outside_tap_does_not_attack() -> void:
+	_storage_button().pressed.emit()
+	assert_true(_ui_manager().is_open(InventoryScreen.SCREEN_ID), "the inventory is open")
+	await wait_process_frames(1)
+	var _cleared: bool = _robot().player_input.poll_attack()
+	for pressed: bool in [true, false]:
+		var click: InputEventMouseButton = InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = _outside_point()
+		click.global_position = click.position
+		_push(click)
+	assert_false(_ui_manager().is_modal_open(), "the tap outside closed the inventory")
+	assert_false(_robot().player_input.poll_attack(), "and it was not an attack")
+
+
+func test_r_012_47_outside_touch_does_not_reach_joystick() -> void:
+	var joystick: FloatingJoystick = (_main.get_node("%TouchControls") as TouchControls).joystick
+	joystick.set_process_unhandled_input(true)
+	watch_signals(joystick)
+	_storage_button().pressed.emit()
+	await wait_process_frames(1)
+	var touch: InputEventScreenTouch = InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = true
+	touch.position = _outside_point()
+	_push(touch)
+	assert_signal_not_emitted(joystick, "sample_changed", "the joystick did not take the finger")
+	touch.pressed = false
+	_push(touch)
+	assert_signal_not_emitted(joystick, "released", "nor let it go")

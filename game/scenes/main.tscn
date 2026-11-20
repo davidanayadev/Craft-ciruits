@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/entities/robot.tscn" id="3_robot"]
@@ -25,6 +25,7 @@
 [ext_resource type="Script" path="res://scenes/base/build_flow.gd" id="24_build_flow"]
 [ext_resource type="Script" path="res://scenes/zones/zone_memory.gd" id="25_zone_memory"]
 [ext_resource type="Script" path="res://scenes/save/save_flow.gd" id="26_save_flow"]
+[ext_resource type="Script" path="res://scenes/base/structure_use_flow.gd" id="27_structure_use_flow"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -103,6 +104,12 @@ ui_manager = NodePath("../UI/UIManager")
 [node name="BuildFlow" type="Node" parent="." node_paths=PackedStringArray("ui_manager", "base_structures")]
 unique_name_in_owner = true
 script = ExtResource("24_build_flow")
+ui_manager = NodePath("../UI/UIManager")
+base_structures = NodePath("../World/BaseStructures")
+
+[node name="StructureUseFlow" type="Node" parent="." node_paths=PackedStringArray("ui_manager", "base_structures")]
+unique_name_in_owner = true
+script = ExtResource("27_structure_use_flow")
 ui_manager = NodePath("../UI/UIManager")
 base_structures = NodePath("../World/BaseStructures")
 

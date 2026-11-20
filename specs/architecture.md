@@ -62,6 +62,9 @@ Reglas (se revisan en cada plan, constitución P3):
 1. Una capa solo depende de las de **debajo**. Los Sistemas no conocen nodos, escenas, autoloads ni la UI.
 2. **La UI nunca cambia estado**: pide el cambio al componente dueño y muestra el resultado.
 3. **Todo cambio de estado tiene un único dueño**: el componente que lo guarda. Nadie más escribe sus campos.
+   Única excepción (spec 012, plan D12): `InventoryComponent.move_to_slot` / `transfer_to` escriben también las
+   ranuras del otro `InventoryComponent` en un solo paso, para que un intercambio entre dos inventarios sea
+   atómico; solo entre instancias de esa misma clase, que validan igual. Ninguna otra clase lo hace.
 4. Los métodos que cambian estado reciben todo lo que necesitan por parámetro (inventario, receta, `delta`…) y
    devuelven un `ActionResult` (§9.2). Así se testean sin escena y, más adelante, se ejecutan en el anfitrión o
    el servidor (§12).
@@ -156,6 +159,8 @@ Main (Node)                          main.gd: arranque y cableado
 | `player_recharged` | `player_uid: String` | Estación de carga (spec 009) | Guardado (spec 010), guía |
 | `structure_moved` | `structure_uid: String` | `BaseStructures` (spec 010) | Guardado |
 | `piece_repaired` | `piece_uid: String`, `player_uid: String` | `RepairBench` (spec 011) | Guardado, guía, audio |
+| `batteries_collected` | `structure_uid: String`, `player_uid: String` | `BaseStructures` (spec 012) | Guardado (spec 012), guía, audio |
+| `chest_closed` | `structure_uid: String`, `player_uid: String` | `StructureUseFlow` (spec 012), al cerrar la pantalla de un cofre cuyo contenido cambió | Guardado (spec 012) |
 
 **Señales de estado y de hecho** (spec 010, D15). Las **de estado** dicen cuál es un valor ahora y repetirlas no
 tiene efectos (`battery_changed`, `inventory_changed`, `xp_changed`, `health_changed`); por convención se llaman
@@ -180,12 +185,12 @@ datos, y los indexa por `id`.
 class_name DataCatalog
 extends Resource
 
-@export var items: Array[ItemData] = []      # incluye PieceData (hereda de ItemData)
+@export var items: Array[ItemData] = []      # incluye PieceData y ConsumableData (heredan de ItemData)
 @export var recipes: Array[RecipeData] = []
 @export var enemies: Array[EnemyData] = []
 @export var zones: Array[ZoneData] = []
 @export var rulesets: Array[RulesetData] = []
-@export var structures: Array[StructureData] = []   # estructuras colocables (spec 009)
+@export var structures: Array[StructureData] = []   # estructuras colocables (spec 009); incluye WindGeneratorData y StorageChestData (spec 012)
 @export var repair_costs: RepairCostData             # tramos de reparación de BALANCE §4.3.2 (spec 011)
 ```
 
@@ -225,6 +230,10 @@ func interact(interactor: Node3D) -> void    # emite interacted si enabled
   `tr(prompt_key)`; en PC, la tecla E.
 - Caja, banco, estación, cofre, generador y objeto caído **solo** conectan `interacted` a su lógica. La
   proximidad, el botón y el texto se programan una vez.
+- **Cofre y generador** (spec 012): su estado no vive en la instancia (se libera con la base), así que la
+  instancia solo emite `used(user)`; `BaseStructures` lo reemite como `structure_used(structure_uid, user)` y
+  `StructureUseFlow` abre la pantalla del cofre o pide `BaseStructures.collect_batteries(player, uid)`, igual que
+  `BuildFlow` hace con el banco.
 - **Servidor**: `interact` es la petición; el anfitrión comprueba la distancia antes de aceptarla.
 
 ### 9.2 Cambios de estado y resultados
@@ -294,7 +303,7 @@ enum Op { SET, ADD, MULTIPLY }
 **Decisión**: `UIManager` con una pila de pantallas emergentes.
 
 ```gdscript
-func open(screen_id: StringName, context: Dictionary = {}) -> void
+func open(screen_id: StringName, context: Dictionary = {}) -> UIScreen   # la abierta o null (spec 012)
 func close_top() -> void
 func is_modal_open() -> bool
 func is_open(screen_id: StringName) -> bool         # spec 009
@@ -304,7 +313,17 @@ signal modal_state_changed(is_open: bool)
 func setup(context: Dictionary) -> void
 func handle_back() -> bool   # true: la pantalla atendió "atrás" y sigue abierta (spec 009)
 func on_closed() -> void     # al salir de la pila por cualquier camino, antes de liberarse (spec 009)
+signal closed                # la emite UIManager tras on_closed(), por cualquier camino (spec 012)
+signal back_requested        # toque fuera del panel (spec 012)
+@export var closes_on_outside_tap: bool = false   # spec 012
 ```
+
+- **Cerrar tocando fuera** (spec 012, R-012-46 a R-012-48): una pantalla con `closes_on_outside_tap` emite
+  `back_requested` cuando un toque o clic izquierdo llega a su propio `_gui_input`, es decir, cuando ningún hijo lo
+  paró: su panel único tiene `mouse_filter = STOP` y su fondo y su centrado `IGNORE`. Solo atiende
+  `InputEventMouseButton` (en Android llega emulado desde el toque) y lo acepta, así que no llega a
+  `_unhandled_input` (ataque, joystick). `UIManager` lo trata como Escape, y solo para la de arriba. Banco,
+  inventario y contenedor lo activan; la colocación y el aviso no.
 
 - Las pantallas (banco, cofre, inventario, equipo, pausa) se registran por id en un recurso de catálogo de UI.
 - Escape (PC) y el botón atrás de Android (`NOTIFICATION_WM_GO_BACK_REQUEST`, **(verificar)**) van a la de

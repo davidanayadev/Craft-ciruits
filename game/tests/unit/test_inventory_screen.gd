@@ -8,6 +8,8 @@ extends GutTest
 ## button asks the thrower for slot and quantity (R-008-39), it needs a
 ## selection (R-008-41) and the screen never changes the inventory
 ## itself (R-008-42).
+## Spec 012: a "Use" button for a selected consumable (R-012-25), disabled for
+## a material or without selection, that asks the robot to use that slot.
 
 const SCREEN_SCENE := preload("res://scenes/ui/inventory_screen.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -293,3 +295,155 @@ func test_setup_without_inventory_reports_error() -> void:
 	_screen.setup({})
 	assert_push_error("InventoryScreen")
 	assert_eq(_cells().size(), 0, "nothing is shown")
+
+
+const USE_KEY := &"INVENTORY_USE"
+
+
+func _use_button() -> Button:
+	return _screen.get_node("%UseButton") as Button
+
+
+func test_r_012_25_use_button_for_consumable() -> void:
+	var robot: Robot = _new_thrower()
+	var item: ConsumableData = DataRegistry.get_item(&"portable_battery") as ConsumableData
+	assert_not_null(item, "the catalog has the portable battery")
+	if item == null:
+		return
+	robot.inventory.add(&"scrap", 2)
+	robot.inventory.add(&"portable_battery", 3)
+	robot.battery.consume(item.battery_points * 2.0)
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: robot.inventory, InventoryScreen.CONTEXT_THROWER: robot}
+	)
+	assert_true(_use_button().disabled, "no selection, no use")
+	var cells: Array[InventorySlotView] = _cells()
+	cells[1].pressed.emit()
+	assert_false(_use_button().disabled, "a selected portable battery enables the button")
+	var before: float = robot.battery.get_current()
+	_use_button().pressed.emit()
+	var stack: ItemStack = robot.inventory.get_slots()[1]
+	assert_eq(stack.quantity, 2, "one unit is gone")
+	assert_almost_eq(robot.battery.get_current(), before + item.battery_points, 0.01, "the battery rises")
+	assert_false(_use_button().disabled, "the stack remains selected and usable")
+
+
+func test_r_012_25_use_button_asks_the_robot() -> void:
+	var robot: Robot = _new_thrower()
+	robot.inventory.add(&"portable_battery", 3)
+	robot.battery.consume(1.0)
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: robot.inventory, InventoryScreen.CONTEXT_THROWER: robot}
+	)
+	watch_signals(robot)
+	_cells()[0].pressed.emit()
+	_use_button().pressed.emit()
+	assert_signal_not_emitted(robot, "use_refused", "a valid use is no refusal")
+	var stack: ItemStack = robot.inventory.get_slots()[0]
+	assert_eq(stack.quantity, 2, "the request used the selected slot")
+
+
+func test_r_012_25_use_button_refusal_reaches_the_robot_signal() -> void:
+	var robot: Robot = _new_thrower()
+	robot.inventory.add(&"portable_battery", 3)
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: robot.inventory, InventoryScreen.CONTEXT_THROWER: robot}
+	)
+	watch_signals(robot)
+	_cells()[0].pressed.emit()
+	_use_button().pressed.emit()
+	assert_signal_emitted_with_parameters(robot, "use_refused", [ConsumableRules.ERR_BATTERY_FULL])
+	var stack: ItemStack = robot.inventory.get_slots()[0]
+	assert_eq(stack.quantity, 3, "a full battery spends nothing")
+
+
+func test_r_012_25_use_button_disabled_for_material() -> void:
+	var robot: Robot = _new_thrower()
+	robot.inventory.add(&"scrap", 7)
+	robot.battery.consume(10.0)
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: robot.inventory, InventoryScreen.CONTEXT_THROWER: robot}
+	)
+	watch_signals(robot)
+	_cells()[0].pressed.emit()
+	assert_true(_use_button().disabled, "a material cannot be used")
+	_use_button().pressed.emit()
+	assert_signal_not_emitted(robot, "use_refused", "pressing it asks for nothing")
+	var stack: ItemStack = robot.inventory.get_slots()[0]
+	assert_eq(stack.quantity, 7, "nothing changes")
+
+
+func test_r_012_25_use_button_follows_selection() -> void:
+	var robot: Robot = _new_thrower()
+	robot.inventory.add(&"scrap", 7)
+	robot.inventory.add(&"portable_battery", 2)
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: robot.inventory, InventoryScreen.CONTEXT_THROWER: robot}
+	)
+	var cells: Array[InventorySlotView] = _cells()
+	cells[1].pressed.emit()
+	assert_false(_use_button().disabled, "enabled on the battery")
+	cells[0].pressed.emit()
+	assert_true(_use_button().disabled, "disabled when the selection moves to a material")
+
+
+func test_r_012_25_use_key_translated() -> void:
+	var button: Button = _use_button()
+	assert_not_null(button, "%UseButton exists")
+	if button == null:
+		return
+	assert_eq(button.text, String(USE_KEY), "the button text is a translation key")
+	assert_ne(button.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "and it is translated")
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
+		if translations.size() == 1:
+			var text: String = translations[0].get_message(USE_KEY)
+			assert_ne(text, "", "'%s' has a text for %s" % [locale, USE_KEY])
+
+
+# --- Closing by tapping outside the panel (spec 012, R-012-46, plan D16) -------
+# Real mouse events are pushed to the viewport; the test runner's own panel is
+# hidden meanwhile so it does not catch them.
+
+func _push_tap(viewport_position: Vector2) -> void:
+	# The GUI places a control added this frame only on the next one.
+	await wait_process_frames(1)
+	var runner: CanvasLayer = get_tree().root.find_child("GutLayer", true, false) as CanvasLayer
+	if runner != null:
+		runner.visible = false
+	for pressed: bool in [true, false]:
+		var event: InputEventMouseButton = InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = viewport_position
+		event.global_position = viewport_position
+		get_viewport().push_input(event, true)
+	if runner != null:
+		runner.visible = true
+
+
+func _panel() -> Control:
+	return _screen.get_node("Center/Panel") as Control
+
+
+func test_r_012_46_closes_on_outside_tap() -> void:
+	_setup()
+	assert_true(_screen.closes_on_outside_tap, "this screen closes on an outside tap")
+	watch_signals(_screen)
+	await _push_tap(Vector2(8, 8))
+	assert_signal_emit_count(_screen, "back_requested", 1, "a tap outside the panel asks to go back once")
+
+
+func test_r_012_46_tap_inside_panel_does_not_close() -> void:
+	_setup()
+	watch_signals(_screen)
+	await wait_process_frames(1)
+	await _push_tap(_panel().get_global_rect().get_center())
+	assert_signal_not_emitted(_screen, "back_requested", "a tap on the panel is not outside")
+
+
+func test_r_012_46_panel_stops_the_mouse() -> void:
+	assert_eq(_panel().mouse_filter, Control.MOUSE_FILTER_STOP, "the panel stops the mouse")
+	assert_eq((_screen.get_node("Center") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "centring lets it through")
+	assert_eq((_screen.get_node("Backdrop") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "the backdrop too")

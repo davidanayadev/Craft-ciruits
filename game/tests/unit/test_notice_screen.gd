@@ -45,3 +45,16 @@ func test_r_010_55_key_is_translated() -> void:
 			if not text.is_empty():
 				break
 		assert_ne(text, "", "%s in %s" % [MESSAGE_KEY, locale])
+
+
+## Spec 012 (R-012-48): the notice stays open on a tap outside, as on "back".
+func test_r_012_48_not_closed_by_outside_tap() -> void:
+	_screen.setup({NoticeScreen.CONTEXT_MESSAGE: MESSAGE_KEY})
+	assert_false(_screen.closes_on_outside_tap, "the notice never closes on an outside tap")
+	watch_signals(_screen)
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	_screen._gui_input(click)
+	assert_signal_not_emitted(_screen, "back_requested", "a tap anywhere asks nothing")
+	assert_signal_not_emitted(_screen, "close_requested")

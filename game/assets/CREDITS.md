@@ -11,3 +11,4 @@ without a row here cannot ship (MVP budget: free CC0/CC assets only).
 | `textures/icons/items/basic_arms.svg` | Own work (placeholder made for spec 011) | CC0 1.0 |
 | `textures/icons/items/basic_legs.svg` | Own work (placeholder made for spec 011) | CC0 1.0 |
 | `textures/icons/items/basic_core.svg` | Own work (placeholder made for spec 011) | CC0 1.0 |
+| `textures/icons/items/portable_battery.svg` | Own work (placeholder made for spec 012) | CC0 1.0 |

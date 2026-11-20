@@ -316,11 +316,17 @@ func test_r_010_11_load_negative_is_rejected() -> void:
 	assert_signal_not_emitted(_battery, "battery_changed")
 
 
-func test_r_010_11_load_above_maximum_is_rejected() -> void:
+## Replaces test_r_010_11_load_above_maximum_is_rejected (plan 012 D11, §5.4):
+## the same final charge (the maximum) and the same push_error, now raised when
+## the pending charge is dropped without being applied.
+func test_r_012_14_above_without_bonus_reported_and_at_maximum() -> void:
 	_battery.from_save_data({"current": _battery.get_maximum() + 1.0})
-	assert_push_error("Battery")
-	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
+	assert_push_error_count(0, "not reported yet: a bonus may still come")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "at the maximum")
 	assert_signal_not_emitted(_battery, "battery_changed")
+	_battery.tick(0.0, LocomotionSystem.Gait.IDLE)
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _battery.get_maximum(), "still at the maximum")
 
 
 func test_r_010_11_load_missing_current_is_rejected() -> void:
@@ -335,3 +341,126 @@ func test_r_010_11_load_non_number_is_rejected() -> void:
 	assert_push_error("Battery")
 	assert_eq(_battery.get_current(), _battery.get_maximum(), "unchanged")
 	assert_signal_not_emitted(_battery, "battery_changed")
+
+
+# --- Maximum battery bonus (spec 012) ----------------------------------------
+# R-012-11 to R-012-14. The bonus value is made up: the real one is data of the
+# generator (test_structure_resources.gd).
+
+const BONUS := 20.0
+
+
+func test_r_012_11_maximum_with_bonus() -> void:
+	_battery.set_maximum_bonus(BONUS)
+	assert_eq(_battery.get_maximum(), _config.maximum + BONUS, "the maximum without bonus plus the bonus")
+	_battery.set_maximum_bonus(0.0)
+	assert_eq(_battery.get_maximum(), _config.maximum, "back without bonus")
+
+
+func test_r_012_11_negative_bonus_rejected() -> void:
+	_battery.set_maximum_bonus(-1.0)
+	assert_push_error("Battery")
+	assert_eq(_battery.get_maximum(), _config.maximum, "no change")
+	assert_signal_not_emitted(_battery, "battery_changed")
+
+
+func test_r_012_11_bonus_set_before_ready_kept() -> void:
+	var battery: BatteryComponent = BatteryComponent.new()
+	battery.config = _config
+	battery.legs = _legs
+	battery.set_maximum_bonus(BONUS)
+	add_child_autofree(battery)
+	assert_eq(battery.get_maximum(), _config.maximum + BONUS, "the bonus survives _ready()")
+
+
+func test_r_012_12_bonus_keeps_charge_emits_once() -> void:
+	_battery.consume(30.0)
+	var before: float = _battery.get_current()
+	clear_signal_watcher()
+	watch_signals(_battery)
+	_battery.set_maximum_bonus(BONUS)
+	assert_eq(_battery.get_current(), before, "the charge stays")
+	assert_signal_emit_count(_battery, "battery_changed", 1, "one change")
+	assert_signal_emitted_with_parameters(_battery, "battery_changed", [before, _config.maximum + BONUS])
+	_battery.set_maximum_bonus(BONUS)
+	assert_signal_emit_count(_battery, "battery_changed", 1, "the same bonus again changes nothing")
+
+
+func test_r_012_12_bonus_emits_no_fact() -> void:
+	_battery.consume(_config.maximum - 21.0)
+	clear_signal_watcher()
+	watch_signals(_battery)
+	_battery.set_maximum_bonus(BONUS)
+	assert_signal_not_emitted(_battery, "battery_low", "21 is below 24 % of 120 but nothing was consumed")
+	assert_signal_not_emitted(_battery, "battery_depleted")
+	_battery.set_maximum_bonus(0.0)
+	assert_signal_not_emitted(_battery, "battery_low")
+
+
+func test_r_012_12_bonus_removed_lowers_charge_above_it() -> void:
+	_battery.set_maximum_bonus(BONUS)
+	_battery.recharge_full()
+	clear_signal_watcher()
+	watch_signals(_battery)
+	_battery.set_maximum_bonus(0.0)
+	assert_eq(_battery.get_current(), _config.maximum, "lowered to the new maximum")
+	assert_signal_emit_count(_battery, "battery_changed", 1)
+
+
+func test_r_012_13_low_threshold_uses_new_maximum() -> void:
+	_battery.set_maximum_bonus(BONUS)
+	var threshold: float = (_config.maximum + BONUS) * _config.low_threshold_ratio
+	_battery.consume(_battery.get_current() - threshold - 0.5)
+	assert_signal_not_emitted(_battery, "battery_low", "still above the threshold of the new maximum")
+	_battery.consume(1.0)
+	assert_signal_emit_count(_battery, "battery_low", 1, "warned below the threshold of the new maximum")
+
+
+func test_r_012_13_recharge_full_to_new_maximum() -> void:
+	_battery.set_maximum_bonus(BONUS)
+	_battery.recharge_full()
+	assert_eq(_battery.get_current(), _config.maximum + BONUS, "a station fills to the new maximum")
+
+
+func test_r_012_14_charge_loaded_before_bonus() -> void:
+	var saved: float = _config.maximum + BONUS - 5.0
+	_battery.from_save_data({"current": saved})
+	assert_eq(_battery.get_current(), _config.maximum, "held at the maximum while the bonus is unknown")
+	_battery.set_maximum_bonus(BONUS)
+	assert_eq(_battery.get_current(), saved, "the saved charge once the bonus arrives")
+	assert_eq(_battery.get_maximum(), _config.maximum + BONUS)
+	assert_push_error_count(0, "nothing to report")
+	assert_signal_not_emitted(_battery, "battery_low")
+
+
+func test_r_012_14_bonus_before_charge() -> void:
+	_battery.set_maximum_bonus(BONUS)
+	var saved: float = _config.maximum + BONUS - 5.0
+	_battery.from_save_data({"current": saved})
+	assert_eq(_battery.get_current(), saved, "accepted up to the new maximum")
+	assert_push_error_count(0)
+
+
+func test_r_012_14_pending_dropped_by_other_change() -> void:
+	_battery.from_save_data({"current": _config.maximum + 10.0})
+	_battery.consume(1.0)
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _config.maximum - 1.0, "the pending charge is gone")
+	_battery.set_maximum_bonus(BONUS)
+	assert_eq(_battery.get_current(), _config.maximum - 1.0, "a later bonus does not bring it back")
+
+
+func test_r_012_14_pending_dropped_by_new_load() -> void:
+	_battery.from_save_data({"current": _config.maximum + 10.0})
+	_battery.from_save_data({"current": 50.0})
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), 50.0, "the new load wins")
+	_battery.set_maximum_bonus(BONUS)
+	assert_eq(_battery.get_current(), 50.0, "and the old one is never applied")
+
+
+func test_r_012_14_bonus_too_small_reports() -> void:
+	_battery.from_save_data({"current": _config.maximum + BONUS + 10.0})
+	_battery.set_maximum_bonus(BONUS)
+	assert_push_error("Battery")
+	assert_eq(_battery.get_current(), _config.maximum + BONUS, "at the new maximum")

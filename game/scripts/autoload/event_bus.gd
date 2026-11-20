@@ -45,3 +45,11 @@ signal item_crafted(recipe_id: StringName, player_uid: String)
 ## once per repair (spec 011); the save listens.
 @warning_ignore("unused_signal")
 signal piece_repaired(piece_uid: String, player_uid: String)
+## A player took batteries from a wind generator. Emitted by BaseStructures,
+## once per collection that moved any (spec 012); the save listens (R-012-44).
+@warning_ignore("unused_signal")
+signal batteries_collected(structure_uid: String, player_uid: String)
+## A player closed a chest's screen after its contents changed. Emitted by
+## StructureUseFlow (spec 012); the save listens (R-012-44).
+@warning_ignore("unused_signal")
+signal chest_closed(structure_uid: String, player_uid: String)

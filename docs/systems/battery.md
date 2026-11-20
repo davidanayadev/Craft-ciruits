@@ -1,7 +1,7 @@
 # Batería
 
 > La batería es la salud del robot: se gasta sola, al moverse y al recibir golpes, y al llegar a 0 el robot muere.
-> Specs: [003](../../specs/003-battery/spec.md), [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010 (guardado)
+> Specs: [003](../../specs/003-battery/spec.md), [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · [012](../../specs/012-wind-generator-chests/spec.md) · Última actualización: spec 012 (bonificación del generador)
 
 ## Piezas
 
@@ -48,8 +48,20 @@ MeleeAttackComponent.swing_started -> Robot -> consume
 
 `BatteryComponent` está en el grupo `persistent` con clave `battery` ([save.md](save.md)): guarda solo la carga actual; el
 máximo sale de la configuración. `from_save_data` emite `battery_changed` si la carga cambia, rearma el aviso de batería
-baja y nunca emite `battery_low` ni `battery_depleted` (cargar no es un hecho). Una carga `<= 0` o por encima del máximo es
-`push_error` y no cambia nada.
+baja y nunca emite `battery_low` ni `battery_depleted` (cargar no es un hecho). Una carga `<= 0` es `push_error` y no
+cambia nada. Una carga por encima del máximo (spec 012) carga en el máximo y queda **pendiente**; ver más abajo.
+
+### Bonificación del generador y carga pendiente (spec 012)
+
+1. `set_maximum_bonus(bonus)` fija el máximo en `config.maximum + bonus`. La carga se queda (baja solo si superara el
+   máximo), se emite una sola `battery_changed` si algo cambió y nunca `battery_low` ni `battery_depleted`: nada se
+   consumió. El aviso de batería baja se rearma como al cargar. Una bonificación negativa es `push_error`.
+2. Quien la llama es `Main` (`_wire_battery_bonus`), con `BaseStructures.max_battery_bonus_changed` y el valor actual
+   antes de cargar el Mundo ([wind_generator_chests.md](wind_generator_chests.md)).
+3. El umbral bajo, `recharge_full()` y la carga al reaparecer usan el máximo con bonificación.
+4. Para no depender del orden en que cargan los dueños `persistent`, una carga guardada por encima del máximo actual
+   se aplica en el máximo y se recuerda como pendiente. `set_maximum_bonus` la aplica si el nuevo máximo la admite. Cualquier
+   otro cambio de carga (`_set_current`) o un nuevo `from_save_data` la borra con `push_error` si no se aplicó.
 
 ## Datos
 
@@ -68,6 +80,8 @@ baja y nunca emite `battery_low` ni `battery_depleted` (cargar no es un hecho). 
 | `ProgressBar` en lugar de `TextureProgressBar` | Aún no hay texturas | [plan 003 §7](../../specs/003-battery/plan.md) |
 | Número entero redondeado hacia arriba en el HUD | Pregunta cerrada en nov 2026 | [spec 003](../../specs/003-battery/spec.md) (preguntas abiertas, nº 4) |
 | La muerte real sustituye al game over provisional | `GameOverScreen` y la recarga de escena se borraron | R-008-33, R-003-12 |
+| La bonificación del generador es un dato aplicado a la máxima, no se guarda | La spec 014 la suma a la del Core sin rehacerla | R-012-11, R-012-40 |
+| Carga guardada por encima de la máxima: pendiente, sin error todavía | Independiente del orden de carga y sin tocar `SaveManager` | [plan 012 D11](../../specs/012-wind-generator-chests/plan.md), R-012-14 |
 | El coste de ataque se descuenta en `Robot`, no en el componente de combate | Sin documentar (R-007-10 solo exige el coste por golpe) | R-007-10, [plan 007](../../specs/007-melee-combat/plan.md) |
 
 ## Relación con otros sistemas
@@ -75,14 +89,16 @@ baja y nunca emite `battery_low` ni `battery_depleted` (cargar no es un hecho). 
 - Usa [movement.md](movement.md): `LocomotionSystem.Gait` y `MovementStatsData.walk_drain`.
 - Lo usan [enemies.md](enemies.md) (el golpe llega por `Robot.receive_hit`, que llama `consume`) e [interaction.md](interaction.md)
   (un robot con batería agotada no interactúa).
+- `Robot.use_consumable` usa `add()` para las baterías portátiles ([wind_generator_chests.md](wind_generator_chests.md)).
 - Las pantallas (`Hud`, `TransferScreen`, `UIManager`) se describen en [ui.md](ui.md); la muerte, en [death.md](death.md). Datos en [data_catalog.md](data_catalog.md).
 
 ## Trampas y límites
 
 - `legs` se asigna a mano en el componente; el spec 014 lo sustituye por `StatsComponent`. El máximo también pasará al Core equipado.
-- No hay recarga en Estación de carga (specs 009 y 012) ni degradación de piezas (spec 014; `Robot.hit_received` es el punto de enganche).
+- La estación de carga recarga a la máxima con bonificación (spec 009). No hay degradación de piezas (spec 014; `Robot.hit_received` es el punto de enganche).
 - La batería al reaparecer sale de `RulesetData.respawn_battery_ratio`, no de `BatteryConfigData`.
 - `battery_low` no tiene oyentes todavía.
+- Un valor guardado absurdo (por ejemplo 1e9) se informa más tarde que antes: al borrar la pendiente, no al cargar.
 - Con la batería agotada `receive_hit()` no hace nada (R-006-18).
 
 ## Cómo extenderlo
@@ -95,7 +111,7 @@ baja y nunca emite `battery_low` ni `battery_depleted` (cargar no es un hecho). 
 
 | Archivo | Verifica |
 |---|---|
-| `tests/unit/test_battery_component.gd` | R-003-01..10, R-003-14: arranque, tasas, independencia de FPS, señales y su orden, clamp |
+| `tests/unit/test_battery_component.gd` | R-003-01..10, R-003-14: arranque, tasas, independencia de FPS, señales y su orden, clamp; R-012-11..14: máxima con bonificación, una sola señal, carga pendiente en cualquier orden |
 | `tests/unit/test_battery_resources.gd` | R-003-13: `.tres` coinciden con BALANCE |
 | `tests/unit/test_locomotion_system.gd` | `gait()` |
 | `tests/unit/test_hud.gd` | R-003-11: redondeo, sigue a `battery_changed`, sin polling |

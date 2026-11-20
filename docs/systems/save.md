@@ -3,7 +3,7 @@
 > `SaveManager` guarda y carga el estado en dos niveles: un Perfil que sobrevive a los mundos y un Mundo por partida.
 > Cada dueño de estado serializa solo lo suyo; el guardado no conoce ningún campo. `IStore` es el contrato de la tienda
 > (en el PMV, siempre la demo).
-> Specs: [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md) · Última actualización: spec 011
+> Specs: [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md) · Última actualización: spec 012
 
 ## Piezas
 
@@ -28,14 +28,14 @@
 **Dueños.** Todo nodo con estado guardable está en el grupo `persistent` y ofrece `get_save_key()`,
 `to_save_data()` y `from_save_data(data)` (por nombre, no hay interfaz). Hoy: `BatteryComponent`, `InventoryComponent`,
 `ExperienceComponent`, `LocationComponent` (bajo el robot); `DroppedItemSpawner`, `BaseStructures`, `ZoneMemory`
-(bajo `World`) y `GameManager` (contadores de visita). Cada uno documenta su formato en su página. Las ranuras del inventario y las pilas de un objeto caído llevan `durability` y `uid` por pila (spec 011).
+(bajo `World`) y `GameManager` (contadores de visita). Los cofres y generadores (spec 012) **no** están en el grupo: `BaseStructures` guarda su estado dentro de su parte, con las claves opcionales `chests` y `generators` por `uid`. Cada uno documenta su formato en su página. Las ranuras del inventario y las pilas de un objeto caído llevan `durability` y `uid` por pila (spec 011).
 
 **Ámbito.** Si el dueño cuelga de una entidad del grupo `Robot.PLAYER_GROUP`, su parte va en `players[player_uid]`;
 si no, en `world`. Dos dueños con la misma clave en un ámbito: `push_error` y el segundo no se guarda.
 
 **Guardar.**
 1. Un hecho pide guardar: `EventBus.zone_changed` hacia la base, `player_recharged`, `player_died`,
-   `structure_built`, `structure_moved`, `item_crafted`, `piece_repaired` (spec 011, los emite el banco, [crafting.md](crafting.md)), o crear el Mundo. Se llama `request_save(reason)`.
+   `structure_built`, `structure_moved`, `item_crafted`, `piece_repaired` (spec 011, los emite el banco, [crafting.md](crafting.md)), `batteries_collected` y `chest_closed` (spec 012, [wind_generator_chests.md](wind_generator_chests.md)), o crear el Mundo. Se llama `request_save(reason)`.
 2. `request_save` solo anota; se resuelve una vez al final del fotograma, todas las razones en un guardado con la
    primera. Con una retención (`hold_saves`) espera a que se suelte la última.
 3. `save_game` construye el documento (`SaveDocuments.build_world`), lo codifica (`SaveCodec`) y llama a
@@ -103,6 +103,8 @@ juego. Claves de traducción en `game/i18n/strings.csv`: `ERR_SAVE_FAILED`, `MSG
 | "Mundo nuevo" borra y recarga la escena | Sin menús, con `delete_save()` probado | plan 010 D12 |
 | Posición guardada como (`zone_id`, local) | Mundo de celdas acotadas | PMV §4.5 gancho 2, R-010-23 |
 | Crear y reparar guardan como construir (`item_crafted`, `piece_repaired`), en silencio | Mismo disparador que `structure_built` | R-011-28, [plan 011 D8](../../specs/011-crafting-repair/plan.md) |
+| Cofres y generadores se guardan dentro de la parte de `BaseStructures`, no como dueños `persistent` | Su carga depende de qué `uid` están colocados, sin depender del orden de carga | [plan 012 D5, D6](../../specs/012-wind-generator-chests/plan.md), R-012-39, R-012-42 |
+| Se guarda al recoger baterías y al cerrar un cofre con cambios; usar una batería y cerrar una caja de loot no | Pregunta cerrada de la spec | R-012-44 |
 | Un campo opcional nuevo, con valor por defecto que reproduce lo anterior, no sube `schema_version` | Un archivo viejo carga igual | [plan 011 D12](../../specs/011-crafting-repair/plan.md), [architecture §10.2](../../specs/architecture.md) |
 
 ## Relación con otros sistemas
@@ -123,7 +125,9 @@ Cada dueño documenta su formato: [battery.md](battery.md), [inventory.md](inven
   [plan 010 D13](../../specs/010-save-profile-world/plan.md).
 - El borrado conserva el Perfil; hall of fame, cosméticos y planos están vacíos en el PMV.
 - Sin menú, sin varios mundos y sin nombre de Mundo (queda vacío). Compra real: v1.1.
-- Todos los guardados son silenciosos salvo el de la estación de carga ([ui.md](ui.md)); crear y reparar también lo son.
+- Todos los guardados son silenciosos salvo el de la estación de carga ([ui.md](ui.md)); crear, reparar, recoger baterías y cerrar un cofre también lo son.
+- Una carga de batería por encima de la máxima base no es error al cargar (queda pendiente hasta que llegue la bonificación del generador); ver [battery.md](battery.md).
+- `StructureUseFlow` emite `chest_closed` también cuando un viaje o una muerte cierran la pantalla: el guardado espera la retención.
 
 ## Cómo extenderlo
 
@@ -143,4 +147,4 @@ el paso `migrate_vN_to_vN1` y su fixture. Un disparador nuevo: señal de hecho e
 | `tests/unit/test_notice_screen.gd`, `test_location_component.gd`, `test_item_stack.gd` | Aviso, ubicación, durabilidad y uid |
 | `tests/integration/test_save_contract.gd` | Todo dueño cumple el contrato y no repite claves |
 | `tests/integration/test_save_load.gd`, `test_save_triggers.gd`, `test_zone_memory.gd` | Bucle completo (una pieza sobrevive a cerrar y abrir), disparadores (también crear y reparar) y retenciones, memoria de zonas |
-| `tests/integration/test_save_fixtures.gd` | Archivos de ejemplo por versión |
+| `tests/integration/test_save_fixtures.gd` | Archivos de ejemplo por versión; un Mundo anterior a la 012 carga sin cambios |
