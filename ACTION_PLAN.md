@@ -331,47 +331,47 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 **Entregable**: banco de reparaciones funcional con UI de crafteo.
 
 ### Tarea 2.5: Generador eólico (mejora de batería + generación de baterías) (10h)
-- [ ] Crear escena `WindGenerator.tscn` (Area3D + MeshInstance):
-  - [ ] Modelo 3D: generador con aspas (animación de rotación)
-  - [ ] Huella 2x2 en la cuadrícula de la base (BALANCE.md §5.6)
-- [ ] Lógica de construcción:
-  - [ ] En banco de reparaciones: opción "Construir generador eólico"; se coloca en la cuadrícula (modo colocación, Tarea 2.8) como la estación (decisión nov 2026, spec 012)
-  - [ ] Coste: 5 chatarra + 3 cables + 2 hierro
-  - [ ] Límite: uno por base (BALANCE.md §5.2)
-  - [ ] Al construir:
-    - [ ] Restar materiales
-    - [ ] Activar efecto: +20 batería máxima
-    - [ ] Guardar estado en SaveManager
-- [ ] Lógica de generación de baterías:
-  - [ ] Timer: genera 1 batería portátil cada 4 horas
-  - [ ] Máximo 3 baterías almacenadas en el generador
-  - [ ] UI: mostrar baterías disponibles para recoger
-  - [ ] Interacción: botón "Recoger" para tomar baterías generadas
-  - [ ] Reloj con `ITimeService`: empieza vacío, cuenta con la app cerrada y no acumula tiempo con el máximo lleno (BALANCE.md §5.2)
-- [ ] Usar baterías portátiles (decisión nov 2026, spec 012): botón "Usar" en la pantalla de inventario y acción `use_consumable` (Q); +20 puntos sin pasar de la máxima (BALANCE.md §1.1). El botón de consumibles del HUD sigue en la Tarea 4.1
-- [ ] Test: generador aumenta batería máxima y genera baterías portátiles
+- [x] Crear escena `WindGenerator.tscn` (Area3D + MeshInstance):
+  - [x] Modelo 3D: generador con aspas (animación de rotación)
+  - [x] Huella 2x2 en la cuadrícula de la base (BALANCE.md §5.6)
+- [x] Lógica de construcción:
+  - [x] En banco de reparaciones: opción "Construir generador eólico"; se coloca en la cuadrícula (modo colocación, Tarea 2.8) como la estación (decisión nov 2026, spec 012)
+  - [x] Coste: 5 chatarra + 3 cables + 2 hierro
+  - [x] Límite: uno por base (BALANCE.md §5.2)
+  - [x] Al construir:
+    - [x] Restar materiales
+    - [x] Activar efecto: +20 batería máxima
+    - [x] Guardar estado en SaveManager
+- [x] Lógica de generación de baterías:
+  - [x] Timer: genera 1 batería portátil cada 4 horas
+  - [x] Máximo 3 baterías almacenadas en el generador
+  - [x] UI: mostrar baterías disponibles para recoger
+  - [x] Interacción: botón "Recoger" para tomar baterías generadas
+  - [x] Reloj con `ITimeService`: empieza vacío, cuenta con la app cerrada y no acumula tiempo con el máximo lleno (BALANCE.md §5.2)
+- [x] Usar baterías portátiles (decisión nov 2026, spec 012): botón "Usar" en la pantalla de inventario y acción `use_consumable` (Q); +20 puntos sin pasar de la máxima (BALANCE.md §1.1). El botón de consumibles del HUD sigue en la Tarea 4.1
+- [x] Test: generador aumenta batería máxima y genera baterías portátiles
 
 **Entregable**: generador eólico funcional con generación de baterías.
 
 ### Tarea 2.6: Cofres de almacenamiento (12h)
-- [ ] Crear escena `StorageChest.tscn` (Area3D + MeshInstance):
-  - [ ] Modelo 3D: caja metálica
-  - [ ] Interacción: botón "Abrir" cuando jugador está cerca
-- [ ] Lógica de cofre:
-  - [ ] Variables: `chest_id`, `items = []` (Array de 4 slots)
-  - [ ] Métodos: `add_item()`, `remove_item()`, `is_full()`
-- [ ] UI de cofre (popup):
-  - [ ] Grid 2x2 (4 slots)
-  - [ ] Mostrar icono + cantidad
-  - [ ] Botón "Transferir" (mover items entre cofre e inventario)
-  - [ ] Dividir y colocar pilas (decisión nov 2026, PMV.md §10): tocar una pila la selecciona, el selector de cantidad de la Tarea 1.5 elige cuántas unidades y tocar la ranura destino (del inventario o del cofre) las mueve ahí; se suman si es el mismo item y se intercambian si es otro. Reutiliza la regla de dividir de la spec 008
-- [ ] Construcción de cofres:
-  - [ ] En banco de reparaciones: opción "Construir cofre"
-  - [ ] Coste: 3 chatarra + 1 hierro
-  - [ ] Al construir: el jugador lo coloca en la cuadrícula de la base (modo colocación, Tarea 2.8)
-  - [ ] Límite: máximo 5 cofres en base (PMV simplificado)
-- [ ] Cajas de loot como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2). Desde que se abren, no solo vaciadas, y con "Coger todo" (decisión nov 2026, spec 012)
-- [ ] Test: construir cofres, guardar items, recuperar items
+- [x] Crear escena `StorageChest.tscn` (Area3D + MeshInstance):
+  - [x] Modelo 3D: caja metálica
+  - [x] Interacción: botón "Abrir" cuando jugador está cerca
+- [x] Lógica de cofre:
+  - [x] Variables: `chest_id`, `items = []` (Array de 4 slots). Hecho con un `InventoryComponent` por cofre en `StructureStates`, guardado por `uid` (spec 012, plan §7)
+  - [x] Métodos: `add_item()`, `remove_item()`, `is_full()`. Los da el `InventoryComponent` (`add`, `remove`, `move_to_slot`, `transfer_to`)
+- [x] UI de cofre (popup):
+  - [x] Grid 2x2 (4 slots)
+  - [x] Mostrar icono + cantidad
+  - [x] Botón "Transferir" (mover items entre cofre e inventario)
+  - [x] Dividir y colocar pilas (decisión nov 2026, PMV.md §10): tocar una pila la selecciona, el selector de cantidad de la Tarea 1.5 elige cuántas unidades y tocar la ranura destino (del inventario o del cofre) las mueve ahí; se suman si es el mismo item y se intercambian si es otro. Reutiliza la regla de dividir de la spec 008
+- [x] Construcción de cofres:
+  - [x] En banco de reparaciones: opción "Construir cofre"
+  - [x] Coste: 3 chatarra + 1 hierro
+  - [x] Al construir: el jugador lo coloca en la cuadrícula de la base (modo colocación, Tarea 2.8)
+  - [x] Límite: máximo 5 cofres en base (PMV simplificado)
+- [x] Cajas de loot como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2). Desde que se abren, no solo vaciadas, y con "Coger todo" (decisión nov 2026, spec 012)
+- [x] Test: construir cofres, guardar items, recuperar items
 
 **Entregable**: cofres funcionales con UI de almacenamiento.
 

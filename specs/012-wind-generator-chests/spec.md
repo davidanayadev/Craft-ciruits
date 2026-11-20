@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Aprobado (2026-11-19) |
+| **Estado** | Hecho (2026-11-20) |
 | **Tarea(s) ACTION_PLAN** | 2.5, 2.6 |
 | **Fuentes** | ACTION_PLAN.md Tareas 2.5, 2.6 (y 2.2, 2.3, 2.8, 4.1, 4.3, 4.4 para los límites) · PMV.md §2.1, §2.3, §2.4, §10 (cajas de loot, muerte y objetos caídos, base, guardado) · BALANCE.md §1.1, §1.3, §2, §2.1, §5.2, §5.4, §5.5, §5.6, §7.2 · SPECS.md §3 · architecture.md §3, §7, §8, §9.1, §9.2, §9.3, §9.5, §10.1, §10.2, §14 (pregunta 2) · Constitución P2, P3, P4, P5, P9, P10, P11, P13, P14 |
 | **Depende de** | 005 (`InventoryComponent`, `InventoryRules`, `UIManager`, pantalla de loot), 008 (selector de cantidad, `InventoryRules.split`, `ITimeService`), 009 (`StructureData`, `BuildGrid`, `BaseStructures`, modo colocación y edición), 010 (contrato `persistent`, `SaveManager`), 011 (pantalla del banco, piezas con `uid` y durabilidad) |
