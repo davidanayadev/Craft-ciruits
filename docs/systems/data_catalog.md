@@ -6,8 +6,8 @@
 > Specs: [004](../../specs/004-green-zone/spec.md), [005](../../specs/005-inventory/spec.md),
 > [006](../../specs/006-zombies/spec.md), [007](../../specs/007-melee-combat/spec.md),
 > [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md),
-> [011](../../specs/011-crafting-repair/spec.md) ·
-> Última actualización: spec 011
+> [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md) ·
+> Última actualización: spec 012
 
 ## Piezas
 
@@ -17,7 +17,8 @@
 | `DataRegistry` | autoload | `game/scripts/autoload/data_registry.gd` | Carga el catálogo al arrancar y devuelve datos por id |
 | `GameManager` | autoload | `game/scripts/autoload/game_manager.gd` | Estado del mundo: id, nombre, semilla y ruleset del Mundo en juego, contadores de visitas por zona, zona actual, el reloj (`ITimeService`) y la tienda (`IStore`) |
 | `DataCatalog` | Resource | `game/scripts/data/data_catalog.gd` | Lista explícita de `items`, `enemies`, `rulesets`, `zones`, `structures` y `recipes`, más `new_world_ruleset` y `repair_costs` (`RepairCostData`, spec 011); construye los índices |
-| Catálogo | `.tres` | `game/resources/data_catalog.tres` | La lista real: ítems, enemigos, el ruleset `normal`, las zonas (base y verde), la estación de carga y su receta, las tres piezas básicas (`PieceData`) y sus recetas |
+| Catálogo | `.tres` | `game/resources/data_catalog.tres` | La lista real: ítems (incluida la batería portátil, `ConsumableData`), enemigos, el ruleset `normal`, las zonas (base y verde), las estructuras (estación de carga, generador eólico `WindGeneratorData`, cofre `StorageChestData`), las tres piezas básicas (`PieceData`) y las recetas de todo ello |
+| Clases de dato de la spec 012 | Resources | `game/scripts/data/` | `WindGeneratorData` y `StorageChestData` (heredan de `StructureData`, que gana `max_count`), `ContainerConfigData` (capacidad de cofre y caja) y `ConsumableData` (hereda de `ItemData`, `battery_points`); ver [wind_generator_chests.md](wind_generator_chests.md) |
 | `ActionResult` | RefCounted | `game/scripts/data/action_result.gd` | `ok` + `error_key` (clave de traducción); define `ERR_INVALID_REQUEST` |
 
 ## Cómo funciona
@@ -54,7 +55,7 @@
    `structure_built(structure_uid)` (`BaseStructures`) y `player_recharged(player_uid)` (`ChargingStation`,
    [base.md](base.md)); de la 010, `structure_moved(structure_uid)` (`BaseStructures`) y `game_saved(reason)`
    (`SaveManager`, [save.md](save.md)); de la 011, `item_crafted(recipe_id, player_uid)` y
-   `piece_repaired(piece_uid, player_uid)` (`RepairBench`, [crafting.md](crafting.md)). No guarda variables (un test lo vigila).
+   `piece_repaired(piece_uid, player_uid)` (`RepairBench`, [crafting.md](crafting.md)); de la 012, `batteries_collected(structure_uid, player_uid)` (`BaseStructures`) y `chest_closed(structure_uid, player_uid)` (`StructureUseFlow`, [wind_generator_chests.md](wind_generator_chests.md)). No guarda variables (un test lo vigila).
 7. `ActionResult.success()` / `ActionResult.failure(key)` son los únicos constructores. La UI muestra
    `tr(error_key)`. Lo usan `InventoryComponent` ([inventory.md](inventory.md)) y `CraftingSystem` ([crafting.md](crafting.md)).
 
@@ -83,6 +84,7 @@ PMV §2.4 y BALANCE §1.1 ("Batería al reaparecer"). `new_world_ruleset` apunta
 | El ruleset de un Mundo nuevo sale del catálogo (`new_world_ruleset`) | Un solo origen, sin id escrito en código | R-010-19, [plan 010 §1.1 D8](../../specs/010-save-profile-world/plan.md) |
 | `IStore` se alcanza por `GameManager.get_store()` | Mismo patrón que el reloj | [plan 010 §1.1 D1](../../specs/010-save-profile-world/plan.md) |
 | El reloj lo crea y expone `GameManager` | Los servicios se alcanzan desde autoloads (con el contrato `ITimeService`) | [architecture §3](../../specs/architecture.md), plan 008 §1 |
+| Subclases de `StructureData` e `ItemData` en las mismas listas del catálogo, sin lista nueva | El tipo dice qué estado tiene (`as WindGeneratorData`) sin comparar ids; igual que `PieceData` en `items` | [plan 012 D2](../../specs/012-wind-generator-chests/plan.md) |
 | `ActionResult` único para todo el juego | Reglas testeables sin escena | [architecture §9.2](../../specs/architecture.md) |
 | Los autoloads no llevan `class_name` | Chocaría con el nombre del autoload | Comentarios de ambos scripts |
 
@@ -122,8 +124,8 @@ enemigo), [death.md](death.md) (ruleset, `player_died`, `player_respawned`, relo
 
 | Archivo | Verifica |
 |---|---|
-| `game/tests/unit/test_data_catalog.gd` | Ids únicos, catálogo completo, consulta por id, errores, ítems y enemigos según BALANCE; recetas con un único resultado, `WORKBENCH`/tier 1; tramos de reparación |
+| `game/tests/unit/test_data_catalog.gd` | Ids únicos, catálogo completo (con la batería portátil), consulta por id, errores, ítems y enemigos según BALANCE; recetas con un único resultado, `WORKBENCH`/tier 1; tramos de reparación |
 | `game/tests/unit/test_game_manager.gd` | `begin_world`, contadores de visitas, guardado, solo estado del mundo, reloj, tienda |
-| `game/tests/unit/test_event_bus.gd` | Firmas de `enemy_killed`, `player_died`, `player_respawned`, `zone_changed`, `structure_built`, `structure_moved`, `game_saved`, `player_recharged`, `item_crafted`, `piece_repaired`; el bus no guarda estado |
+| `game/tests/unit/test_event_bus.gd` | Firmas de `enemy_killed`, `player_died`, `player_respawned`, `zone_changed`, `structure_built`, `structure_moved`, `game_saved`, `player_recharged`, `item_crafted`, `piece_repaired`, `batteries_collected`, `chest_closed`; el bus no guarda estado |
 | `game/tests/unit/test_action_result.gd` | `success` y `failure`, y su uso desde el inventario |
 | `game/tests/unit/test_project_settings.gd` | Autoloads registrados (`SaveManager` tras `GameManager`) |
