@@ -1415,3 +1415,103 @@ func test_r_011_19_repair_without_costs_rejected() -> void:
 	if piece != null:
 		assert_eq(piece.durability, 40, "no change")
 	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+# --- Moving stacks between two inventories (spec 012) -------------------------
+# R-012-32 (component side) and R-012-34.
+
+var _changes: Array[String] = []
+
+
+func _recorded(inventory: InventoryComponent, label: String) -> InventoryComponent:
+	inventory.name = label
+	inventory.inventory_changed.connect(func() -> void: _changes.append(label))
+	return inventory
+
+
+func test_r_012_32_move_between_two_one_signal_each() -> void:
+	_changes.clear()
+	var chest: InventoryComponent = _recorded(_new_inventory(2), "chest")
+	var robot: InventoryComponent = _recorded(_new_inventory(2), "robot")
+	_fill(chest, &"scrap", 7)
+	_changes.clear()
+	assert_true(chest.move_to_slot(0, robot, 1, 3).ok, "placed in the robot's slot 1")
+	assert_eq(_quantities(chest), [4, 0] as Array[int], "the chest keeps the rest")
+	assert_eq(_quantities(robot), [0, 3] as Array[int], "the chosen slot")
+	assert_eq(_changes, ["chest", "robot"] as Array[String], "one signal each, the origin first")
+	_changes.clear()
+	assert_true(robot.transfer_to(chest, 1, 3).ok, "transferred back")
+	assert_eq(_quantities(chest), [7, 0] as Array[int], "into the stack of the same item")
+	assert_true(robot.is_empty(), "the robot gave it all")
+	assert_eq(_changes, ["robot", "chest"] as Array[String], "one signal each, the origin first")
+	_changes.clear()
+	assert_true(chest.move_to_slot(0, chest, 1, 2).ok, "within the same inventory")
+	assert_eq(_quantities(chest), [5, 2] as Array[int])
+	assert_eq(_changes, ["chest"] as Array[String], "one signal for one inventory")
+
+
+func test_r_012_32_move_writes_both_before_signalling() -> void:
+	var chest: InventoryComponent = _new_inventory(1)
+	var robot: InventoryComponent = _new_inventory(1)
+	_fill(chest, &"scrap", 4)
+	var seen: Array[int] = []
+	chest.inventory_changed.connect(func() -> void: seen.append_array(_quantities(robot)))
+	assert_true(chest.move_to_slot(0, robot, 0, 4).ok)
+	assert_eq(seen, [4] as Array[int], "the target is already written when the origin signals")
+
+
+func test_r_012_32_refusal_changes_nothing() -> void:
+	var chest: InventoryComponent = _new_inventory(2)
+	var robot: InventoryComponent = _new_inventory(1)
+	_fill(chest, &"scrap", 6)
+	_fill(robot, &"iron", 5)
+	watch_signals(chest)
+	watch_signals(robot)
+	assert_eq(chest.move_to_slot(0, robot, 0, 2).error_key, InventoryRules.ERR_PARTIAL_SWAP, "partial swap")
+	assert_eq(chest.transfer_to(robot, 0, 6).error_key, InventoryRules.ERR_NO_ROOM, "no room")
+	assert_eq(chest.move_to_slot(0, null, 0, 1).error_key, ActionResult.ERR_INVALID_REQUEST, "no target")
+	assert_eq(chest.transfer_to(null, 0, 1).error_key, ActionResult.ERR_INVALID_REQUEST, "no target")
+	assert_eq(chest.transfer_to(chest, 0, 1).error_key, ActionResult.ERR_INVALID_REQUEST, "never into itself")
+	assert_eq(chest.move_to_slot(5, robot, 0, 1).error_key, ActionResult.ERR_INVALID_REQUEST, "bad index")
+	assert_eq(chest.move_to_slot(0, robot, 0, 7).error_key, ActionResult.ERR_INVALID_REQUEST, "too many")
+	assert_eq(_quantities(chest), [6, 0] as Array[int], "the chest did not change")
+	assert_eq(_quantities(robot), [5] as Array[int], "the robot did not change")
+	assert_signal_emit_count(chest, "inventory_changed", 0)
+	assert_signal_emit_count(robot, "inventory_changed", 0)
+	assert_signal_emit_count(robot, "overflowed", 0)
+	assert_push_error_count(5)
+
+
+func test_r_012_32_item_unknown_to_the_target_rejected() -> void:
+	var chest: InventoryComponent = _new_inventory(1)
+	_fill(chest, &"scrap", 3)
+	var other_catalog: DataCatalog = DataCatalog.new()
+	other_catalog.items.append(_item(&"iron", 5))
+	var stranger: InventoryComponent = InventoryComponent.new()
+	stranger.catalog = other_catalog
+	add_child_autofree(stranger)
+	assert_true(stranger.set_slot_count(1).ok)
+	assert_eq(chest.move_to_slot(0, stranger, 0, 3).error_key, ActionResult.ERR_INVALID_REQUEST)
+	assert_eq(chest.transfer_to(stranger, 0, 3).error_key, ActionResult.ERR_INVALID_REQUEST)
+	assert_eq(_quantities(chest), [3] as Array[int], "no change")
+	assert_true(stranger.is_empty(), "nothing entered")
+	assert_push_error_count(2)
+
+
+func test_r_012_34_transfer_keeps_piece() -> void:
+	_with_pieces()
+	var chest: InventoryComponent = _new_inventory(2)
+	var robot: InventoryComponent = _new_inventory(2)
+	_give_piece(chest, 40, "u1")
+	_give_piece(robot, 70, "u2")
+	assert_true(chest.move_to_slot(0, robot, 0, 1).ok, "a piece onto a piece swaps")
+	var swapped: ItemStack = _find_uid(chest, "u2")
+	assert_not_null(swapped, "the other piece came to the chest")
+	if swapped != null:
+		assert_eq(swapped.durability, 70, "durability kept")
+	assert_true(robot.transfer_to(chest, 0, 1).ok, "transferred to the free slot")
+	var moved: ItemStack = _find_uid(chest, "u1")
+	assert_not_null(moved, "the piece arrived with its uid")
+	if moved != null:
+		assert_eq(moved.durability, 40, "durability kept")
+	assert_true(robot.is_empty(), "the robot gave it")

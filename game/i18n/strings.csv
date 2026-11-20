@@ -6,13 +6,19 @@ ITEM_IRON,Iron,Hierro
 ITEM_BASIC_ARMS,Basic arms,Brazos básicos
 ITEM_BASIC_LEGS,Basic legs,Piernas básicas
 ITEM_BASIC_CORE,Basic core,Core básico
+ITEM_PORTABLE_BATTERY,Portable battery,Batería portátil
 PROMPT_OPEN,Open,Abrir
 ERR_INVALID_REQUEST,Invalid request,Petición no válida
 ERR_NOT_ENOUGH_ITEMS,Not enough items,No hay suficientes objetos
 MSG_INVENTORY_FULL,Inventory full,Inventario lleno
 INVENTORY_TITLE,Inventory,Inventario
 LOOT_TITLE,Loot,Botín
-LOOT_TAKE_ALL,Take all,Coger todo
+CHEST_TITLE,Chest,Cofre
+CONTAINER_TRANSFER,Transfer,Transferir
+CONTAINER_TAKE_ALL,Take all,Coger todo
+ERR_PARTIAL_SWAP,Choose the whole stack to swap,Elige la pila entera para intercambiar
+ERR_SLOT_FULL,That slot is full,Esa ranura está llena
+ERR_NO_ROOM,No room on the other side,No hay sitio en el otro lado
 HUD_STORAGE,Storage,Almacén
 ENEMY_ZOMBIE_SLOW,Slow zombie,Zombie lento
 ENEMY_ZOMBIE_FAST,Fast zombie,Zombie rápido
@@ -20,6 +26,9 @@ HUD_ATTACK,Attack,Atacar
 PROMPT_PICK_UP,Pick up,Recoger
 TRANSFER_TITLE,Consciousness Transfer,Transferencia de Consciencia
 INVENTORY_THROW,Drop,Tirar
+INVENTORY_USE,Use,Usar
+ERR_BATTERY_FULL,Battery already full,La batería ya está llena
+ERR_NO_PORTABLE_BATTERY,No portable batteries,No tienes baterías portátiles
 PROMPT_TRAVEL,Travel,Viajar
 PROMPT_RECHARGE,Recharge,Recargar
 PROMPT_USE,Use,Usar
@@ -28,9 +37,17 @@ BUILD_TITLE,Build,Construir
 BUILD_BUTTON,Build,Construir
 BUILD_COST_ENTRY,%s x%d,%s x%d
 STRUCTURE_CHARGING_STATION,Charging station,Estación de carga
+STRUCTURE_WIND_GENERATOR,Wind generator,Generador eólico
+STRUCTURE_STORAGE_CHEST,Storage chest,Cofre
 ERR_NOT_ENOUGH_MATERIALS,Not enough materials,Faltan materiales
 ERR_INVALID_PLACEMENT,It does not fit here,No cabe aquí
 MSG_BASE_FULL,No room left in the base,No queda sitio en la base
+MSG_STRUCTURE_LIMIT,Limit reached,Límite alcanzado
+PROMPT_COLLECT,Collect,Recoger
+GENERATOR_STORED,Batteries %d/%d,Baterías %d/%d
+GENERATOR_NEXT,Next in %s,Siguiente en %s
+GENERATOR_FULL,Full,Lleno
+MSG_GENERATOR_EMPTY,"No batteries yet, next in %s","Aún no hay baterías, siguiente en %s"
 BENCH_TITLE,Repair bench,Banco de reparaciones
 CRAFT_TITLE,Create,Crear
 REPAIR_TITLE,Repair,Reparar

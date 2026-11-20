@@ -12,6 +12,8 @@ extends GutTest
 ## Spec 009: an "Edit base" button, hidden unless the base is loaded, that
 ## emits edit_base_pressed (R-009-59); the interact button also hides while a
 ## travel or a death blocks the robot (R-009-07).
+## Spec 012: use_refused shows its notice (R-012-24); show_notice with arguments
+## shows tr(key) % args (D18, R-012-18).
 
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -426,3 +428,61 @@ func test_r_010_62_save_notice_keys_translated() -> void:
 				if not text.is_empty():
 					break
 			assert_ne(text, "", "%s in %s" % [key, locale])
+
+
+func test_r_012_24_shows_use_refused() -> void:
+	_hud.bind(_robot)
+	assert_false(_message_label.visible, "no message at the start")
+	_robot.use_refused.emit(ConsumableRules.ERR_BATTERY_FULL)
+	assert_true(_message_label.visible, "the refusal shows")
+	assert_true(
+		_message_label.text in [String(ConsumableRules.ERR_BATTERY_FULL), tr(ConsumableRules.ERR_BATTERY_FULL)],
+		"the text is the key or its translation"
+	)
+	assert_false(_message_timer.is_stopped(), "on the shared message timer")
+	_robot.use_refused.emit(ConsumableRules.ERR_NO_PORTABLE_BATTERY)
+	assert_true(
+		_message_label.text
+		in [
+			String(ConsumableRules.ERR_NO_PORTABLE_BATTERY),
+			tr(ConsumableRules.ERR_NO_PORTABLE_BATTERY),
+		],
+		"a new refusal replaces the showing one"
+	)
+	_message_timer.timeout.emit()
+	assert_false(_message_label.visible, "it hides when the timer ends")
+
+
+func test_r_012_24_use_refused_from_a_real_refusal() -> void:
+	_hud.bind(_robot)
+	_robot.request_use_consumable()
+	assert_true(_message_label.visible, "no portable battery shows a notice")
+
+
+func test_r_012_24_use_refused_keys_translated() -> void:
+	for locale: String in SUPPORTED_LOCALES:
+		for key: StringName in [
+			ConsumableRules.ERR_BATTERY_FULL,
+			ConsumableRules.ERR_NO_PORTABLE_BATTERY,
+		]:
+			var text: String = ""
+			for translation: Translation in TranslationServer.find_translations(locale, true):
+				text = translation.get_message(key)
+				if not text.is_empty():
+					break
+			assert_ne(text, "", "%s in %s" % [key, locale])
+
+
+func test_r_012_20_notice_with_arguments_formats_the_translation() -> void:
+	var args: Array = [3, 5]
+	_hud.show_notice(&"GENERATOR_STORED", args)
+	assert_true(_message_label.visible, "the notice shows")
+	assert_eq(_message_label.text, tr(&"GENERATOR_STORED") % args, "tr(key) % args")
+	assert_false(_message_timer.is_stopped(), "on the shared timer")
+	_hud.show_notice(&"GENERATOR_STORED", [1, 5])
+	assert_eq(_message_label.text, tr(&"GENERATOR_STORED") % [1, 5], "a new notice replaces it")
+
+
+func test_r_012_20_notice_without_arguments_unchanged() -> void:
+	_hud.show_notice(SaveManager.ERR_SAVE_FAILED)
+	assert_eq(_message_label.text, String(SaveManager.ERR_SAVE_FAILED), "no args: the key, as before")

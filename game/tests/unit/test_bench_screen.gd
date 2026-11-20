@@ -178,7 +178,11 @@ func test_r_011_21_missing_context_reports_error() -> void:
 
 func test_r_009_64_lists_recipes_with_name_and_cost() -> void:
 	_setup()
-	assert_eq(_entries_of("BuildSection").size(), 1, "one structure recipe at the bench")
+	var structure_recipes: int = 0
+	for recipe: RecipeData in DataRegistry.get_catalog().get_recipes():
+		if recipe.result_structure != null:
+			structure_recipes += 1
+	assert_eq(_entries_of("BuildSection").size(), structure_recipes, "one entry per structure recipe (R-012-07)")
 	assert_not_null(_entry(), "the charging station is listed")
 	if _entry() == null:
 		return
@@ -406,3 +410,123 @@ func test_r_011_27_texts_are_keys_es_en() -> void:
 
 func _index_of(piece_uid: String) -> int:
 	return InventoryRules.index_of_uid(_robot.inventory.get_slots(), piece_uid)
+
+
+# --- Wind generator and chests (spec 012) -------------------------------------
+# R-012-07 (the bench lists them) and R-012-08 (limit reached disables Build).
+
+const NEW_STRUCTURE_IDS: Array[StringName] = [&"wind_generator", &"storage_chest"]
+
+
+func _build_entry(recipe_id: StringName) -> Node:
+	return _section("BuildSection").get_node_or_null(String(recipe_id))
+
+
+## Loads placed structures straight into BaseStructures: count of structure_id
+## on cells of the first rows (no base is bound in these tests).
+func _load_placed(structure_id: StringName, count: int) -> void:
+	var placed: Array = []
+	for i: int in count:
+		placed.append({
+			"uid": "%032d" % i,
+			"structure_id": String(structure_id),
+			"zone_id": SaveFields.vector2i_to_array(DataRegistry.get_base_zone().zone_id),
+			"cell": [i * 2, 3],
+		})
+	assert_true(_structures.load_data(placed).ok, "test setup: %d x %s placed" % [count, structure_id])
+
+
+func test_r_012_07_build_lists_generator_and_chest() -> void:
+	_setup()
+	for id: StringName in NEW_STRUCTURE_IDS:
+		var entry: Node = _build_entry(id)
+		assert_not_null(entry, "%s is listed in Build" % id)
+		if entry == null:
+			continue
+		var recipe: RecipeData = DataRegistry.get_recipe(id)
+		assert_eq(_label(entry, "Name").text, String(recipe.result_structure.name_key), "its name, as a key")
+		assert_eq(_label(entry, "Cost").text, _cost_text(CraftingSystem.cost_of(recipe)), "its cost")
+	assert_true(_has_text("en", &"STRUCTURE_WIND_GENERATOR") and _has_text("es", &"STRUCTURE_STORAGE_CHEST"))
+
+
+func test_r_012_08_limit_disables_build_with_notice() -> void:
+	for id: StringName in NEW_STRUCTURE_IDS:
+		_give_cost(DataRegistry.get_recipe(id))
+	_load_placed(&"storage_chest", 5)
+	_setup()
+	var chest: Node = _build_entry(&"storage_chest")
+	assert_true(_button(chest).disabled, "five chests: disabled")
+	assert_true(_notice(chest).visible, "with a notice")
+	assert_eq(_notice(chest).text, String(BaseStructures.MSG_STRUCTURE_LIMIT), "the limit key")
+	assert_false(_button(_build_entry(&"wind_generator")).disabled, "the generator can still be built")
+	watch_signals(_robot)
+	_button(chest).pressed.emit()
+	assert_signal_not_emitted(_robot, "build_requested", "a limited entry asks for nothing")
+
+
+func test_r_012_08_one_generator_is_the_limit() -> void:
+	_give_cost(DataRegistry.get_recipe(&"wind_generator"))
+	_load_placed(&"wind_generator", 1)
+	_setup()
+	var generator: Node = _build_entry(&"wind_generator")
+	assert_true(_button(generator).disabled, "one generator: disabled")
+	assert_eq(_notice(generator).text, String(BaseStructures.MSG_STRUCTURE_LIMIT), "the limit key")
+	assert_true(_has_text("en", BaseStructures.MSG_STRUCTURE_LIMIT), "translated in EN")
+	assert_true(_has_text("es", BaseStructures.MSG_STRUCTURE_LIMIT), "translated in ES")
+
+
+func test_r_012_08_limit_checked_before_materials() -> void:
+	_load_placed(&"wind_generator", 1)
+	_setup()
+	assert_eq(
+		_notice(_build_entry(&"wind_generator")).text,
+		String(BaseStructures.MSG_STRUCTURE_LIMIT),
+		"the limit is told before the missing materials"
+	)
+
+
+# --- Closing by tapping outside the panel (spec 012, R-012-46, plan D16) -------
+# Real mouse events are pushed to the viewport; the test runner's own panel is
+# hidden meanwhile so it does not catch them.
+
+func _push_tap(viewport_position: Vector2) -> void:
+	# The GUI places a control added this frame only on the next one.
+	await wait_process_frames(1)
+	var runner: CanvasLayer = get_tree().root.find_child("GutLayer", true, false) as CanvasLayer
+	if runner != null:
+		runner.visible = false
+	for pressed: bool in [true, false]:
+		var event: InputEventMouseButton = InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = viewport_position
+		event.global_position = viewport_position
+		get_viewport().push_input(event, true)
+	if runner != null:
+		runner.visible = true
+
+
+func _panel() -> Control:
+	return _screen.get_node("Center/Panel") as Control
+
+
+func test_r_012_46_closes_on_outside_tap() -> void:
+	_setup()
+	assert_true(_screen.closes_on_outside_tap, "this screen closes on an outside tap")
+	watch_signals(_screen)
+	await _push_tap(Vector2(8, 8))
+	assert_signal_emit_count(_screen, "back_requested", 1, "a tap outside the panel asks to go back once")
+
+
+func test_r_012_46_tap_inside_panel_does_not_close() -> void:
+	_setup()
+	watch_signals(_screen)
+	await wait_process_frames(1)
+	await _push_tap(_panel().get_global_rect().get_center())
+	assert_signal_not_emitted(_screen, "back_requested", "a tap on the panel is not outside")
+
+
+func test_r_012_46_panel_stops_the_mouse() -> void:
+	assert_eq(_panel().mouse_filter, Control.MOUSE_FILTER_STOP, "the panel stops the mouse")
+	assert_eq((_screen.get_node("Center") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "centring lets it through")
+	assert_eq((_screen.get_node("Backdrop") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "the backdrop too")

@@ -4,7 +4,8 @@ extends VBoxContainer
 ## per structure recipe of the workbench, with its name, its cost and a
 ## "Build" button (R-009-64). The button is disabled with a notice when the
 ## player cannot pay (R-009-39) or the structure fits nowhere in the base
-## (R-009-38). Picking a recipe is announced; nothing is charged until it is
+## (R-009-38), and before both when the base holds the most of that
+## structure (spec 012, R-012-08). Picking a recipe is announced; nothing is charged until it is
 ## placed (R-009-65).
 
 ## The player picked recipe; the screen closes and asks the player to build it.
@@ -34,6 +35,8 @@ func refresh() -> void:
 
 ## The reason the recipe cannot be built now; &"" when it can.
 func blocking_reason(recipe: RecipeData) -> StringName:
+	if _structures.is_at_limit(recipe.result_structure):
+		return BaseStructures.MSG_STRUCTURE_LIMIT
 	if not CraftingSystem.can_pay(_player.inventory.get_slots(), recipe):
 		return CraftingSystem.ERR_NOT_ENOUGH_MATERIALS
 	if not _structures.fits_anywhere(recipe.result_structure):

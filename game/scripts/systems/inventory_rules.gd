@@ -4,6 +4,13 @@ extends RefCounted
 ## Array[ItemStack] where null is an empty slot; the caller owns it and these
 ## functions change it in place. Items are told apart by id.
 
+## The target holds the same item with no room left (spec 012, R-012-29).
+const ERR_SLOT_FULL := &"ERR_SLOT_FULL"
+## A swap asked for only part of the origin stack (R-012-33).
+const ERR_PARTIAL_SWAP := &"ERR_PARTIAL_SWAP"
+## Nothing of a transfer fits on the other side (R-012-30).
+const ERR_NO_ROOM := &"ERR_NO_ROOM"
+
 
 ## Room for item: free room in its stacks below stack_max plus empty slots × stack_max.
 static func space_for(slots: Array[ItemStack], item: ItemData) -> int:
@@ -144,6 +151,83 @@ static func split(slots: Array[ItemStack], slot_index: int, quantity: int) -> It
 	var taken: ItemStack = stack.copy()
 	taken.quantity = quantity
 	return taken
+
+
+## Same id and neither has a uid: two pieces never merge (R-012-34). null on either side → false.
+static func can_merge(a: ItemStack, b: ItemStack) -> bool:
+	if a == null or b == null or a.item == null or b.item == null:
+		return false
+	return a.item.id == b.item.id and a.uid.is_empty() and b.uid.is_empty()
+
+
+## quantity of from[from_index] to to[to_index]; from and to may be the same array
+## (R-012-29). Empty target → placed; can_merge → added up to stack_max, the rest
+## stays in the origin (no room → ERR_SLOT_FULL); otherwise the whole stack swaps,
+## a part → ERR_PARTIAL_SWAP (R-012-33). Stacks keep durability and uid (R-012-34).
+## Index out of range, empty origin, quantity outside 1..its stack or the same slot
+## → push_error, ERR_INVALID_REQUEST. Any refusal changes nothing.
+static func move_to_slot(
+	from: Array[ItemStack], from_index: int, to: Array[ItemStack], to_index: int, quantity: int
+) -> ActionResult:
+	if not _is_valid_move(from, from_index, to, to_index, quantity):
+		push_error(
+			"InventoryRules: invalid move of %d from slot %d to slot %d." % [quantity, from_index, to_index]
+		)
+		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
+	var origin: ItemStack = from[from_index]
+	var target: ItemStack = to[to_index]
+	if target == null:
+		to[to_index] = split(from, from_index, quantity)
+		return ActionResult.success()
+	if can_merge(origin, target):
+		return _merge_into(from, from_index, target, quantity)
+	if quantity != origin.quantity:
+		return ActionResult.failure(ERR_PARTIAL_SWAP)
+	from[from_index] = target
+	to[to_index] = origin
+	return ActionResult.success()
+
+
+## quantity of from[from_index] into to as add_stack() does (same item first,
+## then empty slots), as much as fits; the rest stays in the origin (R-012-30).
+## Nothing fits → ERR_NO_ROOM, no change. from and to being the same array, an
+## empty origin or a quantity outside 1..its stack → push_error, ERR_INVALID_REQUEST.
+static func transfer(
+	from: Array[ItemStack], from_index: int, to: Array[ItemStack], quantity: int
+) -> ActionResult:
+	if is_same(from, to) or not can_split(from, from_index, quantity):
+		push_error(
+			"InventoryRules: invalid transfer of %d from slot %d." % [quantity, from_index]
+		)
+		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
+	var room: int = space_for(to, from[from_index].item)
+	if room <= 0:
+		return ActionResult.failure(ERR_NO_ROOM)
+	var leftover: int = add_stack(to, split(from, from_index, mini(quantity, room)))
+	assert(leftover == 0, "space_for() guarantees room for what leaves")
+	return ActionResult.success()
+
+
+static func _is_valid_move(
+	from: Array[ItemStack], from_index: int, to: Array[ItemStack], to_index: int, quantity: int
+) -> bool:
+	if to_index < 0 or to_index >= to.size():
+		return false
+	if is_same(from, to) and from_index == to_index:
+		return false
+	return can_split(from, from_index, quantity)
+
+
+## Adds as much of the origin as target has room for; the rest stays.
+static func _merge_into(
+	from: Array[ItemStack], from_index: int, target: ItemStack, quantity: int
+) -> ActionResult:
+	var moved: int = mini(quantity, target.item.stack_max - target.quantity)
+	if moved <= 0:
+		return ActionResult.failure(ERR_SLOT_FULL)
+	split(from, from_index, moved)
+	target.quantity += moved
+	return ActionResult.success()
 
 
 static func _fill_partial_stacks(slots: Array[ItemStack], item: ItemData, quantity: int) -> int:

@@ -1,0 +1,48 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/base/storage_chest.gd" id="1_chest"]
+[ext_resource type="Script" path="res://scripts/components/interactable_component.gd" id="2_interactable"]
+
+[sub_resource type="BoxShape3D" id="body_shape"]
+size = Vector3(0.9, 0.7, 0.7)
+
+[sub_resource type="StandardMaterial3D" id="body_material"]
+albedo_color = Color(0.45, 0.32, 0.2, 1)
+
+[sub_resource type="BoxMesh" id="body_mesh"]
+material = SubResource("body_material")
+size = Vector3(0.9, 0.6, 0.7)
+
+[sub_resource type="StandardMaterial3D" id="lid_material"]
+albedo_color = Color(0.36, 0.38, 0.42, 1)
+
+[sub_resource type="BoxMesh" id="lid_mesh"]
+material = SubResource("lid_material")
+size = Vector3(0.94, 0.12, 0.74)
+
+[sub_resource type="SphereShape3D" id="interactable_shape"]
+radius = 0.1
+
+[node name="StorageChest" type="StaticBody3D"]
+script = ExtResource("1_chest")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+shape = SubResource("body_shape")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+mesh = SubResource("body_mesh")
+
+[node name="Lid" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.66, 0)
+mesh = SubResource("lid_mesh")
+
+[node name="Interactable" type="Area3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+script = ExtResource("2_interactable")
+prompt_key = &"PROMPT_OPEN"
+
+[node name="InteractableShape" type="CollisionShape3D" parent="Interactable"]
+shape = SubResource("interactable_shape")

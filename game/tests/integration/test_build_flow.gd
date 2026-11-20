@@ -115,3 +115,38 @@ func test_r_009_59_edit_button_not_over_another_screen() -> void:
 	_edit_button().pressed.emit()
 	assert_false(_manager.is_open(PlacementScreen.SCREEN_ID), "no placement over the bench screen")
 	assert_true(_manager.is_open(BenchScreen.SCREEN_ID), "the bench screen stays")
+
+
+## Spec 012 (R-012-07): the generator and the chest are built like the
+## station: from the bench, placed in placement mode, paid on confirming,
+## announced with structure_built (which the save listens to, R-010-42).
+func test_r_012_07_build_generator_and_chest() -> void:
+	for path: String in ["res://resources/recipes/wind_generator.tres", "res://resources/recipes/storage_chest.tres"]:
+		var recipe: RecipeData = load(path) as RecipeData
+		var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+		for item_id: StringName in cost:
+			assert_true(_robot.inventory.add(item_id, cost[item_id]).ok, "test setup: %s" % item_id)
+		_use_bench(_robot)
+		var bench: Node = null
+		for child: Node in _manager.get_children():
+			if child is BenchScreen and not child.is_queued_for_deletion():
+				bench = child
+		assert_not_null(bench, "the bench screen is open")
+		if bench == null:
+			return
+		var entry: Node = bench.get_node("%BuildSection").get_node(String(recipe.id))
+		(entry.get_node("ActionButton") as Button).pressed.emit()
+		assert_true(_manager.is_open(PlacementScreen.SCREEN_ID), "%s: placement opens" % recipe.id)
+		assert_eq(_robot.inventory.count(&"scrap"), cost[&"scrap"], "%s: nothing charged yet" % recipe.id)
+		var placement: PlacementScreen = null
+		for child: Node in _manager.get_children():
+			if child is PlacementScreen and not child.is_queued_for_deletion():
+				placement = child
+		var cell: Vector2i = Vector2i(1, 2) if recipe.id == &"wind_generator" else Vector2i(0, 5)
+		placement.select_cell(cell)
+		watch_signals(EventBus)
+		assert_true(placement.confirm().ok, "%s: placed" % recipe.id)
+		assert_eq(_robot.inventory.count(&"scrap"), 0, "%s: paid on confirming" % recipe.id)
+		assert_signal_emitted(EventBus, "structure_built", "%s: announced" % recipe.id)
+		assert_ne(_structures.structure_at(cell), "", "%s: on its cell" % recipe.id)
+		_manager.close_all()

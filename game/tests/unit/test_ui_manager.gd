@@ -247,7 +247,7 @@ func test_real_catalog_lists_both_screens() -> void:
 	if catalog == null:
 		return
 	for screen_id: StringName in [
-		InventoryScreen.SCREEN_ID, LootScreen.SCREEN_ID, BenchScreen.SCREEN_ID, PlacementScreen.SCREEN_ID
+		InventoryScreen.SCREEN_ID, ContainerScreen.SCREEN_ID, BenchScreen.SCREEN_ID, PlacementScreen.SCREEN_ID
 	]:
 		assert_true(catalog.screens.has(screen_id), "'%s' is registered" % screen_id)
 		if not catalog.screens.has(screen_id):
@@ -305,3 +305,140 @@ func test_r_009_59_is_open_by_id() -> void:
 	assert_false(_manager.is_open(SCREEN_B), "B is not")
 	_manager.close_top()
 	assert_false(_manager.is_open(SCREEN_A), "closed")
+
+
+# --- Closing by tapping outside (spec 012) ------------------------------------
+# R-012-46, R-012-47 and the open()/closed contract of plan D15. Real mouse
+# events are pushed to the viewport; the test runner's own panel is hidden
+# meanwhile so it does not catch them.
+
+const SCREEN_TAP := &"tap_probe"
+const SCREEN_TAP_B := &"tap_probe_b"
+const PANEL_RECT := Rect2(Vector2(400, 300), Vector2(300, 200))
+const OUTSIDE := Vector2(40, 40)
+
+
+class MouseProbe:
+	extends Node
+
+	var presses: int = 0
+
+	func _unhandled_input(event: InputEvent) -> void:
+		var click: InputEventMouseButton = event as InputEventMouseButton
+		if click != null and click.pressed:
+			presses += 1
+
+
+## A full-screen probe with one panel that stops the mouse, like the real screens.
+func _new_tap_probe_scene(closes_on_outside_tap: bool) -> PackedScene:
+	var screen: ProbeScreen = ProbeScreen.new()
+	screen.closes_on_outside_tap = closes_on_outside_tap
+	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	screen.mouse_filter = Control.MOUSE_FILTER_STOP
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "Panel"
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.position = PANEL_RECT.position
+	panel.size = PANEL_RECT.size
+	screen.add_child(panel)
+	panel.owner = screen
+	return _new_probe_scene(screen)
+
+
+func _with_tap_probes() -> void:
+	_manager.catalog.screens[SCREEN_TAP] = _new_tap_probe_scene(true)
+	_manager.catalog.screens[SCREEN_TAP_B] = _new_tap_probe_scene(true)
+
+
+func _tap(viewport_position: Vector2) -> void:
+	var runner: CanvasLayer = get_tree().root.find_child("GutLayer", true, false) as CanvasLayer
+	if runner != null:
+		runner.visible = false
+	for pressed: bool in [true, false]:
+		var event: InputEventMouseButton = InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = viewport_position
+		event.global_position = viewport_position
+		get_viewport().push_input(event, true)
+	if runner != null:
+		runner.visible = true
+
+
+func test_r_012_46_open_returns_the_screen() -> void:
+	var screen: UIScreen = _manager.open(SCREEN_A)
+	assert_not_null(screen, "open() returns the screen it opened")
+	assert_same(screen, _open_screens()[0], "that very screen")
+	assert_null(_manager.open(SCREEN_A), "already open: null")
+	assert_null(_manager.open(&"nope"), "unknown id: null")
+	assert_push_error_count(2)
+
+
+func test_r_012_46_closed_on_every_path() -> void:
+	for path: String in ["request", "top", "back", "all"]:
+		var screen: UIScreen = _manager.open(SCREEN_A)
+		watch_signals(screen)
+		match path:
+			"request":
+				screen.close_requested.emit()
+			"top":
+				_manager.close_top()
+			"back":
+				_manager.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+			"all":
+				_manager.close_all()
+		assert_signal_emit_count(screen, "closed", 1, "closed once by %s" % path)
+		assert_eq((screen as ProbeScreen).closed_calls, 1, "after on_closed (%s)" % path)
+
+
+func test_r_012_46_off_by_default() -> void:
+	var plain: UIScreen = UIScreen.new()
+	assert_false(plain.closes_on_outside_tap, "a screen does not close on an outside tap unless it says so")
+	plain.free()
+	_manager.catalog.screens[SCREEN_TAP] = _new_tap_probe_scene(false)
+	var _screen: UIScreen = _manager.open(SCREEN_TAP)
+	_tap(OUTSIDE)
+	assert_true(_manager.is_open(SCREEN_TAP), "it stays open")
+
+
+func test_r_012_46_outside_tap_closes_top() -> void:
+	_with_tap_probes()
+	var screen: UIScreen = _manager.open(SCREEN_TAP)
+	watch_signals(screen)
+	_tap(PANEL_RECT.get_center())
+	assert_true(_manager.is_open(SCREEN_TAP), "a tap inside the panel does not close it")
+	_tap(OUTSIDE)
+	assert_signal_emit_count(screen, "back_requested", 1, "one tap, one request")
+	assert_false(_manager.is_open(SCREEN_TAP), "a tap outside the panel closes it")
+
+
+func test_r_012_46_outside_tap_goes_through_handle_back() -> void:
+	_with_tap_probes()
+	var screen: ProbeScreen = _manager.open(SCREEN_TAP) as ProbeScreen
+	screen.keeps_on_back = true
+	_tap(OUTSIDE)
+	assert_eq(screen.back_calls, 1, "the screen was asked, as with Escape")
+	assert_true(_manager.is_open(SCREEN_TAP), "and it kept itself open")
+
+
+func test_r_012_46_only_the_top_screen() -> void:
+	_with_tap_probes()
+	var bottom: UIScreen = _manager.open(SCREEN_TAP)
+	var top: UIScreen = _manager.open(SCREEN_TAP_B)
+	bottom.back_requested.emit()
+	assert_true(_manager.is_open(SCREEN_TAP), "a screen below is never closed by its own request")
+	assert_true(_manager.is_open(SCREEN_TAP_B), "nor the top one")
+	_tap(OUTSIDE)
+	assert_false(_manager.is_open(SCREEN_TAP_B), "the tap closes the top screen")
+	assert_true(_manager.is_open(SCREEN_TAP), "and only that one")
+	assert_false(top.is_inside_tree() and not top.is_queued_for_deletion(), "the top screen is gone")
+
+
+func test_r_012_47_outside_tap_is_accepted() -> void:
+	_with_tap_probes()
+	var probe: MouseProbe = MouseProbe.new()
+	add_child_autofree(probe)
+	var _screen: UIScreen = _manager.open(SCREEN_TAP)
+	_tap(OUTSIDE)
+	assert_false(_manager.is_open(SCREEN_TAP), "closed")
+	assert_eq(probe.presses, 0, "the press never reached the game")

@@ -154,3 +154,10 @@ func _assert_two_arg_signal(signal_name: String, names: Array[String], types: Ar
 func test_r_011_28_bench_event_signatures() -> void:
 	_assert_two_arg_signal("item_crafted", ["recipe_id", "player_uid"], [TYPE_STRING_NAME, TYPE_STRING])
 	_assert_two_arg_signal("piece_repaired", ["piece_uid", "player_uid"], [TYPE_STRING, TYPE_STRING])
+
+
+## Spec 012: batteries_collected(structure_uid, player_uid) and
+## chest_closed(structure_uid, player_uid), architecture §7; the save listens (R-012-44).
+func test_r_012_44_event_signatures() -> void:
+	_assert_two_arg_signal("batteries_collected", ["structure_uid", "player_uid"], [TYPE_STRING, TYPE_STRING])
+	_assert_two_arg_signal("chest_closed", ["structure_uid", "player_uid"], [TYPE_STRING, TYPE_STRING])

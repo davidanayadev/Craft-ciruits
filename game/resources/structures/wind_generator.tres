@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WindGeneratorData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wind_generator_data.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/base/wind_generator.tscn" id="2"]
+[ext_resource type="Resource" path="res://resources/items/portable_battery.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = &"wind_generator"
+name_key = &"STRUCTURE_WIND_GENERATOR"
+scene = ExtResource("2")
+footprint = Vector2i(2, 2)
+max_count = 1
+max_battery_bonus = 20.0
+seconds_per_battery = 14400
+max_stored = 3
+battery_item = ExtResource("3")

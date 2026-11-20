@@ -326,3 +326,243 @@ func test_r_010_31_failed_move_emits_nothing() -> void:
 	watch_signals(EventBus)
 	assert_false(_structures.move(_robot, uid, NO_CELL).ok, "an invalid cell is refused")
 	assert_signal_not_emitted(EventBus, "structure_moved", "nothing moved")
+
+
+# --- Wind generator and chests (spec 012) -------------------------------------
+# R-012-09 to R-012-11, R-012-16, R-012-18, R-012-20, R-012-39, R-012-41. Every
+# test uses a FakeTimeService (plan D21); none waits for real time.
+
+const GENERATOR_RECIPE_PATH := "res://resources/recipes/wind_generator.tres"
+const CHEST_RECIPE_PATH := "res://resources/recipes/storage_chest.tres"
+const START := 1_700_000_000
+## Five chest cells away from the generator's 2x2 at FREE_CELL and from OTHER_CELL.
+const CHEST_CELLS: Array[Vector2i] = [Vector2i(0, 5), Vector2i(1, 5), Vector2i(2, 5), Vector2i(0, 6), Vector2i(1, 6)]
+const SPARE_CELL := Vector2i(2, 6)
+
+var _clock: FakeTimeService
+
+
+func _use_fake_clock() -> void:
+	_clock = FakeTimeService.new()
+	_clock.now = START
+	_structures.time_service = _clock
+
+
+func _recipe_at(path: String) -> RecipeData:
+	return load(path) as RecipeData
+
+
+## Gives the robot the cost of recipe times times.
+func _give_cost(recipe: RecipeData, times: int = 1) -> void:
+	var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+	for item_id: StringName in cost:
+		assert_true(_robot.inventory.add(item_id, cost[item_id] * times).ok, "the robot holds %s" % item_id)
+
+
+func _build(path: String, cell: Vector2i) -> String:
+	var recipe: RecipeData = _recipe_at(path)
+	_give_cost(recipe)
+	var result: ActionResult = _structures.place(_robot, recipe, cell)
+	assert_true(result.ok, "%s placed on %s" % [recipe.id, cell])
+	return _structures.structure_at(cell)
+
+
+func test_r_012_09_place_over_limit_refused() -> void:
+	_use_fake_clock()
+	var generator: RecipeData = _recipe_at(GENERATOR_RECIPE_PATH)
+	var _first: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	assert_true(_structures.is_at_limit(generator.result_structure), "one generator is the limit")
+	assert_eq(_structures.count_of(&"wind_generator"), 1)
+	_give_cost(generator)
+	watch_signals(EventBus)
+	var result: ActionResult = _structures.place(_robot, generator, OTHER_CELL)
+	assert_false(result.ok, "a second generator is refused")
+	assert_eq(result.error_key, BaseStructures.MSG_STRUCTURE_LIMIT, "with the limit reason")
+	assert_eq(_structures.structure_at(OTHER_CELL), "", "no cell taken")
+	assert_eq(_robot.inventory.count(&"scrap"), CraftingSystem.cost_of(generator)[&"scrap"], "nothing charged")
+	assert_signal_not_emitted(EventBus, "structure_built")
+
+
+func test_r_012_09_five_chests_then_refused() -> void:
+	_use_fake_clock()
+	var chest: RecipeData = _recipe_at(CHEST_RECIPE_PATH)
+	for cell: Vector2i in CHEST_CELLS:
+		var _uid: String = _build(CHEST_RECIPE_PATH, cell)
+	assert_eq(_structures.count_of(&"storage_chest"), CHEST_CELLS.size())
+	assert_true(_structures.is_at_limit(chest.result_structure), "five chests is the limit")
+	_give_cost(chest)
+	assert_eq(_structures.place(_robot, chest, SPARE_CELL).error_key, BaseStructures.MSG_STRUCTURE_LIMIT)
+	var station: StructureData = _recipe.result_structure
+	assert_false(_structures.is_at_limit(station), "the station has no limit")
+
+
+func test_r_012_18_built_generator_starts_empty() -> void:
+	_use_fake_clock()
+	var uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var config: WindGeneratorData = _recipe_at(GENERATOR_RECIPE_PATH).result_structure as WindGeneratorData
+	assert_eq(_structures.seconds_to_next_battery(uid), config.seconds_per_battery, "its first period starts now")
+	_clock.now = START + config.seconds_per_battery
+	assert_eq(_structures.seconds_to_next_battery(uid), config.seconds_per_battery, "one made, the next one starts")
+
+
+func test_r_012_10_move_keeps_chest_and_generator_state() -> void:
+	_use_fake_clock()
+	var generator_uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var chest_uid: String = _build(CHEST_RECIPE_PATH, CHEST_CELLS[0])
+	var contents: InventoryComponent = _structures.get_chest_contents(chest_uid)
+	assert_true(contents.add(&"iron", 2).ok)
+	_clock.now = START + 600
+	var left: int = _structures.seconds_to_next_battery(generator_uid)
+	assert_true(_structures.move(_robot, generator_uid, OTHER_CELL).ok, "the generator moves")
+	assert_true(_structures.move(_robot, chest_uid, SPARE_CELL).ok, "the chest moves")
+	assert_same(_structures.get_chest_contents(chest_uid), contents, "the same contents")
+	assert_eq(contents.count(&"iron"), 2, "with what it held")
+	assert_eq(_structures.seconds_to_next_battery(generator_uid), left, "the generation goes on")
+
+
+func test_r_012_11_bonus_while_generator_placed() -> void:
+	_use_fake_clock()
+	watch_signals(_structures)
+	assert_eq(_structures.get_max_battery_bonus(), 0.0, "no generator, no bonus")
+	var _chest: String = _build(CHEST_RECIPE_PATH, CHEST_CELLS[0])
+	assert_signal_not_emitted(_structures, "max_battery_bonus_changed", "a chest gives no bonus")
+	var _generator: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var config: WindGeneratorData = _recipe_at(GENERATOR_RECIPE_PATH).result_structure as WindGeneratorData
+	assert_eq(_structures.get_max_battery_bonus(), config.max_battery_bonus, "the generator's bonus")
+	assert_signal_emit_count(_structures, "max_battery_bonus_changed", 1)
+	assert_signal_emitted_with_parameters(_structures, "max_battery_bonus_changed", [config.max_battery_bonus])
+
+
+func test_r_012_16_counts_while_base_unloaded() -> void:
+	_use_fake_clock()
+	var uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var config: WindGeneratorData = _recipe_at(GENERATOR_RECIPE_PATH).result_structure as WindGeneratorData
+	_structures.unbind_base()
+	_base.free()
+	_clock.now = START + 2 * config.seconds_per_battery
+	_base = BASE_SCENE.instantiate() as BaseZone
+	add_child_autofree(_base)
+	_structures.bind_base(_base)
+	assert_true(_structures.collect_batteries(_robot, uid).ok, "batteries made while the base was away")
+	assert_eq(_robot.inventory.count(config.battery_item.id), 2, "two periods, two batteries")
+
+
+func test_r_012_20_collect_request_emits_event() -> void:
+	_use_fake_clock()
+	var uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var config: WindGeneratorData = _recipe_at(GENERATOR_RECIPE_PATH).result_structure as WindGeneratorData
+	watch_signals(EventBus)
+	assert_eq(
+		_structures.collect_batteries(_robot, uid).error_key,
+		WindGeneratorComponent.MSG_GENERATOR_EMPTY,
+		"nothing made yet"
+	)
+	assert_signal_not_emitted(EventBus, "batteries_collected", "nothing moved")
+	_clock.now = START + config.seconds_per_battery
+	assert_true(_structures.collect_batteries(_robot, uid).ok, "one battery")
+	assert_signal_emit_count(EventBus, "batteries_collected", 1)
+	assert_signal_emitted_with_parameters(EventBus, "batteries_collected", [uid, _robot.player_uid])
+
+
+func test_r_012_20_collect_invalid_requests() -> void:
+	_use_fake_clock()
+	var chest_uid: String = _build(CHEST_RECIPE_PATH, CHEST_CELLS[0])
+	var generator_uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	assert_eq(_structures.collect_batteries(null, generator_uid).error_key, ActionResult.ERR_INVALID_REQUEST)
+	assert_eq(_structures.collect_batteries(_robot, chest_uid).error_key, ActionResult.ERR_INVALID_REQUEST)
+	assert_eq(_structures.collect_batteries(_robot, "nope").error_key, ActionResult.ERR_INVALID_REQUEST)
+	assert_push_error_count(3)
+
+
+func test_r_012_39_save_holds_chests_and_generators() -> void:
+	_use_fake_clock()
+	var generator_uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var chest_uid: String = _build(CHEST_RECIPE_PATH, CHEST_CELLS[0])
+	assert_true(_structures.get_chest_contents(chest_uid).add(&"scrap", 4).ok)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(_structures.to_save_data())) as Dictionary
+	assert_true(saved.has("chests"), "chests saved")
+	assert_true(saved.has("generators"), "generators saved")
+	var restored: BaseStructures = _new_loaded_structures()
+	restored.time_service = _clock
+	restored.from_save_data(saved)
+	assert_eq(restored.get_chest_contents(chest_uid).count(&"scrap"), 4, "the chest's contents")
+	assert_eq(
+		restored.seconds_to_next_battery(generator_uid),
+		_structures.seconds_to_next_battery(generator_uid),
+		"the generator's progress"
+	)
+	assert_eq(restored.to_save_data(), _structures.to_save_data(), "the same part")
+
+
+func test_r_012_43_station_only_part_unchanged() -> void:
+	_use_fake_clock()
+	_give_scrap(_cost())
+	assert_true(_place(FREE_CELL).ok)
+	assert_eq(_structures.to_save_data().keys(), ["placed"], "no chest nor generator: saved as spec 010")
+
+
+func test_r_012_41_load_emits_no_facts() -> void:
+	_use_fake_clock()
+	var _generator: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var _chest: String = _build(CHEST_RECIPE_PATH, CHEST_CELLS[0])
+	var saved: Dictionary = _structures.to_save_data()
+	var restored: BaseStructures = _new_loaded_structures()
+	restored.time_service = _clock
+	watch_signals(EventBus)
+	watch_signals(restored)
+	restored.from_save_data(saved)
+	assert_signal_not_emitted(EventBus, "structure_built", "loading builds nothing")
+	assert_signal_not_emitted(EventBus, "batteries_collected", "nor collects")
+	assert_signal_not_emitted(EventBus, "chest_closed", "nor closes a chest")
+	assert_signal_emit_count(restored, "max_battery_bonus_changed", 1, "only the state of the bonus")
+
+
+func _generator_instance() -> WindGenerator:
+	for node: Node in _instances():
+		var generator: WindGenerator = node as WindGenerator
+		if generator != null and not generator.is_queued_for_deletion():
+			return generator
+	return null
+
+
+func test_r_012_10_reload_with_base_loaded_rebinds_state() -> void:
+	_use_fake_clock()
+	var uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	var config: WindGeneratorData = _recipe_at(GENERATOR_RECIPE_PATH).result_structure as WindGeneratorData
+	_clock.now = START + 2 * config.seconds_per_battery
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(_structures.to_save_data())) as Dictionary
+	_structures.from_save_data(saved)
+	var generator: WindGenerator = _generator_instance()
+	assert_not_null(generator, "the generator stands again in the loaded base")
+	if generator == null:
+		return
+	var label: Label3D = generator.get_node("%Label") as Label3D
+	assert_string_contains(label.text, tr(&"GENERATOR_STORED") % [2, config.max_stored], false)
+	assert_true(_structures.collect_batteries(_robot, uid).ok)
+	assert_string_contains(
+		label.text, tr(&"GENERATOR_STORED") % [0, config.max_stored], false
+	)
+
+
+func test_r_012_27_chest_and_generator_uses_relayed() -> void:
+	_use_fake_clock()
+	var chest_uid: String = _build(CHEST_RECIPE_PATH, CHEST_CELLS[0])
+	var generator_uid: String = _build(GENERATOR_RECIPE_PATH, FREE_CELL)
+	watch_signals(_structures)
+	for node: Node in _instances():
+		var interactable: InteractableComponent = node.get_node_or_null("%Interactable") as InteractableComponent
+		if interactable != null and (node is StorageChest or node is WindGenerator):
+			interactable.interact(_robot)
+	assert_signal_emit_count(_structures, "structure_used", 2, "one use per structure")
+	var uses: Array = [
+		get_signal_parameters(_structures, "structure_used", 0), get_signal_parameters(_structures, "structure_used", 1)
+	]
+	var uids: Array[String] = []
+	for use: Variant in uses:
+		var parameters: Array = use
+		var used_uid: String = parameters[0]
+		uids.append(used_uid)
+	uids.sort()
+	var expected: Array[String] = [chest_uid, generator_uid]
+	expected.sort()
+	assert_eq(uids, expected, "each use names its structure")

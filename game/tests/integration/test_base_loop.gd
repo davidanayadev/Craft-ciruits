@@ -3,6 +3,9 @@ extends GutTest
 ## and Fase 2): start in the base, travel to the green zone, collect scrap,
 ## come back, build and place a charging station at the bench, recharge at it,
 ## move it, travel again and find it on its cell on returning.
+##
+## Spec 012: building the generator raises the robot's maximum (R-012-12) and
+## chests keep their contents through travel and death (R-012-36).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const TRAVEL_TIMEOUT_S := 10.0
@@ -138,3 +141,70 @@ func test_r_009_54_full_loop() -> void:
 			_structures.cell_to_world(DataRegistry.get_structure(&"charging_station"), MOVED_CELL),
 			"on its cell"
 		)
+
+
+# --- Spec 012 -----------------------------------------------------------------
+
+const BATTERY_CONFIG_PATH := "res://resources/battery/robot_battery.tres"
+const GENERATOR_RECIPE_PATH := "res://resources/recipes/wind_generator.tres"
+const CHEST_RECIPE_PATH := "res://resources/recipes/storage_chest.tres"
+const GENERATOR_CELL := Vector2i(1, 2)
+const CHEST_CELL := Vector2i(0, 5)
+const CHEST_IRON := 4
+const CONSUMED := 30.0
+
+
+func _build(recipe_path: String, cell: Vector2i) -> String:
+	var recipe: RecipeData = load(recipe_path) as RecipeData
+	var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+	for item_id: StringName in cost:
+		_robot.inventory.add(item_id, cost[item_id])
+	assert_true(_structures.place(_robot, recipe, cell).ok, "%s is placed" % recipe.id)
+	return _structures.structure_at(cell)
+
+
+func _die_and_respawn() -> void:
+	_robot.battery.consume(_robot.battery.get_current())
+	await wait_process_frames(2)
+	var transfer: TransferScreen = _main.get_node("%TransferScreen") as TransferScreen
+	transfer.advance(transfer.config.transfer_duration_s)
+	if _loader.is_travelling():
+		await wait_for_signal(_loader.travel_finished, TRAVEL_TIMEOUT_S)
+	await wait_process_frames(2)
+
+
+func test_r_012_12_building_generator_raises_robot_maximum() -> void:
+	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
+	var data: WindGeneratorData = (load(GENERATOR_RECIPE_PATH) as RecipeData).result_structure as WindGeneratorData
+	assert_eq(_robot.battery.get_maximum(), config.maximum, "the base maximum before building")
+	_robot.battery.consume(CONSUMED)
+	var charge: float = _robot.battery.get_current()
+	watch_signals(_robot.battery)
+	var _uid: String = _build(GENERATOR_RECIPE_PATH, GENERATOR_CELL)
+	assert_eq(_robot.battery.get_maximum(), config.maximum + data.max_battery_bonus, "the bonus is added")
+	assert_almost_eq(_robot.battery.get_current(), charge, 0.01, "the charge stays as it was")
+	assert_signal_emit_count(_robot.battery, "battery_changed", 1, "announced once")
+	var _station_uid: String = _build("res://resources/recipes/charging_station.tres", FIRST_CELL)
+	var base: BaseZone = _loader.get_current_zone() as BaseZone
+	var station: ChargingStation = null
+	for child: Node in base.get_structures_root().get_children():
+		if child is ChargingStation:
+			station = child as ChargingStation
+	assert_not_null(station, "the station stands in the base")
+	if station == null:
+		return
+	(station.get_node("%Interactable") as InteractableComponent).interact(_robot)
+	assert_eq(_robot.battery.get_current(), config.maximum + data.max_battery_bonus, "recharged to the new maximum")
+
+
+func test_r_012_36_chest_survives_travel_and_death() -> void:
+	var uid: String = _build(CHEST_RECIPE_PATH, CHEST_CELL)
+	assert_true(_structures.get_chest_contents(uid).add(&"iron", CHEST_IRON).ok, "iron left in the chest")
+	await _use_exit()
+	assert_true(_loader.get_current_zone() is FarmZone, "in the green zone")
+	await _use_exit()
+	assert_true(_loader.get_current_zone() is BaseZone, "back in the base")
+	assert_eq(_structures.get_chest_contents(uid).count(&"iron"), CHEST_IRON, "after the travel")
+	await _die_and_respawn()
+	assert_eq(_structures.get_chest_contents(uid).count(&"iron"), CHEST_IRON, "after dying in the base")
+	assert_eq(_structures.structure_at(CHEST_CELL), uid, "the chest is on its cell")

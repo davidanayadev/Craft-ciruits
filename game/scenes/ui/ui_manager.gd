@@ -3,7 +3,8 @@ extends Control
 ## Stack of pop-up screens (architecture §9.5). Screens are opened by id from
 ## the catalog and added on top as children. The pause action (Escape) and the
 ## Android back request go to the top one, which handles them itself
-## (UIScreen.handle_back, spec 009) or is closed. It never pauses the tree: whoever
+## (UIScreen.handle_back, spec 009) or is closed; a tap outside the top
+## screen's panel takes the same path (spec 012). It never pauses the tree: whoever
 ## listens to modal_state_changed decides what a screen blocks.
 
 ## Only when going from no screen to some, and back.
@@ -27,21 +28,24 @@ func _notification(what: int) -> void:
 		_back()
 
 
-## Unknown id or id already open → push_error, no change.
-func open(screen_id: StringName, context: Dictionary = {}) -> void:
+## The screen it opened (spec 012, plan D15); unknown id or id already open →
+## push_error, no change, null.
+func open(screen_id: StringName, context: Dictionary = {}) -> UIScreen:
 	if _screen_ids.has(screen_id):
 		push_error("UIManager: screen '%s' is already open." % screen_id)
-		return
+		return null
 	var screen: UIScreen = _instantiate(screen_id)
 	if screen == null:
-		return
+		return null
 	add_child(screen)
 	_screens.append(screen)
 	_screen_ids.append(screen_id)
 	screen.close_requested.connect(_close.bind(screen))
+	screen.back_requested.connect(_on_back_requested.bind(screen))
 	if _screens.size() == 1:
 		modal_state_changed.emit(true)
 	screen.setup(context)
+	return screen
 
 
 ## Nothing open → no-op.
@@ -71,6 +75,13 @@ func _back() -> void:
 	var top: UIScreen = _screens[_screens.size() - 1]
 	if not top.handle_back():
 		_close(top)
+
+
+## A tap outside the panel is "back", the same path as Escape, and only for
+## the screen on top (R-012-46).
+func _on_back_requested(screen: UIScreen) -> void:
+	if not _screens.is_empty() and _screens[_screens.size() - 1] == screen:
+		_back()
 
 
 func _instantiate(screen_id: StringName) -> UIScreen:
@@ -103,4 +114,5 @@ func _remove_at(index: int) -> void:
 	_screens.remove_at(index)
 	_screen_ids.remove_at(index)
 	screen.on_closed()
+	screen.closed.emit()
 	screen.queue_free()

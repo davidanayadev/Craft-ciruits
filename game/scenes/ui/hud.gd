@@ -61,15 +61,17 @@ func bind(player: Robot) -> void:
 	player.interactor.target_changed.connect(_on_target_changed)
 	_on_target_changed(player.interactor.get_target())
 	player.inventory.overflowed.connect(_on_inventory_overflowed)
+	player.use_refused.connect(_on_use_refused)
 	player.player_input.blocked_changed.connect(_on_input_blocked_changed)
 	_on_input_blocked_changed(player.player_input.is_input_blocked())
 
 
 ## Shows a translation key in the short message for its usual time (spec 005);
-## a new one replaces the one showing.
-func show_notice(message_key: StringName) -> void:
-	# A translation key: the label translates its own text.
-	_message_label.text = String(message_key)
+## a new one replaces the one showing. With args it shows tr(key) % args
+## (spec 012, plan D18), translated now.
+func show_notice(message_key: StringName, args: Array = []) -> void:
+	# Without args, a translation key: the label translates its own text.
+	_message_label.text = String(message_key) if args.is_empty() else tr(message_key) % args
 	_message_label.visible = true
 	_message_timer.start()
 
@@ -133,6 +135,12 @@ func _on_edit_base_button_pressed() -> void:
 
 func _on_inventory_overflowed(_leftovers: Array[ItemStack]) -> void:
 	show_notice(InventoryComponent.MSG_INVENTORY_FULL)
+
+
+## The HUD is drawn over the screens, so a refusal from the inventory's "Use"
+## button shows here too (spec 012, plan D19).
+func _on_use_refused(error_key: StringName) -> void:
+	show_notice(error_key)
 
 
 ## Only the save of a recharge is announced; the others are silent (R-010-62).

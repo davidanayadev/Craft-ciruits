@@ -235,6 +235,41 @@ func take_amount_from(
 	return _report_leftovers(leftovers)
 
 
+## InventoryRules.move_to_slot between these slots and target's (target == self
+## allowed, spec 012). The rule runs on copies and both sides are written before
+## any signal: one inventory_changed per inventory that changed, this one first.
+## No target, or an item the other side's catalog does not know → push_error,
+## ERR_INVALID_REQUEST, no change. Writing target's slots is a declared deviation
+## from architecture §3 rule 3 (plan 012 D12): the same class validates both sides.
+func move_to_slot(
+	from_index: int, target: InventoryComponent, to_index: int, quantity: int
+) -> ActionResult:
+	if not _is_valid_counterpart(target, from_index, to_index, "move_to_slot"):
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	var mine: Array[ItemStack] = _copies_of(_slots)
+	var theirs: Array[ItemStack] = mine if target == self else _copies_of(target._slots)
+	var result: ActionResult = InventoryRules.move_to_slot(mine, from_index, theirs, to_index, quantity)
+	if result.ok:
+		_commit_with(target, mine, theirs)
+	return result
+
+
+## InventoryRules.transfer into target (never self, spec 012, R-012-30). Same
+## signals and invalid requests as move_to_slot().
+func transfer_to(target: InventoryComponent, from_index: int, quantity: int) -> ActionResult:
+	if target == self:
+		push_error("InventoryComponent '%s': transfer_to() into itself." % name)
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	if not _is_valid_counterpart(target, from_index, -1, "transfer_to"):
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	var mine: Array[ItemStack] = _copies_of(_slots)
+	var theirs: Array[ItemStack] = _copies_of(target._slots)
+	var result: ActionResult = InventoryRules.transfer(mine, from_index, theirs, quantity)
+	if result.ok:
+		_commit_with(target, mine, theirs)
+	return result
+
+
 ## Pays the recipe and adds its result (CraftingSystem.create_result) in one
 ## step, one inventory_changed (R-011-13, R-011-15). No recipe, no result_item,
 ## a result_structure, or a result this catalog does not know → push_error,
@@ -379,6 +414,42 @@ func _settle_take(source: InventoryComponent, amounts: Array[int]) -> void:
 			% [name, source.name]
 		)
 	inventory_changed.emit()
+
+
+## A target exists and each side knows the item that may enter it: the stack in
+## from_index goes to target, the one in to_index (if any) may come back here.
+func _is_valid_counterpart(
+	target: InventoryComponent, from_index: int, to_index: int, action: String
+) -> bool:
+	if target == null:
+		push_error("InventoryComponent '%s': %s() got no target." % [name, action])
+		return false
+	var leaving: ItemStack = _slots[from_index] if from_index >= 0 and from_index < _slots.size() else null
+	var coming: ItemStack = null
+	if to_index >= 0 and to_index < target._slots.size():
+		coming = target._slots[to_index]
+	if (leaving != null and not target._knows(leaving.item.id)) or (coming != null and not _knows(coming.item.id)):
+		push_error("InventoryComponent '%s': %s() moves an item the other side does not know." % [name, action])
+		return false
+	return true
+
+
+## Writes the slots a move computed, each with its own catalog's items, then
+## signals this inventory and, when it is another one, target.
+func _commit_with(target: InventoryComponent, mine: Array[ItemStack], theirs: Array[ItemStack]) -> void:
+	_slots = _normalized(mine)
+	if target != self:
+		target._slots = target._normalized(theirs)
+	inventory_changed.emit()
+	if target != self:
+		target.inventory_changed.emit()
+
+
+func _normalized(stacks: Array[ItemStack]) -> Array[ItemStack]:
+	var result: Array[ItemStack] = []
+	for stack: ItemStack in stacks:
+		result.append(null if stack == null else _with_catalog_item(stack, stack.quantity))
+	return result
 
 
 ## Null for an empty slot or a bad entry (reported).

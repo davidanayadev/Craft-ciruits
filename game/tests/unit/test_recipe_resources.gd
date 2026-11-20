@@ -57,3 +57,38 @@ func test_r_011_04_piece_recipes_match_balance() -> void:
 			var quantity: int = expected[item_id]
 			var held: int = cost.get(item_id, 0)
 			assert_eq(held, quantity, "%s: %s (BALANCE §4.3.1)" % [id, item_id])
+
+
+# --- Structure recipes (spec 012, R-012-02) -----------------------------------
+# The expected values mirror BALANCE.md §5.2, §5.4 and §5.5; update both together.
+
+## recipe id → {item id → quantity}.
+const EXPECTED_STRUCTURE_RECIPES: Dictionary[StringName, Dictionary] = {
+	&"wind_generator": {&"scrap": 5, &"cables": 3, &"iron": 2},
+	&"storage_chest": {&"scrap": 3, &"iron": 1},
+}
+
+
+func test_r_012_02_structure_recipes_match_balance() -> void:
+	for id: StringName in EXPECTED_STRUCTURE_RECIPES:
+		var recipe: RecipeData = load("res://resources/recipes/%s.tres" % id) as RecipeData
+		assert_not_null(recipe, "%s.tres exists and is a RecipeData" % id)
+		if recipe == null:
+			continue
+		assert_eq(recipe.id, id, "stable id")
+		assert_eq(recipe.station, RecipeData.Station.WORKBENCH, "%s is built at the bench" % id)
+		assert_eq(recipe.tier, 1, "%s is tier 1" % id)
+		assert_eq(recipe.requires.size(), 0, "%s has no requirements" % id)
+		assert_null(recipe.result_item, "%s makes no item" % id)
+		assert_same(
+			recipe.result_structure,
+			load("res://resources/structures/%s.tres" % id),
+			"%s builds its structure" % id
+		)
+		var cost: Dictionary[StringName, int] = CraftingSystem.cost_of(recipe)
+		var expected: Dictionary = EXPECTED_STRUCTURE_RECIPES[id]
+		assert_eq(cost.size(), expected.size(), "%s: one ingredient per material" % id)
+		for item_id: StringName in expected:
+			var quantity: int = expected[item_id]
+			var held: int = cost.get(item_id, 0)
+			assert_eq(held, quantity, "%s: %s (BALANCE §5.5)" % [id, item_id])

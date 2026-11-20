@@ -1,11 +1,14 @@
 class_name InventorySlotView
 extends Button
 ## One inventory cell (R-005-25): the icon and quantity of a stack, or the
-## empty look. It can only be pressed when it is interactive and holds a stack.
+## empty look. It can only be pressed when it is interactive and holds a stack,
+## or, when its screen asks for it, also empty (spec 012).
 ## A selected cell shows a frame (spec 008).
 
 var _interactive: bool = false
 var _has_stack: bool = false
+## An empty interactive cell can be pressed too (spec 012, plan D14).
+var _empty_pressable: bool = false
 
 @onready var _icon: TextureRect = %Icon
 @onready var _quantity: Label = %Quantity
@@ -14,6 +17,11 @@ var _has_stack: bool = false
 
 func set_interactive(interactive: bool) -> void:
 	_interactive = interactive
+	_update_disabled()
+
+
+func set_empty_pressable(pressable: bool) -> void:
+	_empty_pressable = pressable
 	_update_disabled()
 
 
@@ -34,4 +42,4 @@ func show_stack(stack: ItemStack) -> void:
 
 
 func _update_disabled() -> void:
-	disabled = not (_interactive and _has_stack)
+	disabled = not (_interactive and (_has_stack or _empty_pressable))

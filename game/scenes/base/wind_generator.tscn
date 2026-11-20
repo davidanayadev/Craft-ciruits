@@ -1,0 +1,115 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scenes/base/wind_generator.gd" id="1_generator"]
+[ext_resource type="Script" path="res://scripts/components/interactable_component.gd" id="2_interactable"]
+
+[sub_resource type="CylinderShape3D" id="body_shape"]
+height = 3.0
+radius = 0.35
+
+[sub_resource type="StandardMaterial3D" id="mast_material"]
+albedo_color = Color(0.7, 0.72, 0.75, 1)
+
+[sub_resource type="CylinderMesh" id="mast_mesh"]
+material = SubResource("mast_material")
+top_radius = 0.12
+bottom_radius = 0.3
+height = 3.0
+radial_segments = 8
+rings = 1
+
+[sub_resource type="BoxMesh" id="nacelle_mesh"]
+material = SubResource("mast_material")
+size = Vector3(0.35, 0.35, 0.7)
+
+[sub_resource type="StandardMaterial3D" id="blade_material"]
+albedo_color = Color(0.92, 0.93, 0.95, 1)
+
+[sub_resource type="BoxMesh" id="blade_mesh"]
+material = SubResource("blade_material")
+size = Vector3(0.16, 1.2, 0.05)
+
+[sub_resource type="SphereShape3D" id="interactable_shape"]
+radius = 0.1
+
+[sub_resource type="Animation" id="spin"]
+resource_name = "spin"
+length = 2.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Rotor:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(0, 0, -6.283185)]
+}
+
+[sub_resource type="AnimationLibrary" id="blades_library"]
+_data = {
+&"spin": SubResource("spin")
+}
+
+[node name="WindGenerator" type="StaticBody3D"]
+script = ExtResource("1_generator")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("body_shape")
+
+[node name="Mast" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+mesh = SubResource("mast_mesh")
+
+[node name="Nacelle" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.05, 0)
+mesh = SubResource("nacelle_mesh")
+
+[node name="Rotor" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.05, 0.42)
+
+[node name="Blade1" type="MeshInstance3D" parent="Rotor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("blade_mesh")
+
+[node name="Blade2" type="MeshInstance3D" parent="Rotor"]
+transform = Transform3D(-0.5, 0.866025, 0, -0.866025, -0.5, 0, 0, 0, 1, -0.519615, -0.3, 0)
+mesh = SubResource("blade_mesh")
+
+[node name="Blade3" type="MeshInstance3D" parent="Rotor"]
+transform = Transform3D(-0.5, -0.866025, 0, 0.866025, -0.5, 0, 0, 0, 1, 0.519615, -0.3, 0)
+mesh = SubResource("blade_mesh")
+
+[node name="BladesAnimation" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+libraries = {
+&"": SubResource("blades_library")
+}
+autoplay = &"spin"
+
+[node name="Label" type="Label3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.0, 0)
+auto_translate_mode = 2
+billboard = 1
+pixel_size = 0.008
+font_size = 48
+outline_size = 12
+
+[node name="RefreshTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 1.0
+autostart = true
+
+[node name="Interactable" type="Area3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+script = ExtResource("2_interactable")
+prompt_key = &"PROMPT_COLLECT"
+
+[node name="InteractableShape" type="CollisionShape3D" parent="Interactable"]
+shape = SubResource("interactable_shape")

@@ -6,6 +6,9 @@ extends GutTest
 ## every interaction with a box that holds items emits opened (R-005-16), what
 ## is not taken stays (R-005-20) and the box is disabled when it becomes
 ## empty, not when it is opened (R-005-21 replaces R-004-24).
+## Spec 012: an opened box is a container with the capacity of a chest, read
+## from the same resource (R-012-06); every interaction opens it, also empty,
+## and it is never disabled (R-012-37 replaces R-005-16, R-005-18, R-005-21).
 
 ## Spec 010: an opened box saves its contents and is restored without rolling
 ## (R-010-27).
@@ -174,7 +177,7 @@ func test_r_005_17_rolls_once_into_contents() -> void:
 	_open(box)
 	assert_eq(_contents(box), _expected_loot(SEED_A), "the contents are the roll of the box's seed")
 	assert_eq(
-		box.get_contents().get_slot_count(), _expected_loot(SEED_A).size(), "one slot per stack"
+		box.get_contents().get_slot_count(), _capacity(), "the capacity of a chest (R-012-37)"
 	)
 	_open(box)
 	_open(box)
@@ -213,32 +216,6 @@ func test_r_005_20_partly_taken_box_stays_enabled() -> void:
 	_open(box)
 	assert_signal_emit_count(box, "opened", 2, "it can be opened again")
 	assert_signal_emit_count(box, "loot_generated", 1, "without a new roll")
-
-
-func test_r_005_21_emptied_box_disabled_forever() -> void:
-	var box: LootBox = _new_box(SEED_A)
-	_open(box)
-	assert_true(_interactable(box).enabled, "opening does not disable the box")
-	assert_true(_take_all(_new_taker(5), box).ok, "everything is taken")
-	assert_true(box.get_contents().is_empty(), "the box is empty")
-	assert_false(_interactable(box).enabled, "an emptied box is no longer interactable")
-	assert_true(box.is_opened(), "it keeps the opened state")
-	# Even if something enabled the interactable again, the box offers nothing.
-	_interactable(box).enabled = true
-	_open(box)
-	assert_signal_emit_count(box, "opened", 1, "an emptied box never opens again")
-	assert_signal_emit_count(box, "loot_generated", 1, "and never rolls again")
-
-
-func test_r_005_21_empty_roll_disables() -> void:
-	var box: LootBox = _new_box_with_table(_fixed_table({&"scrap": 0}))
-	_open(box)
-	assert_true(box.is_opened(), "the box was rolled")
-	assert_signal_emit_count(box, "loot_generated", 1, "the empty roll is announced")
-	assert_signal_not_emitted(box, "opened", "there is nothing to show")
-	assert_false(_interactable(box).enabled, "a box that rolled nothing is disabled at once")
-	var opened_mesh: MeshInstance3D = box.get_node("%OpenedMesh") as MeshInstance3D
-	assert_true(opened_mesh.visible, "with the opened look")
 
 
 func test_r_004_25_prompt_open_translated_es_en() -> void:
@@ -299,27 +276,6 @@ func test_r_010_27_restore_opened() -> void:
 	assert_signal_not_emitted(target, "opened", "restoring is not an opening")
 
 
-func test_r_010_27_restored_box_disables_when_emptied() -> void:
-	var source: LootBox = _new_box(SEED_A)
-	_open(source)
-	var state: Variant = source.get_save_state()
-	var saved: Dictionary = state as Dictionary
-	var target: LootBox = _new_box(SEED_B)
-	target.restore_opened(saved)
-	assert_true(_take_all(_new_taker(5), target).ok, "everything is taken")
-	assert_false(_interactable(target).enabled, "emptied later, disabled")
-
-
-func test_r_010_27_restore_empty_contents_disables() -> void:
-	for slots: Array in [[null, null], []]:
-		var box: LootBox = _new_box(SEED_A)
-		box.restore_opened({"contents": {"slots": slots}})
-		assert_true(box.is_opened(), "opened")
-		assert_false(_interactable(box).enabled, "nothing left, disabled (%s)" % [slots])
-		var opened_mesh: MeshInstance3D = box.get_node("%OpenedMesh") as MeshInstance3D
-		assert_true(opened_mesh.visible, "opened look")
-
-
 func test_r_010_27_restore_on_opened_box_reports_error() -> void:
 	var box: LootBox = _new_box(SEED_A)
 	_open(box)
@@ -331,3 +287,69 @@ func test_r_010_27_restore_on_opened_box_reports_error() -> void:
 	box.restore_opened(saved)
 	assert_push_error_count(1)
 	assert_eq(_contents(box), before, "nothing changed")
+
+
+# --- The box as a container (spec 012) ----------------------------------------
+
+const CONTAINER_PATH := "res://resources/config/container.tres"
+const CHEST_PATH := "res://resources/structures/storage_chest.tres"
+
+
+func _capacity() -> int:
+	return (load(CONTAINER_PATH) as ContainerConfigData).slot_count
+
+
+func test_r_012_06_box_reads_the_chest_container() -> void:
+	var box: LootBox = _new_box(SEED_A)
+	var chest: StorageChestData = load(CHEST_PATH) as StorageChestData
+	assert_not_null(box.container_config, "the box has a container capacity")
+	assert_same(box.container_config, chest.container, "the same resource as the chest")
+
+
+func test_r_012_37_capacity_of_a_chest() -> void:
+	var box: LootBox = _new_box_with_table(_fixed_table({&"scrap": 3}))
+	_open(box)
+	assert_eq(box.get_contents().get_slot_count(), _capacity(), "room for what the player leaves")
+	assert_eq(_contents(box), {&"scrap": 3} as Dictionary[StringName, int], "with its roll")
+	assert_true(box.get_contents().add(&"iron", 2).ok, "something can be left in it")
+
+
+func test_r_012_37_every_interaction_opens_also_empty() -> void:
+	var box: LootBox = _new_box_with_table(_fixed_table({&"scrap": 0}))
+	_open(box)
+	assert_signal_emit_count(box, "loot_generated", 1, "the empty roll is announced")
+	assert_signal_emit_count(box, "opened", 1, "and the box opens, empty")
+	_open(box)
+	assert_signal_emit_count(box, "opened", 2, "every interaction opens it")
+	assert_signal_emit_count(box, "loot_generated", 1, "without a new roll")
+
+
+func test_r_012_37_never_disabled() -> void:
+	var box: LootBox = _new_box(SEED_A)
+	_open(box)
+	assert_true(_take_all(_new_taker(5), box).ok, "everything is taken")
+	assert_true(box.get_contents().is_empty(), "the box is empty")
+	assert_true(_interactable(box).enabled, "an emptied box stays interactable")
+	_open(box)
+	assert_signal_emit_count(box, "opened", 2, "and opens again")
+	assert_signal_emit_count(box, "loot_generated", 1, "never rolling again")
+
+
+func test_r_012_37_restored_box_has_capacity() -> void:
+	var box: LootBox = _new_box(SEED_B)
+	var saved_slots: Array = [{"item_id": "scrap", "quantity": 2, "durability": -1, "uid": ""}]
+	box.restore_opened({"contents": {"slots": saved_slots}})
+	assert_eq(box.get_contents().get_slot_count(), _capacity(), "a box saved before spec 012 gets the capacity")
+	assert_eq(_contents(box), {&"scrap": 2} as Dictionary[StringName, int], "with its saved stacks")
+
+
+func test_r_012_37_restored_empty_box_stays_enabled() -> void:
+	for slots: Array in [[null, null], []]:
+		var box: LootBox = _new_box(SEED_A)
+		box.restore_opened({"contents": {"slots": slots}})
+		assert_true(box.is_opened(), "opened")
+		assert_true(_interactable(box).enabled, "nothing left, still enabled (%s)" % [slots])
+		var opened_mesh: MeshInstance3D = box.get_node("%OpenedMesh") as MeshInstance3D
+		assert_true(opened_mesh.visible, "opened look")
+		_open(box)
+		assert_signal_emit_count(box, "opened", 1, "and it opens the container (%s)" % [slots])

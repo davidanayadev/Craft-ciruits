@@ -9,3 +9,4 @@ id = &"charging_station"
 name_key = &"STRUCTURE_CHARGING_STATION"
 scene = ExtResource("2")
 footprint = Vector2i(1, 1)
+max_count = 0

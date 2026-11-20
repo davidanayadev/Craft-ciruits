@@ -6,7 +6,7 @@ extends Node
 ## travelling to the base; while a travel runs Main shows the loading screen,
 ## freezes World and blocks the robot's input. The signals of each zone are
 ## wired when it loads.
-## It also opens the screens (spec 005): the loot screen when the local robot
+## It also opens the screens (spec 005): the container screen (spec 012) when the local robot
 ## opens a box and the inventory on the storage button, and blocks the robot's
 ## input while one is open. UIManager sits before Hud in UI, so the HUD is
 ## drawn on top of the screens.
@@ -19,7 +19,8 @@ extends Node
 ## base and brings the robot back there (spec 009). Thrown items and enemy loot
 ## become dropped items, which live under World and outside the zone.
 ## Building (spec 009) is BuildFlow's: bench, build screen, placement and the
-## "Edit base" button.
+## "Edit base" button. Chests and generators (spec 012) are StructureUseFlow's,
+## and the generators' maximum battery bonus reaches the robot from here.
 ## The save (spec 010) is SaveFlow's: it loads the Profile and the World before
 ## anything starts; Main then gives the death controller the World's ruleset
 ## and travels to the saved location, or to the base. A save of a newer
@@ -41,6 +42,7 @@ extends Node
 @onready var _build_flow: BuildFlow = %BuildFlow
 @onready var _base_structures: BaseStructures = %BaseStructures
 @onready var _save_flow: SaveFlow = %SaveFlow
+@onready var _structure_use_flow: StructureUseFlow = %StructureUseFlow
 
 ## The transfer ended and the robot comes back when the travel to the base ends.
 var _respawn_pending: bool = false
@@ -65,6 +67,8 @@ func _ready() -> void:
 	_debug_hud.bind(_robot)
 	_debug_hud.bind_base_structures(_base_structures)
 	_build_flow.bind(_robot, _hud, _zone_loader)
+	_structure_use_flow.bind(_robot, _hud)
+	_wire_battery_bonus()
 	_dropped_items.time_service = GameManager.get_time_service()
 	_robot.throw_requested.connect(_on_throw_requested)
 	if not _save_flow.start(_robot, _hud, _debug_hud, _zone_loader):
@@ -92,6 +96,14 @@ func _travel_to_start() -> void:
 		_zone_loader.travel_to(base_id)
 		return
 	_zone_loader.travel_to_position(zone_id, local_position)
+
+
+## Before the World loads, so the robot's saved charge is accepted up to the
+## maximum with the generator's bonus (spec 012, plan D9, R-012-14). In co-op
+## each robot connects when it joins (v2.0).
+func _wire_battery_bonus() -> void:
+	_base_structures.max_battery_bonus_changed.connect(_robot.battery.set_maximum_bonus)
+	_robot.battery.set_maximum_bonus(_base_structures.get_max_battery_bonus())
 
 
 ## After the World is loaded: its ruleset decides the deaths (R-010-20).
@@ -163,7 +175,7 @@ func _end_travel() -> void:
 	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_TRAVEL)
 
 
-## Opens the loot screen on the box and the opener's inventory (R-005-16).
+## Opens the container screen on the box and the opener's inventory (R-012-37).
 func _on_box_opened(box: LootBox, opener: Node3D) -> void:
 	var inventory: InventoryComponent = InventoryComponent.find_in(opener)
 	if inventory == null:
@@ -176,8 +188,12 @@ func _on_box_opened(box: LootBox, opener: Node3D) -> void:
 	if opener != _robot:
 		return
 	_ui_manager.open(
-		LootScreen.SCREEN_ID,
-		{LootScreen.CONTEXT_SOURCE: box.get_contents(), LootScreen.CONTEXT_INVENTORY: inventory}
+		ContainerScreen.SCREEN_ID,
+		{
+			ContainerScreen.CONTEXT_CONTAINER: box.get_contents(),
+			ContainerScreen.CONTEXT_INVENTORY: inventory,
+			ContainerScreen.CONTEXT_TITLE: ContainerScreen.LOOT_TITLE_KEY,
+		}
 	)
 
 

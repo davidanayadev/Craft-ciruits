@@ -1,9 +1,10 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/loot_box.gd" id="1_box"]
 [ext_resource type="Script" path="res://scripts/components/interactable_component.gd" id="2_interactable"]
 [ext_resource type="Resource" path="res://resources/loot/basic_box.tres" id="3_loot"]
 [ext_resource type="Script" path="res://scripts/components/inventory_component.gd" id="4_inventory"]
+[ext_resource type="Resource" path="res://resources/config/container.tres" id="5_container"]
 
 [sub_resource type="BoxShape3D" id="body_shape"]
 size = Vector3(1, 0.8, 1)
@@ -28,6 +29,7 @@ radius = 0.1
 [node name="LootBox" type="StaticBody3D"]
 script = ExtResource("1_box")
 loot_table = ExtResource("3_loot")
+container_config = ExtResource("5_container")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)

@@ -10,6 +10,7 @@ extends GutTest
 ## Spec 009: only zones that count visits (FARM) count a death; the base does
 ## not (R-009-52). ZONE_ID is the green zone, so the catalog knows it.
 ## Spec 011: a piece keeps its durability and uid when it falls and is recovered (R-011-09).
+## Spec 012: the respawn charge uses the maximum with the generator bonus (R-012-13).
 ## The robot's physics is switched off: its battery only moves when the test says.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -334,3 +335,20 @@ func test_r_011_09_death_drops_and_recovers_piece() -> void:
 	if recovered != null:
 		assert_eq(recovered.durability, 65, "durability kept when recovered")
 		assert_eq(recovered.uid, piece.uid, "uid kept when recovered")
+
+
+func test_r_012_13_respawn_uses_new_maximum() -> void:
+	var bonus: float = 20.0
+	_robot.battery.set_maximum_bonus(bonus)
+	var ruleset: RulesetData = DataRegistry.get_ruleset(&"normal")
+	var config: BatteryConfigData = _robot.battery.config
+	_kill_by_consume()
+	_controller.respawn(_robot, RESPAWN_POSITION)
+	var expected_maximum: float = config.maximum + bonus
+	assert_eq(_robot.battery.get_maximum(), expected_maximum, "the maximum includes the bonus")
+	assert_almost_eq(
+		_robot.battery.get_current(),
+		expected_maximum * ruleset.respawn_battery_ratio,
+		0.001,
+		"the respawn charge is a share of the new maximum"
+	)

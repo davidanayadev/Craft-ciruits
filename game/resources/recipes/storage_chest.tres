@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="RecipeData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/recipe_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/recipe_ingredient_data.gd" id="2"]
+[ext_resource type="Resource" path="res://resources/items/scrap.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/items/iron.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/structures/storage_chest.tres" id="5"]
+
+[sub_resource type="Resource" id="scrap"]
+script = ExtResource("2")
+item = ExtResource("3")
+quantity = 3
+
+[sub_resource type="Resource" id="iron"]
+script = ExtResource("2")
+item = ExtResource("4")
+quantity = 1
+
+[resource]
+script = ExtResource("1")
+id = &"storage_chest"
+ingredients = Array[ExtResource("2")]([SubResource("scrap"), SubResource("iron")])
+station = 2
+tier = 1
+requires = Array[StringName]([])
+result_structure = ExtResource("5")

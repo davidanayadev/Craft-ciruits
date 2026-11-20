@@ -7,8 +7,18 @@ extends Node
 ## base and are made again from the state (they are static, not pooled).
 ## place() and move() take the requesting player: the host decides here in
 ## co-op (architecture §3 rule 4, §12). Presentation only asks.
+## Spec 012: each structure's limit (StructureData.max_count), the state of
+## chests and generators in its StructureStates child (plan D5), the maximum
+## battery bonus of the placed generators, the players' requests to collect
+## batteries, and the uses of a chest or a generator relayed as structure_used.
+
+## A player interacted with a placed chest or generator (relayed from its instance).
+signal structure_used(structure_uid: String, user: Node3D)
+## State signal: the maximum battery bonus of the placed generators changed (plan D9).
+signal max_battery_bonus_changed(bonus: float)
 
 const ERR_INVALID_PLACEMENT := BuildGrid.ERR_INVALID_PLACEMENT
+const MSG_STRUCTURE_LIMIT := &"MSG_STRUCTURE_LIMIT"
 ## Save contract (spec 010, architecture §10.2).
 const SAVE_KEY := &"structures"
 const _PLACED_KEY := "placed"
@@ -16,14 +26,25 @@ const _PLACED_KEY := "placed"
 ## The same resource the base scene uses (a test guards it).
 @export var grid_config: BuildGridData
 
+## GameManager.get_time_service() at _ready() unless assigned before (R-012-19,
+## plan D21). Tests assign a FakeTimeService before placing or binding the base.
+var time_service: ITimeService
+
 var _grid: BuildGrid = null
 var _base: BaseZone = null
 ## uid → instance in the loaded base.
 var _instances: Dictionary[String, Node3D] = {}
 var _interactions_enabled: bool = true
+var _states: StructureStates = null
+var _max_battery_bonus: float = 0.0
 
 
 func _ready() -> void:
+	if time_service == null:
+		time_service = GameManager.get_time_service()
+	_states = StructureStates.new()
+	_states.name = "StructureStates"
+	add_child(_states)
 	var base_zone: ZoneData = DataRegistry.get_base_zone()
 	if grid_config == null or base_zone == null:
 		push_error("BaseStructures '%s': needs grid_config and a base zone in the catalog." % name)
@@ -73,13 +94,17 @@ func can_place(structure: StructureData, cell: Vector2i, moving_uid: String = ""
 	return _grid.is_valid(structure.footprint, cell, _robot_cells(), moving_uid)
 
 
-## Checks place, base and materials, then charges the player, takes the cells
-## and emits structure_built once (R-009-35). Any refusal changes nothing.
+## Checks the limit (R-012-09), place, base and materials, then takes the
+## cells, charges the player, makes the structure's state (spec 012), its
+## instance and the bonus, and emits structure_built once (R-009-35, plan D5).
+## Any refusal changes nothing.
 func place(player: Robot, recipe: RecipeData, cell: Vector2i) -> ActionResult:
 	if player == null or recipe == null or recipe.result_structure == null:
 		push_error("BaseStructures '%s': place() needs a player and a structure recipe." % name)
 		return ActionResult.failure(InventoryComponent.ERR_INVALID_REQUEST)
 	var structure: StructureData = recipe.result_structure
+	if is_at_limit(structure):
+		return ActionResult.failure(MSG_STRUCTURE_LIMIT)
 	if not can_place(structure, cell):
 		return ActionResult.failure(ERR_INVALID_PLACEMENT)
 	if not CraftingSystem.can_pay(player.inventory.get_slots(), recipe):
@@ -94,9 +119,62 @@ func place(player: Robot, recipe: RecipeData, cell: Vector2i) -> ActionResult:
 	if not paid.ok:
 		_grid.remove(uid)
 		return paid
+	_states.create_for(uid, structure, time_service.now_unix())
 	_instantiate(uid)
+	_update_bonus()
 	EventBus.structure_built.emit(uid)
 	return ActionResult.success()
+
+
+## How many structures of structure_id are placed.
+func count_of(structure_id: StringName) -> int:
+	var count: int = 0
+	for uid: String in _grid.get_uids():
+		if _grid.get_structure_id(uid) == structure_id:
+			count += 1
+	return count
+
+
+## max_count > 0 and that many are already placed (R-012-08, R-012-09).
+func is_at_limit(structure: StructureData) -> bool:
+	return structure.max_count > 0 and count_of(structure.id) >= structure.max_count
+
+
+## The largest max_battery_bonus among the placed generators; 0.0 when none (plan D9).
+func get_max_battery_bonus() -> float:
+	return _max_battery_bonus
+
+
+## null when structure_uid is not a placed chest.
+func get_chest_contents(structure_uid: String) -> InventoryComponent:
+	return _states.get_chest_contents(structure_uid)
+
+
+## The generator's state, read with time_service; -1 when full. Not a
+## generator → push_error, -1.
+func seconds_to_next_battery(structure_uid: String) -> int:
+	var generator: WindGeneratorComponent = _states.get_generator(structure_uid)
+	if generator == null:
+		push_error("BaseStructures '%s': '%s' is not a placed generator." % [name, structure_uid])
+		return -1
+	return generator.get_seconds_to_next(time_service.now_unix())
+
+
+## The player's request to collect a generator's batteries (R-012-20, plan D8):
+## EventBus.batteries_collected when any battery moved. No player, or a uid
+## that is not a placed generator → push_error, ERR_INVALID_REQUEST.
+func collect_batteries(player: Robot, structure_uid: String) -> ActionResult:
+	var generator: WindGeneratorComponent = _states.get_generator(structure_uid)
+	if player == null or generator == null:
+		push_error(
+			"BaseStructures '%s': collect_batteries() needs a player and a placed generator ('%s')."
+			% [name, structure_uid]
+		)
+		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
+	var result: ActionResult = generator.collect(player.inventory, time_service.now_unix())
+	if result.ok:
+		EventBus.batteries_collected.emit(structure_uid, player.player_uid)
+	return result
 
 
 ## At no cost (BALANCE §5.6). Invalid target or unknown uid → no change.
@@ -167,28 +245,33 @@ func to_data() -> Array[Dictionary]:
 	return _grid.to_data()
 
 
-## All or nothing; with the base loaded the instances follow the new state.
+## All or nothing; placed chests and generators start new (spec 012), and with
+## the base loaded the instances follow the new state.
 func load_data(data: Array) -> ActionResult:
-	var loaded: ActionResult = _grid.load_data(data, DataRegistry.get_catalog())
-	if loaded.ok and is_bound():
-		for instance: Node3D in _instances.values():
-			instance.queue_free()
-		bind_base(_base)
-	return loaded
+	return _load(data, {})
 
 
 func get_save_key() -> StringName:
 	return SAVE_KEY
 
 
-## The placed structures as BuildGrid.to_data() gives them (R-010-31).
+## The placed structures as BuildGrid.to_data() gives them (R-010-31), plus
+## the chests' contents and the generators' state when there are any (R-012-39,
+## plan D6): a base without them saves as in spec 010.
 func to_save_data() -> Dictionary:
-	return {_PLACED_KEY: to_data()}
+	var part: Dictionary = {_PLACED_KEY: to_data()}
+	var states: Dictionary = _states.to_data()
+	for key: String in states:
+		var entries: Dictionary = states[key]
+		if not entries.is_empty():
+			part[key] = entries
+	return part
 
 
 ## Entries of a structure the catalog no longer has → push_error and skipped
-## (R-010-11); the rest loads through load_data(), all or nothing. Emits no
-## structure_built: nothing was built (D15).
+## (R-010-11); the rest loads all or nothing, then the chests and generators
+## (plan D5). Emits no structure_built nor any other fact (D15, R-012-41); only
+## max_battery_bonus_changed, a state signal.
 func from_save_data(data: Dictionary) -> void:
 	var placed: Variant = data.get(_PLACED_KEY)
 	if not placed is Array:
@@ -203,8 +286,45 @@ func from_save_data(data: Dictionary) -> void:
 			push_error("BaseStructures '%s': saved structure %s is unknown; it is lost." % [name, entry])
 			continue
 		known.append(entry)
-	if not load_data(known).ok:
+	if not _load(known, data).ok:
 		push_error("BaseStructures '%s': the saved structures do not fit the grid; none loaded." % name)
+
+
+## Grid, then the old instances go, then the states, then the instances again
+## and the bonus: an instance never binds to a state that is being freed (plan D5).
+func _load(placed: Array, saved_states: Dictionary) -> ActionResult:
+	var loaded: ActionResult = _grid.load_data(placed, DataRegistry.get_catalog())
+	if not loaded.ok:
+		return loaded
+	for instance: Node3D in _instances.values():
+		instance.queue_free()
+	_instances.clear()
+	_states.load_data(saved_states, _placed_structures(), time_service.now_unix())
+	if is_bound():
+		bind_base(_base)
+	_update_bonus()
+	return loaded
+
+
+## uid → data of every placed structure.
+func _placed_structures() -> Dictionary[String, StructureData]:
+	var placed: Dictionary[String, StructureData] = {}
+	for uid: String in _grid.get_uids():
+		placed[uid] = get_structure(uid)
+	return placed
+
+
+## Publishes the largest bonus of the placed generators when it changed (plan D9).
+func _update_bonus() -> void:
+	var bonus: float = 0.0
+	for structure: StructureData in _placed_structures().values():
+		var generator: WindGeneratorData = structure as WindGeneratorData
+		if generator != null:
+			bonus = maxf(bonus, generator.max_battery_bonus)
+	if bonus == _max_battery_bonus:
+		return
+	_max_battery_bonus = bonus
+	max_battery_bonus_changed.emit(bonus)
 
 
 func _instantiate(uid: String) -> void:
@@ -217,6 +337,22 @@ func _instantiate(uid: String) -> void:
 	instance.global_position = cell_to_world(structure, _grid.get_cell(uid))
 	_set_instance_interactions(instance, _interactions_enabled)
 	_instances[uid] = instance
+	_connect_instance(uid, instance)
+
+
+## A chest or a generator reports its uses here; a generator shows its state.
+func _connect_instance(uid: String, instance: Node3D) -> void:
+	var chest: StorageChest = instance as StorageChest
+	if chest != null:
+		chest.used.connect(_on_instance_used.bind(uid))
+	var generator: WindGenerator = instance as WindGenerator
+	if generator != null:
+		generator.bind_state(_states.get_generator(uid), time_service)
+		generator.used.connect(_on_instance_used.bind(uid))
+
+
+func _on_instance_used(user: Node3D, structure_uid: String) -> void:
+	structure_used.emit(structure_uid, user)
 
 
 func _set_instance_interactions(instance: Node3D, enabled: bool) -> void:
