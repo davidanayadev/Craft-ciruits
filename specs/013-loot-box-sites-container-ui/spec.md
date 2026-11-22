@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | En curso (2026-11-21) |
+| **Estado** | Hecho (2026-11-22) |
 | **Tarea(s) ACTION_PLAN** | Revisión de 1.1 (colocación de cajas) y 2.6 (UI de cofre y caja). Petición del usuario, 2026-11-20; no hay tarea propia (pregunta 11) |
 | **Fuentes** | BALANCE.md §7.1, §7.2, §5.4, §11 · PMV.md §4.5 gancho 3, §10 ("Reposición de cajas abiertas", "Dividir y colocar pilas", "Pantalla de contenedor") · architecture.md §9.3, §9.5, §11 · Constitución P2, P3, P8, P9, P11, P13 · specs 004 (R-004-10, R-004-11, R-004-21), 008 (R-008-09), 010 (R-010-35), 012 (R-012-27 a R-012-35, R-012-46 a R-012-48) |
 | **Depende de** | 004, 005, 008, 010, 012 |

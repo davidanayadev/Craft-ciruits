@@ -372,7 +372,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [x] Límite: máximo 5 cofres en base (PMV simplificado)
 - [x] Cajas de loot como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2). Desde que se abren, no solo vaciadas, y con "Coger todo" (decisión nov 2026, spec 012)
 - [x] Test: construir cofres, guardar items, recuperar items
-- [ ] Revisión de la pantalla de contenedor (decisión nov 2026, spec 013): cabeceras con nombre y ocupación, ficha de acción fija, tocar solo selecciona, botón con el destino y modo "Colocar…" explícito
+- [x] Revisión de la pantalla de contenedor (decisión nov 2026, spec 013): cabeceras con nombre y ocupación, ficha de acción fija, tocar solo selecciona, botón con el destino y modo "Colocar…" explícito
 
 **Entregable**: cofres funcionales con UI de almacenamiento.
 

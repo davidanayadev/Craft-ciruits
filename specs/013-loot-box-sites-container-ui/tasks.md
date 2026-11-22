@@ -55,12 +55,13 @@
 
 - [x] **T-013-07** Marcar en las specs 004, 008 y 012 los requisitos sustituidos o ampliados (D20). Cubre: — .
   Verifica: diff de documentación.
-- [ ] **T-013-08** Pasos manuales M1, M2, M4 y M5 en PC; M2 y M3 en Android (APK debug), incluidas las flechas y
+- [x] **T-013-08** Pasos manuales M1, M2, M4 y M5 en PC; M2 y M3 en Android (APK debug), incluidas las flechas y
   signos de §4.2 en la fuente por defecto. Anotar el resultado aquí. Cubre: R-013-03, R-013-09, R-013-17,
-  R-013-22 (manual). Verifica: los cinco pasos con el resultado esperado de plan §5.4.
+  R-013-22 (manual). Verifica: los cinco pasos con el resultado esperado de plan §5.4. Hecho (2026-11-22): el
+  usuario hizo los pasos en PC y Android y todos dieron el resultado esperado.
 - [x] Definición de hecho (constitución §4): `godot-runner`, `i18n-auditor` y `balance-auditor` en paralelo, después
   `architecture-guardian`.
 - [x] `system-documenter spec 013` (`docs/systems/`: zona verde y cajas, inventario y contenedor).
-- [ ] "Repository state" de `CLAUDE.md`: spec 013 hecha, cajas por sitios y por visita, nueva interacción de la
+- [x] "Repository state" de `CLAUDE.md`: spec 013 hecha, cajas por sitios y por visita, nueva interacción de la
   pantalla de contenedor, siguiente spec 014.
-- [ ] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
+- [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.
