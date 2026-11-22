@@ -51,8 +51,8 @@
 
 - [x] Definición de hecho (constitución §4): `godot-runner`, `i18n-auditor` y `balance-auditor` en paralelo, y
   después `architecture-guardian`.
-- [x] README §6: anotar para la 014 que una pieza a 0 se quita del inventario (no se queda a 0, plan §7) y para la
-  015 que las piezas del loot se crean con `uid` y durabilidad (plan §7).
+- [x] README §6: anotar para la 015 que una pieza a 0 se quita del inventario (no se queda a 0, plan §7) y para la
+  016 que las piezas del loot se crean con `uid` y durabilidad (plan §7).
 - [x] `system-documenter spec 011` (inventario, crafteo y banco, objeto caído, guardado).
 - [x] CLAUDE.md "Repository state": spec 011 hecha, `BenchScreen` en lugar de `BuildScreen`, siguiente spec 012.
 - [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.

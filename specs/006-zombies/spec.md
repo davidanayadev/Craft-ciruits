@@ -13,7 +13,7 @@
 Poner la primera amenaza en la zona verde: zombies lentos y rápidos que patrullan, ven al robot, lo persiguen y
 le quitan batería al golpearlo. Así la batería, que es la vida del robot, por fin tiene un motivo para bajar
 además del paso del tiempo. A la vez fija lo que reutilizarán el combate (spec 007), la muerte (spec 008) y el
-robot hostil (spec 015): `HealthComponent`, `EnemyData` con facción, la máquina de estados y el pool de enemigos.
+robot hostil (spec 016): `HealthComponent`, `EnemyData` con facción, la máquina de estados y el pool de enemigos.
 
 ## 2. Historias
 
@@ -58,7 +58,7 @@ robot hostil (spec 015): `HealthComponent`, `EnemyData` con facción, la máquin
 | R-006-14 | WHEN the chased player gets farther than the chase give-up distance, THE zombie SHALL stop chasing and return to `PATROL`. | Inferido — ver pregunta 2 |
 | R-006-15 | WHILE the chased player is within attack range, THE zombie SHALL be in `ATTACK`, stop moving, face the player and hit once per attack interval of its `EnemyData`. | ACTION_PLAN 1.3, BALANCE §3.1 — ver pregunta 4 |
 | R-006-16 | WHEN a zombie hit lands, THE player's `BatteryComponent` SHALL lose the zombie's damage in battery points. | BALANCE §1.1, §3.1, CLAUDE.md (batería = vida) — ver pregunta 1 |
-| R-006-17 | WHEN a zombie hit lands, THE hit SHALL be announced by a typed signal that carries the damage and the attacker, so the degradation of pieces (spec 014) can connect to it without touching the AI. | BALANCE §4.1, Constitución P6 |
+| R-006-17 | WHEN a zombie hit lands, THE hit SHALL be announced by a typed signal that carries the damage and the attacker, so the degradation of pieces (spec 015) can connect to it without touching the AI. | BALANCE §4.1, Constitución P6 |
 | R-006-18 | WHILE the player's battery is depleted, THE zombies SHALL not target or hit that player. | Inferido de spec 003 R-003-12 y spec 004 R-004-16 |
 | R-006-19 | WHILE a screen of the `UIManager` is open, THE zombies SHALL keep acting, since the game is not paused. | Spec 005 (`UIManager` sin pausa) |
 | R-006-20 | THE zombies SHALL walk around obstacles and stay inside the zone's playable area. | ACTION_PLAN 1.3, SPECS §31 (los enemigos no saltan) — ver pregunta 3 |
@@ -84,13 +84,13 @@ fuente; el spec no los fija.
 - Atacar a los zombies, hitbox de los brazos, consumo de batería por golpe, XP al matar y
   `EventBus.enemy_killed`: spec 007 (ACTION_PLAN 1.4). En la 006 solo los tests llaman a `take_damage`.
 - Material que sueltan los zombies al morir (BALANCE §3.1, "0-1 chatarra"): spec 007, con la muerte por combate.
-- Degradación de piezas por golpe recibido (BALANCE §4.1): spec 014. La 006 solo emite la señal del golpe
+- Degradación de piezas por golpe recibido (BALANCE §4.1): spec 015. La 006 solo emite la señal del golpe
   (R-006-17).
 - Muerte del robot, `RulesetData`, contador de visitas que sube al morir: spec 008. La pantalla provisional de
   game over de la 003 sigue sirviendo.
 - Contador de visitas por zona y guardado del estado de los zombies: spec 010. En la 006 los zombies reaparecen
   enteros cada vez que se genera la zona.
-- Robot hostil (facción `MACHINE`) y sus drops: spec 015. Zombies eléctrico y ácido: v1.1 (SPECS §17).
+- Robot hostil (facción `MACHINE`) y sus drops: spec 016. Zombies eléctrico y ácido: v1.1 (SPECS §17).
 - Tabla de relaciones entre facciones e IA de grupo de los infectados (aggro compartido, flanqueo): v1.2
   (SPECS §28). En la 006 la facción es solo un campo de datos.
 - Retroceso, parpadeo, sacudida de cámara, partículas y sonido al golpear o recibir golpes: ACTION_PLAN 1.4,

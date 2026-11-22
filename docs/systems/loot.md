@@ -1,7 +1,7 @@
 # Botín
 
 > Las cajas de botín de una zona se tiran una vez desde una tabla con semilla y guardan el resultado en su propio inventario.
-> Specs: [004](../../specs/004-green-zone/spec.md), [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · [012](../../specs/012-wind-generator-chests/spec.md) · Última actualización: spec 012 (caja como contenedor)
+> Specs: [004](../../specs/004-green-zone/spec.md), [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md) · [010](../../specs/010-save-profile-world/spec.md) · [012](../../specs/012-wind-generator-chests/spec.md) · [013](../../specs/013-loot-box-sites-container-ui/spec.md) · Última actualización: spec 013 (cajas por sitios y visita)
 
 ## Piezas
 
@@ -22,8 +22,9 @@
 
 1. `FarmZone._place_box()` instancia la caja y llama `box.setup(loot_seed)` con
    `SeededRng.derive_seed_for_visit(world_seed, zone_id, STREAM_BOX_LOOT, visit, marker_index)` (ver
-   [world_zones.md](world_zones.md)). La semilla depende de la visita y del marcador, no del orden de apertura ni del
-   número de cajas.
+   [world_zones.md](world_zones.md), que explica cómo se eligen los marcadores por sitios). `marker_index` es el
+   índice plano (sitios, luego marcadores, en orden de escena). La semilla depende de la visita y del marcador, no
+   del orden de apertura ni del número de cajas.
 2. El jugador interactúa ([interaction.md](interaction.md)); `Interactable.interacted` llama a `_on_interacted`.
 3. Primera vez: `_roll()` crea un `RandomNumberGenerator` con esa semilla y llama `LootSystem.roll(loot_table, rng)`.
    Sin `setup()` previo: `push_error` y no tira.
@@ -36,8 +37,9 @@
    `box_opened` y `Main` abre `ContainerScreen` con `box.get_contents()` (ver [ui.md](ui.md)).
 8. Coger y dejar ítems mueve pilas entre la caja y el inventario del jugador: ver [inventory.md](inventory.md). Lo dejado se
    queda en la caja el resto de la visita, también tras guardar y cargar, y se pierde con la visita siguiente.
-9. Nueva visita (spec 008): `FarmZone.repopulate` libera cada caja y pone otra cerrada en el mismo marcador con la
-   semilla de la visita nueva; lo que quedaba dentro se descarta. Las cajas no se reinician: se sustituyen.
+9. Nueva visita (spec 008, 013): `FarmZone.repopulate` libera cada caja y coloca otras cerradas en los marcadores que
+   elige la visita nueva (no necesariamente los mismos), con la semilla de esa visita; lo que quedaba dentro se
+   descarta. Las cajas no se reinician: se sustituyen.
 
 ### Material de los zombis (spec 008)
 
@@ -68,7 +70,7 @@ Los ítems y las tablas se registran en el catálogo ([data_catalog.md](data_cat
 | La caja no conoce el inventario del jugador ni la UI | Una responsabilidad por escena | comentario de `loot_box.gd` |
 | La capacidad de la caja es la de un cofre (un recurso) | Se puede dejar algo en ella; sustituye al hueco por stack | R-012-06, R-012-37 |
 | La caja nunca se desactiva | Es un contenedor durante la visita; sustituye a R-005-16, R-005-18 y R-005-21 | R-012-37, [BALANCE §7.2](../../BALANCE.md) |
-| El contenido depende de la visita; número y posición de cajas, no | Cada muerte repone botín nuevo sin mover las cajas | R-008-08, R-008-09 |
+| Contenido, número y marcadores de las cajas dependen de la visita | Cada visita cambia el recorrido y el botín; sustituye "sin mover las cajas" de R-008-09 | R-013-01, R-013-07, R-008-08 |
 | Una tabla (`zombie_drop`) compartida por los dos zombis | Sin duplicar datos | [plan 008 §1](../../specs/008-death-recovery/plan.md) |
 | El drop del zombi sube por tres señales locales, no por `EventBus` | No abrir la lista cerrada para algo que solo interesa a quien carga la zona | [plan 008 §7](../../specs/008-death-recovery/plan.md) |
 
@@ -99,5 +101,5 @@ Los ítems y las tablas se registran en el catálogo ([data_catalog.md](data_cat
 | `tests/unit/test_loot_system.gd` | Rango de cantidades, ceros fuera, validación y errores (R-004-23, 26) |
 | `tests/unit/test_loot_box.gd` | Tirada única, estado abierto, capacidad de cofre, nunca deshabilitada, restaurada con capacidad, prompt ES/EN (R-004-23..25, R-012-37) |
 | `tests/unit/test_data_catalog.gd` | Ítems y `basic_box` coinciden con BALANCE; tablas válidas (R-004-18..22, 26) |
-| `tests/integration/test_green_zone.gd` | Misma semilla, mismas cajas; contenido distinto por visita; `repopulate` las cierra y descarta lo que quedaba |
+| `tests/integration/test_green_zone.gd` | Misma semilla y visita, mismas cajas; contenido y marcadores distintos por visita; `repopulate` las cierra, las recoloca y descarta lo que quedaba |
 | `tests/integration/test_zombie.gd`, `test_zombie_spawner.gd` | Tirada única del zombi, sin atacante o sin tabla no cae nada, semilla independiente del orden de muertes |

@@ -90,7 +90,7 @@ Los valores numéricos (ranuras, máximos de apilado) se citan por su fuente; el
 ## 4. Fuera de alcance
 
 - Crear `ItemData` y los `.tres` de chatarra, cables y hierro: hechos en la spec 004 (R-004-18).
-- Subir de nivel el chasis y ampliar las ranuras al ganar XP: ACTION_PLAN 2.7 (spec 013). Aquí solo el punto de
+- Subir de nivel el chasis y ampliar las ranuras al ganar XP: ACTION_PLAN 2.7 (spec 014). Aquí solo el punto de
   enganche (R-005-13). Reducir ranuras no existe en el PMV.
 - Cofres y transferir del inventario a un contenedor: ACTION_PLAN 2.6 (spec 012). La pantalla de caja de la 005
   solo permite **coger**; dejar items en una caja vaciada llega con los cofres (pregunta 6), que reutilizarán el
@@ -101,7 +101,7 @@ Los valores numéricos (ranuras, máximos de apilado) se citan por su fuente; el
   (spec 010). Aquí el estado solo tiene que ser serializable como ids y cantidades (architecture §10.2).
 - Guardar lo que queda en cada caja durante la visita y perderlo al empezar la siguiente: spec 010 (BALANCE
   §7.2). En la 005 no hay salida de zona ni guardado: lo que queda dura hasta reiniciar la partida.
-- Piezas en el inventario (`PieceData`, durabilidad, `uid` de `ItemStack`): ACTION_PLAN 3.1 (spec 014).
+- Piezas en el inventario (`PieceData`, durabilidad, `uid` de `ItemStack`): ACTION_PLAN 3.1 (spec 015).
 - Baterías portátiles y botón de consumibles: no salen en la caja básica (BALANCE §2.1); llegan con el generador
   (spec 012) y el HUD completo (ACTION_PLAN 4.1).
 - Notificaciones genéricas de 3 s ("Nivel up", "Pieza rota"): ACTION_PLAN 4.1. R-005-20 solo exige un aviso

@@ -19,7 +19,7 @@ const _CURRENT_KEY := "current"
 const _NO_PENDING := -1.0
 
 @export var config: BatteryConfigData
-## Walking drain of the equipped legs; StatsComponent replaces it in spec 014.
+## Walking drain of the equipped legs; StatsComponent replaces it in spec 015.
 @export var legs: MovementStatsData
 
 var _current: float = 0.0

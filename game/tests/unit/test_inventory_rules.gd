@@ -581,3 +581,11 @@ func test_r_012_34_pieces_keep_uid_and_never_merge() -> void:
 	var full: Array[ItemStack] = [_piece_stack(arms, 100, "c")]
 	var result: ActionResult = InventoryRules.transfer(from, 0, full, 1)
 	assert_eq(result.error_key, InventoryRules.ERR_NO_ROOM, "a piece never stacks on another")
+
+
+func test_r_013_12_count_used_slots() -> void:
+	var scrap: ItemData = _item(&"scrap", 10)
+	var empty: Array[ItemStack] = []
+	assert_eq(InventoryRules.count_used_slots(empty), 0, "no slots, none used")
+	assert_eq(InventoryRules.count_used_slots(_slots(scrap, [0, 0, 0])), 0, "every slot empty")
+	assert_eq(InventoryRules.count_used_slots(_slots(scrap, [3, 0, 10, 1])), 3, "slots holding a stack")

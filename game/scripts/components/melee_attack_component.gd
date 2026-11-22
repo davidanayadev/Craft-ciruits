@@ -14,7 +14,7 @@ signal swing_started(battery_cost: float)
 ## The impact damaged this target. Emitted once per target and swing.
 signal hit_dealt(target: HurtboxComponent)
 
-## One arm until spec 014 derives it from StatsComponent (R-007-02).
+## One arm until spec 015 derives it from StatsComponent (R-007-02).
 @export var attack: AttackStatsData
 @export var config: CombatConfigData
 ## Collision geometry that covers the owner's body, not gameplay values: the

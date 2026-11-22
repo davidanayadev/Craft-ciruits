@@ -60,7 +60,7 @@ Nadie escucha la señal en este spec: el 005 la conecta al `InventoryComponent` 
 - Las tablas de loot apuntan al recurso `ItemData`, no a un id de texto: el editor lo valida y un test comprueba
   que cada item está en el catálogo. Los ids solo se usarán en guardado y red (spec 010).
 
-**`ItemStack` mínimo**: solo `item` y `quantity`. El spec 005 lo completa con lo que pida el inventario, y el 014
+**`ItemStack` mínimo**: solo `item` y `quantity`. El spec 005 lo completa con lo que pida el inventario, y el 015
 con `durability` y `uid` (architecture §9.3), para no adelantar campos sin uso (P14).
 
 **`GameManager`** se crea ahora con un solo dato: la semilla del mundo, leída de `dev_world.tres` (spec, pregunta

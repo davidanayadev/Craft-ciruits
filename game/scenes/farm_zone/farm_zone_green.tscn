@@ -442,35 +442,86 @@ destination = ExtResource("8_base")
 [node name="BoxMarkers" type="Node3D" parent="." unique_id=932940818]
 unique_name_in_owner = true
 
-[node name="BoxMarker00" type="Marker3D" parent="BoxMarkers" unique_id=258210148]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -13)
+[node name="SiteNorthWest" type="Node3D" parent="BoxMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -14)
 
-[node name="BoxMarker01" type="Marker3D" parent="BoxMarkers" unique_id=1684262182]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -18)
+[node name="BoxMarker0" type="Marker3D" parent="BoxMarkers/SiteNorthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
 
-[node name="BoxMarker02" type="Marker3D" parent="BoxMarkers" unique_id=848990822]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0, -14)
+[node name="BoxMarker1" type="Marker3D" parent="BoxMarkers/SiteNorthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 4)
 
-[node name="BoxMarker03" type="Marker3D" parent="BoxMarkers" unique_id=1704189723]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, -3)
+[node name="BoxMarker2" type="Marker3D" parent="BoxMarkers/SiteNorthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -2)
 
-[node name="BoxMarker04" type="Marker3D" parent="BoxMarkers" unique_id=1757834368]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 0, -1)
+[node name="BoxMarker3" type="Marker3D" parent="BoxMarkers/SiteNorthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, -1)
 
-[node name="BoxMarker05" type="Marker3D" parent="BoxMarkers" unique_id=2126917271]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 3)
+[node name="SiteNorth" type="Node3D" parent="BoxMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -18)
 
-[node name="BoxMarker06" type="Marker3D" parent="BoxMarkers" unique_id=697904597]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 2)
+[node name="BoxMarker0" type="Marker3D" parent="BoxMarkers/SiteNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, 0)
 
-[node name="BoxMarker07" type="Marker3D" parent="BoxMarkers" unique_id=1958999957]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 13)
+[node name="BoxMarker1" type="Marker3D" parent="BoxMarkers/SiteNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, -2)
 
-[node name="BoxMarker08" type="Marker3D" parent="BoxMarkers" unique_id=1198636020]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 17)
+[node name="BoxMarker2" type="Marker3D" parent="BoxMarkers/SiteNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 1)
 
-[node name="BoxMarker09" type="Marker3D" parent="BoxMarkers" unique_id=473219413]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, 11)
+[node name="SiteNorthEast" type="Node3D" parent="BoxMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, -14)
+
+[node name="BoxMarker0" type="Marker3D" parent="BoxMarkers/SiteNorthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
+
+[node name="BoxMarker1" type="Marker3D" parent="BoxMarkers/SiteNorthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 3)
+
+[node name="BoxMarker2" type="Marker3D" parent="BoxMarkers/SiteNorthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -3)
+
+[node name="BoxMarker3" type="Marker3D" parent="BoxMarkers/SiteNorthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -2)
+
+[node name="SiteSouthEast" type="Node3D" parent="BoxMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 12)
+
+[node name="BoxMarker0" type="Marker3D" parent="BoxMarkers/SiteSouthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -1)
+
+[node name="BoxMarker1" type="Marker3D" parent="BoxMarkers/SiteSouthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 1)
+
+[node name="BoxMarker2" type="Marker3D" parent="BoxMarkers/SiteSouthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -3)
+
+[node name="BoxMarker3" type="Marker3D" parent="BoxMarkers/SiteSouthEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 3)
+
+[node name="SiteSouthWest" type="Node3D" parent="BoxMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, 16)
+
+[node name="BoxMarker0" type="Marker3D" parent="BoxMarkers/SiteSouthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -3)
+
+[node name="BoxMarker1" type="Marker3D" parent="BoxMarkers/SiteSouthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 1)
+
+[node name="BoxMarker2" type="Marker3D" parent="BoxMarkers/SiteSouthWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 3)
+
+[node name="SiteWest" type="Node3D" parent="BoxMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 0, 1)
+
+[node name="BoxMarker0" type="Marker3D" parent="BoxMarkers/SiteWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2)
+
+[node name="BoxMarker1" type="Marker3D" parent="BoxMarkers/SiteWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 2)
+
+[node name="BoxMarker2" type="Marker3D" parent="BoxMarkers/SiteWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 0)
 
 [node name="Boxes" type="Node3D" parent="." unique_id=1240083059]
 unique_name_in_owner = true

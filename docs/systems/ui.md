@@ -5,8 +5,8 @@
 > dueña del estado.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [003](../../specs/003-battery/spec.md),
 > [005](../../specs/005-inventory/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md) ·
-> Última actualización: spec 012
+> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) ·
+> Última actualización: spec 013
 
 ## Piezas
 
@@ -24,10 +24,10 @@
 | `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, semilla del Mundo y botón "New world" (`new_world_requested`), solo en builds de depuración |
 | `NoticeScreen` | `UIScreen` | `game/scenes/ui/notice_screen.gd`, `.tscn` | Aviso a pantalla completa que ni Escape ni atrás cierran; lo abre `SaveFlow` con `MSG_SAVE_NEWER_VERSION` ([save.md](save.md)) |
 | `TransferScreen` | `Control` | `game/scenes/ui/transfer_screen.gd` | "Transferencia de Consciencia" entre la muerte y la reaparición (spec 008) |
-| `QuantitySelector` | `HBoxContainer` | `game/scenes/ui/quantity_selector.gd` | − / + y deslizador de 1 a la cantidad de una pila; emite `value_changed` |
+| `QuantitySelector` | `HBoxContainer` | `game/scenes/ui/quantity_selector.gd` | − / + y deslizador de 1 a la cantidad de una pila; emite `value_changed`; `set_editable(bool)` lo desactiva sin ocultarlo (spec 013) |
 | `TouchControls` + `FloatingJoystick` | Escena | `game/scenes/ui/touch_controls.gd`, `floating_joystick.gd` | Joystick flotante, solo con pantalla táctil |
 | Pantallas de inventario | Pantallas | [inventory.md](inventory.md) | `InventoryScreen`, `ContainerScreen` y sus rejillas |
-| `ContainerScreen` | `UIScreen` | `game/scenes/ui/container_screen.gd`, `.tscn` | Cofre o caja abierta (rejilla de 2 columnas) junto al inventario, selector de cantidad, "Transferir" y "Coger todo"; `%Notice` propio |
+| `ContainerScreen` | `UIScreen` | `game/scenes/ui/container_screen.gd`, `.tscn` | Cofre o caja abierta junto al inventario, cada rejilla con cabecera y ocupación, y una ficha fija `%ActionCard` (selección, selector de cantidad, `%MoveButton`, `%PlaceButton`, `%TakeAllButton`, `%Notice`); modos `BROWSING` / `PLACING` (spec 013) |
 
 ## Cómo funciona
 
@@ -38,7 +38,7 @@ Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `Deb
    instancia, la añade como hijo, la apila, conecta su `close_requested` y llama a `setup(context)`. Id
    desconocido o ya abierto: `push_error` y nada cambia.
 2. **Contexto.** Es un `Dictionary` con claves constantes de cada pantalla (`CONTEXT_CONTAINER`,
-   `CONTEXT_INVENTORY`, `CONTEXT_TITLE`). La pantalla convierte con `as` y avisa si falta algo; nunca busca datos en el árbol.
+   `CONTEXT_INVENTORY`, `CONTEXT_KIND`). La pantalla convierte con `as` y avisa si falta algo; nunca busca datos en el árbol.
 3. **Cerrar.** `close_top()` (el botón de almacenamiento), `close_all()` (muerte y viaje) y, con `pause` o atrás de
    Android, `_back()` (spec 009): primero pregunta a la pantalla de arriba `handle_back()`; si devuelve `true` se
    queda abierta (la gestionó ella), si no se cierra. `_remove_at` saca la pantalla de la pila al instante, para que
@@ -82,12 +82,27 @@ Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `Deb
 11. **Carga y colocación** (009). `LoadingScreen` es como `TransferScreen`: fuera de `UIManager`, traga los toques y
     no tiene mínimo de duración. `PlacementScreen` recibe los clics del suelo en `_gui_input` (un toque llega como
     clic de ratón emulado) y usa `handle_back`/`on_closed` ([base.md](base.md)).
-12. **Contenedor** (012). `ContainerScreen` solo pide: tocar una pila la selecciona (selector por defecto a la pila
-    entera) y volver a tocarla quita la selección; con selección, tocar cualquier ranura (también una vacía, vía
-    `InventoryGrid.set_empty_cells_pressable`) llama a `origen.move_to_slot` y "Transferir" a `origen.transfer_to`;
-    "Coger todo" usa `take_from`. Una negativa (`ERR_SLOT_FULL`, `ERR_PARTIAL_SWAP`, `ERR_NO_ROOM`) sale en `%Notice` y
-    mantiene la selección. Repinta con `inventory_changed` de ambos y no se cierra aunque quede vacío. Lo abren `Main` (caja,
-    título `LOOT_TITLE`) y `StructureUseFlow` (cofre, `CHEST_TITLE`, [wind_generator_chests.md](wind_generator_chests.md)).
+12. **Contenedor** (012, 013). `ContainerScreen` solo pide. Lo abren `Main` (`Kind.LOOT_BOX`) y `StructureUseFlow`
+    (`Kind.CHEST`, [wind_generator_chests.md](wind_generator_chests.md)); `CONTEXT_KIND` elige por tabla el título, la
+    cabecera y el texto de "guardar". Un `Kind` que falta o no es válido es `push_error` y no se muestra nada.
+    - Cabeceras: cada rejilla lleva su nombre y `usadas/total` (`InventoryRules.count_used_slots`), repintadas con
+      `inventory_changed` de ambos inventarios.
+    - Ficha fija `%ActionCard` bajo las dos rejillas, siempre visible; `_refresh_card()` es el único método que la
+      pinta, a partir del modo y la selección. Sin selección: pista "toca una pila", selector y botones desactivados
+      (nunca ocultos, `QuantitySelector.set_editable`).
+    - `BROWSING`: tocar solo selecciona (sin mover): una pila, la seleccionada la quita, otra cambia la selección;
+      las celdas vacías no se pulsan. `%MoveButton` nombra el destino y llama a `origen.transfer_to`; "Coger todo"
+      usa `take_from` y está desactivado con el contenedor vacío.
+    - `PLACING` (botón "Colocar…", que pasa a "Cancelar"): marca las celdas de ambas rejillas
+      (`InventoryGrid.set_targets_marked`, `InventorySlotView.set_target_marked`), tocar una celda llama a
+      `origen.move_to_slot` y la de origen cancela; el selector, "Pasar" y "Coger todo" quedan desactivados.
+    - `handle_back()` sale de `PLACING` conservando la selección y devuelve `true`; fuera del modo devuelve `false` y
+      `UIManager` cierra (el toque fuera del panel llega por el mismo camino).
+    - Una negativa (`ERR_SLOT_FULL`, `ERR_PARTIAL_SWAP`, `ERR_NO_ROOM`) sale en `%Notice`, dentro de la ficha, y
+      mantiene selección y modo. "Coger todo" sin que quepa nada muestra `MSG_INVENTORY_FULL` ahí. Un movimiento
+      hecho quita la selección y resalta las ranuras del destino que cambiaron
+      (`InventorySlotView.flash_highlight(ControlConfigData.move_highlight_s)`, [BALANCE §11](../../BALANCE.md)); si la
+      pila elegida desaparece por otro camino, se limpia selección y modo. No se cierra aunque quede vacío.
 13. **Cerrar tocando fuera** (012). Con `closes_on_outside_tap` (banco, inventario y contenedor; no colocación ni aviso),
     el `_gui_input` de `UIScreen` solo recibe lo que ningún hijo para: el `Panel` (único por pantalla, `mouse_filter` de
     parar) lo traga y el fondo y el centrado lo dejan pasar. Atiende solo `InputEventMouseButton` izquierdo pulsado (en
@@ -134,6 +149,11 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 | Colocación y aviso no se cierran tocando fuera | La colocación usa esos toques para elegir celda; el aviso es bloqueante | R-012-48 |
 | `ContainerScreen` sustituye a `LootScreen` | Una caja abierta es un contenedor | R-012-37, plan 012 D13 |
 | `Hud.show_notice` con argumentos (`tr(clave) % args`) | El aviso del generador lleva el tiempo que falta | plan 012 D18 |
+| Tocar solo selecciona; mover es siempre un botón con destino; "Colocar…" es un modo explícito | El mismo toque hacía tres cosas y movía sin querer | R-013-14..16, [spec 013 pregunta 5](../../specs/013-loot-box-sites-container-ui/spec.md) |
+| Ficha de acción fija pintada por un solo método | Nada aparece ni desaparece por caminos distintos | R-013-13, [plan 013 D9, D16](../../specs/013-loot-box-sites-container-ui/plan.md) |
+| `CONTEXT_KIND` (enum) en vez de `CONTEXT_TITLE` | Tres textos por tipo de contenedor sin combinaciones incoherentes | [plan 013 D8](../../specs/013-loot-box-sites-container-ui/plan.md) |
+| Duración del resaltado en `ControlConfigData.move_highlight_s` | El número es de BALANCE §11 | R-013-19, [plan 013 D15](../../specs/013-loot-box-sites-container-ui/plan.md) |
+| La pantalla de inventario (Tab) no adopta la ficha fija | Queda para la UI de la Fase 4 | [spec 013 pregunta 8](../../specs/013-loot-box-sites-container-ui/spec.md) |
 
 ## Relación con otros sistemas
 
@@ -152,6 +172,10 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 - El texto de `show_notice` con argumentos se traduce al mostrarse: no cambia si cambia el idioma con el aviso visible.
 - Que un toque en Android llegue una sola vez al fondo y no al joystick está probado con `push_input`; falta confirmarlo en el móvil (M3 del plan 012).
 - `UIManager` solo reacciona a `pause` si hay pantalla abierta; sin ella, esa acción queda libre.
+- `%ActionCard` fija ancho y alto con `custom_minimum_size` (plan 013 D16), y sus filas reservan la altura de
+  los botones y de la línea de aviso: si se añade una fila, hay que subir también ese mínimo. El test compara el
+  tamaño de la ficha entre estados e idiomas.
+- `ContainerScreen` sin `controls` asignado no resalta (`push_error` en `_ready`); la escena lo asigna.
 - `TransferScreen` y `LoadingScreen` heredan de `Control`, no de `UIScreen`: no pasan por `UIManager`.
 - `close_top()` (botón de almacenamiento, botón "Editar base" pulsado otra vez) no pasa por `handle_back`: cierra la
   pantalla entera aunque la colocación esté en `MOVE`.
@@ -175,11 +199,11 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 | Archivo | Verifica |
 |---|---|
 | `tests/unit/test_ui_manager.gd` | Pila, ids desconocidos/repetidos, `modal_state_changed`, `close_top`/`close_all`, `pause` y atrás, `handle_back` que mantiene la pantalla, `on_closed` en cada cierre, `is_open`; tocar fuera (solo la de arriba, vía `handle_back`, evento aceptado) |
-| `tests/unit/test_container_screen.gd` | Seleccionar, colocar, transferir, coger todo, aviso propio, se actualiza y no se cierra vacía, tocar fuera |
+| `tests/unit/test_container_screen.gd` | Cabeceras por tipo, ficha fija (tamaño y sin selección), tocar solo selecciona, botón con destino, modo colocar, atrás y toque fuera salen del modo, coger todo, rechazos, resaltado, sin comprobaciones de plataforma, no se cierra vacía |
 | `tests/unit/test_hud.gd` | Barra y número de batería, botón Interact con/sin bloqueo, mensaje de inventario lleno, `use_refused`, avisos con argumentos, botón de atacar, borde rojo, botón "Editar base" solo en la base |
 | `tests/unit/test_loading_screen.gd` | Oculta hasta `show_loading()`, textos como claves, traga toques |
 | `tests/unit/test_transfer_screen.gd` | Título traducido, oculta hasta `play()`, traga toques, duración desde la config, `finished` una vez |
-| `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador |
+| `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador, `set_editable` |
 | `tests/unit/test_debug_hud.gd` | Muestra la XP, la semilla y `new_world_requested` |
 | `tests/unit/test_notice_screen.gd` | Texto como clave y que no se cierra |
 | `tests/integration/test_hud_attack_input.gd` | Un clic en un botón del HUD no es un golpe |

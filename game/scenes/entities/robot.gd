@@ -13,7 +13,7 @@ extends CharacterBody3D
 ## It asks to build at the repair bench, and tells the base grid how much
 ## floor it covers, so no structure is placed on it (spec 009).
 
-## A hit landed on this robot. Degradation of pieces connects here (spec 014).
+## A hit landed on this robot. Degradation of pieces connects here (spec 015).
 signal hit_received(damage: float, attacker: Node3D)
 ## The player wants quantity of that inventory slot on the ground. Whoever
 ## owns the dropped items makes the change (spec 008).

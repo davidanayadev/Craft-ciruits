@@ -48,14 +48,14 @@ zombies y para tirar items del inventario.
 | R-008-06 | THE game SHALL keep one visit counter per `zone_id` as world state, outside any player entity, starting at 0 and never going up on entering or loading. | BALANCE §7.2, architecture §5 — pregunta 2 |
 | R-008-07 | WHEN a player dies in a zone, THE visit counter of that zone SHALL go up by exactly one. | ACTION_PLAN 1.5, BALANCE §7.2, PMV §10 |
 | R-008-08 | THE contents of each box SHALL come from world seed + `zone_id` + box index + visit number, while the number and position of the boxes keep coming from world seed + `zone_id` only. | BALANCE §2.1, §7.2 — pregunta 2 |
-| R-008-09 | WHEN the visit counter of the loaded zone goes up, THE zone SHALL be repopulated for the new visit: its enemies replaced by those of the new visit and every box closed again with the contents of the new visit, discarding what was left inside. | ACTION_PLAN 1.5, BALANCE §7.2 — pregunta 2 |
+| R-008-09 | WHEN the visit counter of the loaded zone goes up, THE zone SHALL be repopulated for the new visit: its enemies replaced by those of the new visit and every box closed again with the contents of the new visit, discarding what was left inside. **Ampliado por R-013-07** (spec 013, 2026-11-21): las cajas cerradas de la nueva visita van en los marcadores elegidos para ella, no en los mismos. | ACTION_PLAN 1.5, BALANCE §7.2 — pregunta 2 |
 
 ### 3.3 Objeto caído
 
 | ID | Requisito | Fuente |
 |---|---|---|
 | R-008-10 | THE game SHALL have a dropped object (`DroppedItem`) that holds one or more `ItemStack`s, a `uid`, its `(zone_id, local position)` and the time it was dropped. | ACTION_PLAN 1.5, PMV §4.5 gancho 2, architecture §10.3 — pregunta 3 |
-| R-008-11 | THE dropped object SHALL keep the item, quantity, durability and `uid` of every stack unchanged: dropping and picking up never create or lose items. (`ItemStack` gains durability and `uid` in spec 014; until then only item and quantity can be checked, and spec 014 must carry them through `InventoryRules`.) | architecture §9.3 |
+| R-008-11 | THE dropped object SHALL keep the item, quantity, durability and `uid` of every stack unchanged: dropping and picking up never create or lose items. (`ItemStack` gains durability and `uid` in spec 015; until then only item and quantity can be checked, and spec 015 must carry them through `InventoryRules`.) | architecture §9.3 |
 | R-008-12 | THE dropped object SHALL be interactable through `InteractableComponent`, with a pick-up prompt whose text comes only from translation keys in ES and EN. | architecture §9.1, Constitución P11 |
 | R-008-13 | WHEN a player interacts with a dropped object, THE player's `InventoryComponent` SHALL take every stack that fits, in slot order. | ACTION_PLAN 1.5 — pregunta 3 |
 | R-008-14 | WHEN a dropped object is left with no stacks, THE dropped object SHALL disappear and go back to its pool. | architecture §11 |
@@ -127,7 +127,7 @@ transferencia) se citan por su fuente; el spec no los fija.
 - Guardar el contador de visitas, los objetos caídos con su hora y descartar los caducados **al cargar la
   partida**: spec 010 (ACTION_PLAN 2.3), que reutiliza la regla de R-008-21. Guardar las cajas abiertas dentro
   de una visita: spec 010. En la 008 todo vive en memoria y se pierde al cerrar el juego.
-- Perder las piezas equipadas y conservar el Core: spec 014 (ACTION_PLAN 3.1), que crea `EquipmentComponent`
+- Perder las piezas equipadas y conservar el Core: spec 015 (ACTION_PLAN 3.1), que crea `EquipmentComponent`
   (pregunta 4).
 - Red de seguridad con "piezas medio rotas" garantizadas (PMV §2.4 punto 5): sin valores en BALANCE (pregunta
   10).
@@ -141,7 +141,7 @@ transferencia) se citan por su fuente; el spec no los fija.
   (pregunta 9).
 - Animación de muerte del robot, animación pulida de la transferencia y efectos al recoger: ACTION_PLAN 4.4.
   SFX de muerte y de recogida: ACTION_PLAN 4.3.
-- Drops del robot hostil (BALANCE §3.2): spec 015, que reutiliza el objeto caído y la tabla de `EnemyData`.
+- Drops del robot hostil (BALANCE §3.2): spec 016, que reutiliza el objeto caído y la tabla de `EnemyData`.
 - Dueño de un objeto caído y quién puede recogerlo en cooperativo: ONLINE.md (v2.0).
 - Analítica de zonas de muerte: TOOLING.md (v1.5).
 
@@ -174,12 +174,12 @@ integración "al morir, el robot reaparece con la batería al 100 %, sin items, 
 | 1 | ~~Reaparecer sin base~~ | **Cerrada (nov 2026)**: en la 008 el robot reaparece en el `SpawnPoint` de la zona, que hace de base provisional; el punto de reaparición se decide en un solo sitio y la 009 lo cambia por `ZoneLoader.travel_to(base)`. Descartado: hacer antes la 009. | — |
 | 2 | ~~Dueño del contador de visitas y de la reposición de cajas~~ | **Cerrada (nov 2026)**: la 008 crea el contador en memoria (estado del mundo en `GameManager`), lo sube al morir, mete la visita en la semilla de las cajas y repuebla la zona. La 009 lo sube al salir por el punto de salida. La 010 solo lo guarda, junto con las cajas abiertas de la visita. BALANCE §7.2 corregido. `SeededRng.derive_seed` tiene un solo índice y hacen falta dos (caja + visita, zombie + visita): el plan elige cómo, ahora que no hay partidas guardadas que migrar. | — |
 | 3 | ~~Forma del objeto caído y cómo se recoge~~ | **Cerrada (nov 2026)**: un solo objeto por muerte con todas las pilas; el zombie y el item tirado crean un objeto con una pila. Interactuar coge directamente todo lo que quepa, sin pantalla; el resto se queda. Descartado: un objeto por pila y abrir la pantalla de caja. | — |
-| 4 | ~~Piezas equipadas~~ | **Cerrada (nov 2026)**: la 008 suelta solo el inventario. `RulesetData` declara qué se conserva (Core y XP) y la spec 014 lo aplica a las piezas: brazos y piernas van al mismo objeto caído con su durabilidad y su `uid` (recuperables, no destruidos); el Core se queda. | — |
+| 4 | ~~Piezas equipadas~~ | **Cerrada (nov 2026)**: la 008 suelta solo el inventario. `RulesetData` declara qué se conserva (Core y XP) y la spec 015 lo aplica a las piezas: brazos y piernas van al mismo objeto caído con su durabilidad y su `uid` (recuperables, no destruidos); el Core se queda. | — |
 | 5 | ~~Pantalla de transferencia: duración y cómo termina~~ | **Cerrada (nov 2026)**: termina sola, sin botón, a los 2,0 s (BALANCE §11, "Muerte"). Texto traducido sobre un fundido como marcador; la animación definitiva es de ACTION_PLAN 4.4. Mientras dura, el mundo queda congelado. | — |
 | 6 | ~~Material de los zombies: caducidad y probabilidad~~ | **Cerrada (nov 2026)**: misma regla que todo objeto caído (BALANCE §7.2). "0-1 chatarra" con la regla de rangos de §2.1: la mitad de las veces no cae nada (BALANCE §3.1). | — |
 | 7 | ~~Cómo se tira un item~~ | **Cerrada (nov 2026)**: tocar una pila la selecciona y un botón "Tirar" suelta la cantidad elegida (pregunta 11), sin confirmación y sin cerrar la pantalla. El objeto cae en la posición del robot. | — |
 | 8 | ~~`ITimeService` no existe todavía~~ | **Cerrada (nov 2026)**: la 008 crea `ITimeService` y `LocalTimeService` (architecture §10.1). El plan decide qué autoload lo expone; la regla de caducidad recibe la hora por parámetro. | — |
 | 9 | ~~Aviso de caducidad~~ | **Cerrada (nov 2026)**: el objeto desaparece al cumplirse su tiempo, también a la vista. Sin cuenta atrás ni marcador en la 008; se decide con el HUD (ACTION_PLAN 4.1) y el playtesting (5.1). | — |
-| 10 | ~~Red de seguridad de PMV §2.4 punto 5~~ | **Cerrada para la 008 (nov 2026)**: fuera de alcance. Trasladada a PMV §10 como pregunta abierta, a decidir con la spec 014. | — |
+| 10 | ~~Red de seguridad de PMV §2.4 punto 5~~ | **Cerrada para la 008 (nov 2026)**: fuera de alcance. Trasladada a PMV §10 como pregunta abierta, a decidir con la spec 015. | — |
 | 11 | ~~Dividir pilas~~ (pedido en la revisión; la spec 005 lo dejaba fuera del PMV) | **Cerrada (nov 2026)**: sí se pueden dividir. Al seleccionar una pila aparece un selector de cantidad (− / + y deslizador, por defecto la pila entera) y la acción usa esa cantidad. La 008 lo aplica a tirar y deja la regla de dividir como código puro. Mover la pila o una parte a la ranura que elijas, y repartirla entre inventario y contenedores, llega con la spec de cofres, con "tocar la pila y tocar el destino" (se mueve, se suma si es el mismo item o se intercambia si es otro). Descartado: botón de dividir a la mitad y arrastrar y soltar. | — |
 

@@ -83,7 +83,7 @@
   i18n y balance sin hallazgos, arquitectura "OK con observaciones" (aplicadas, plan §7). Las pruebas
   manuales (T-008-14 y T-008-15) las confirmó el usuario el mismo día.
 - [x] `CLAUDE.md` "Repository state" actualizado (spec 008 hecha: muerte real, objetos caídos, tirar items).
-- [x] Condición de entrada anotada en la spec 014: `ItemStack` con durabilidad y `uid` debe pasar por
-  `InventoryRules` para que el objeto caído los conserve (R-008-11). La spec 014 aún no existe: queda anotada en
+- [x] Condición de entrada anotada en la spec 015: `ItemStack` con durabilidad y `uid` debe pasar por
+  `InventoryRules` para que el objeto caído los conserve (R-008-11). La spec 015 aún no existe: queda anotada en
   su fila de `specs/README.md §6`.
 - [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.

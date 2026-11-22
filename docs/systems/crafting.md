@@ -1,7 +1,7 @@
 # Crafteo y reparación en el banco
 
 > En el banco de reparaciones el jugador crea las tres piezas básicas con materiales y repara piezas dañadas. Las piezas
-> son objetos únicos del inventario (con `uid` y durabilidad), sin efecto hasta la spec 014. La construcción de
+> son objetos únicos del inventario (con `uid` y durabilidad), sin efecto hasta la spec 015. La construcción de
 > estructuras del mismo banco está en [base.md](base.md).
 > Specs: [009](../../specs/009-base-placement-charging/spec.md), [011](../../specs/011-crafting-repair/spec.md) · Última actualización: spec 011
 
@@ -81,15 +81,15 @@ Iconos SVG de marcador en `assets/textures/icons/items/`, anotados en `assets/CR
 
 Usa [inventory.md](inventory.md) (el componente escribe), [data_catalog.md](data_catalog.md), [ui.md](ui.md)
 (`UIManager`, `UIScreen`) y [base.md](base.md) (la base da el banco; Construir sigue siendo de la base). Lo escucha
-[save.md](save.md). La spec 014 añadirá equipo, desgaste y reparar piezas equipadas.
+[save.md](save.md). La spec 015 añadirá equipo, desgaste y reparar piezas equipadas.
 
 ## Trampas y límites
 
-- Una pieza creada no hace nada: no hay equipo, stats ni desgaste hasta la spec 014; por eso reparar solo se prueba con
+- Una pieza creada no hace nada: no hay equipo, stats ni desgaste hasta la spec 015; por eso reparar solo se prueba con
   tests que inyectan una pieza dañada ([spec 011 pregunta 7](../../specs/011-crafting-repair/spec.md)).
 - `InventoryComponent` nunca contiene una pieza a 0 (`is_valid_stack`); `ERR_PIECE_BROKEN` solo se alcanza desde el
-  sistema puro. La spec 014 debe quitar las piezas rotas, o se rechazarán al cargar ([plan 011 §7](../../specs/011-crafting-repair/plan.md)).
-- Una pila de pieza sin `uid` o con durabilidad inválida se rechaza: quien las cree (por ejemplo el botín de la spec 015)
+  sistema puro. La spec 015 debe quitar las piezas rotas, o se rechazarán al cargar ([plan 011 §7](../../specs/011-crafting-repair/plan.md)).
+- Una pila de pieza sin `uid` o con durabilidad inválida se rechaza: quien las cree (por ejemplo el botín de la spec 016)
   debe usar `CraftingSystem.create_result`.
 - `RepairBench.craft` solo acepta recetas `WORKBENCH`; la comprobación de "tiene `result_item`" está en el inventario.
 - El `uid` de una fila de reparación es el nombre de su nodo; sirve a los tests, no se muestra.
@@ -101,7 +101,7 @@ Usa [inventory.md](inventory.md) (el componente escribe), [data_catalog.md](data
 - Receta de ítem nueva: `.tres` en `resources/recipes/` con `result_item` (y su ítem en `items`), añadirla a
   `data_catalog.tres`, claves `ITEM_*` en `strings.csv` y números antes en `BALANCE.md`; `BenchCraftSection` la lista sola.
 - Cambiar costes o tramos de reparación: solo `repair_costs.tres` (tramos ascendentes, el último a 100).
-- Pieza nueva: `PieceData` con `stack_max = 1` y su receta; la 014 añade `slot_type` y modificadores.
+- Pieza nueva: `PieceData` con `stack_max = 1` y su receta; la 015 añade `slot_type` y modificadores.
 
 ## Tests
 

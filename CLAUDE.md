@@ -11,14 +11,17 @@ Tarea 1.2), 006 (zombies, ACTION_PLAN Tarea 1.3), 007 (melee combat and XP on ki
 between zones, free placement and charging station, ACTION_PLAN Tareas 2.1, 2.8, 2.2) is done. Spec 010 (save in two
 levels, Profile and World, and `IStore`, ACTION_PLAN Tarea 2.3) is done. Spec 011 (crafting pieces and repair at the
 bench, ACTION_PLAN Tarea 2.4) is done. Spec 012 (wind generator, portable batteries and chests, ACTION_PLAN
-Tareas 2.5, 2.6) is done. `game/` has its
+Tareas 2.5, 2.6) is done. Spec 013 (loot boxes on sites that change per visit and the reworked container screen, a
+revision of ACTION_PLAN Tareas 1.1 and 2.6) is done. `game/` has its
 settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: a persistent `Main` that starts in the base, the green farm zone generated from the world
-seed, isometric camera rig, `Robot` moved
+seed and the visit, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
 "Interact" button or E and a battery `Hud`). The robot owns
-an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). A box keeps its roll
+an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). The zone's box markers are grouped in sites (`%BoxMarkers`, one
+`Node3D` per site), and `ZonePopulation.pick_box_markers` picks how many boxes and which markers from world seed +
+`zone_id` + visit, with at most `box_max_per_site` per site. A box keeps its roll
 in its own `InventoryComponent` and opens the `ContainerScreen`, where stacks move between the box and the
 inventory (a box is never disabled, also when empty); the storage button (Tab)
 opens the inventory screen. Both screens go through `UIManager` (a node under `UI`, not an autoload), which blocks
@@ -50,7 +53,7 @@ Repair restores a damaged piece with the tiers of `RepairCostData`. `CraftingSys
 `check_repair`) and `InventoryComponent.craft` / `repair` change the slots; `RepairBench.craft` / `repair` emit
 `EventBus.item_crafted` / `piece_repaired`, which save the World. Every path that moves a stack (`add_stack`, split,
 take, drop, death, the dropped item's save) keeps a piece's durability and `uid`, and `add` of a piece id is
-rejected. Pieces have no effect until spec 014. The `PlacementScreen` places, or with the
+rejected. Pieces have no effect until spec 015. The `PlacementScreen` places, or with the
 HUD "Edit base" button moves, structures on the grid with a valid/invalid preview while the robot stands still.
 `BaseStructures` under `World` owns the placed structures. A `ChargingStation` recharges the robot to 100%
 instantly; the base itself does not recharge. The game saves (spec 010): the `SaveManager` autoload writes a Profile
@@ -68,11 +71,13 @@ clock (pure `WindGeneratorRules`, time from `ITimeService`); interacting collect
 from the inventory screen's "Use" button or Q (`ConsumableRules`, `Robot.use_consumable`). The state of chests
 (an `InventoryComponent` each) and generators (`WindGeneratorComponent`) lives in `StructureStates` under
 `BaseStructures`, keyed by structure `uid`, so it outlives the base scene and is saved in its part.
-`StructureUseFlow` in `Main` opens a chest in the `ContainerScreen` (select a stack, move it to any slot, "Transfer",
-"Take all", moves through `InventoryRules.move_to_slot` / `transfer`) or collects from a generator. Bench, inventory
+`StructureUseFlow` in `Main` opens a chest in the `ContainerScreen` (spec 013: a header with name and occupancy over each grid,
+a fixed action card; a tap only selects, the move button names its destination, "Place..." is an explicit mode left
+with Cancel or back, "Take all", and the receiving slots light up; moves through `InventoryRules.move_to_slot` /
+`transfer`) or collects from a generator. Bench, inventory
 and container screens close with a tap outside their panel (`UIScreen.closes_on_outside_tap`). The `EventBus`,
 `GameManager`, `DataRegistry` and `SaveManager` autoloads exist. There are no equipped pieces, degradation or chassis
-levels yet. The next spec is 013.
+levels yet. The next spec is 014 (chassis level).
 
 ## Commands
 

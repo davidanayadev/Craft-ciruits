@@ -80,6 +80,15 @@ static func index_of_uid(slots: Array[ItemStack], uid: String) -> int:
 	return -1
 
 
+## Slots holding a stack (R-013-12).
+static func count_used_slots(slots: Array[ItemStack]) -> int:
+	var used: int = 0
+	for stack: ItemStack in slots:
+		if stack != null:
+			used += 1
+	return used
+
+
 ## Sum of item_id over every slot.
 static func count(slots: Array[ItemStack], item_id: StringName) -> int:
 	var total: int = 0

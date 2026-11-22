@@ -25,6 +25,7 @@ scene_path = "res://scenes/farm_zone/farm_zone_green.tscn"
 size_m = Vector2(50, 50)
 box_count_min = 5
 box_count_max = 7
+box_max_per_site = 2
 enemy_count_min = 5
 enemy_count_max = 8
 enemy_spawns = Array[ExtResource("2")]([SubResource("slow"), SubResource("fast")])

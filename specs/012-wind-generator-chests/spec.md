@@ -27,7 +27,7 @@ abierta es un contenedor donde se coge y se deja lo que se quiera durante la vis
   ranura van, para organizarme sin pasos de más.
 - Como jugador, quiero coger de una caja de loot solo lo que me interesa y dejar en ella lo que no, para hacer
   sitio sin tirarlo al suelo, sabiendo que lo pierdo en la visita siguiente.
-- Como desarrollador de la spec 014 (piezas), quiero que la bonificación del generador sea un dato aplicado a
+- Como desarrollador de la spec 015 (piezas), quiero que la bonificación del generador sea un dato aplicado a
   la batería máxima, para sumarla a la del Core sin rehacerla.
 - Como desarrollador de v1.1 (bancos avanzados, SPECS §3), quiero las baterías portátiles ya como item, para que
   los bancos nuevos las consuman como ingrediente.
@@ -89,9 +89,9 @@ abierta es un contenedor donde se coge y se deja lo que se quiera durante la vis
 | ID | Requisito | Fuente |
 |---|---|---|
 | R-012-26 | THE chest SHALL keep its items in its own `InventoryComponent` with the capacity of R-012-06. | ACTION_PLAN 2.6, architecture §9.3 |
-| R-012-27 | WHEN the local player interacts with a chest, THE game SHALL open, through `UIManager`, a container screen with the chest's slots as a 2x2 grid, the player's inventory, a quantity selector, a "Transfer" button and a "Take all" button. | ACTION_PLAN 2.6, architecture §9.5 — preguntas 8 y 12 |
-| R-012-28 | WHEN the player taps a stack in either grid, THE screen SHALL select it, with the quantity selector of spec 008 set by default to the whole stack; tapping the selected slot again SHALL clear the selection. | PMV §10 (dividir y colocar pilas), ACTION_PLAN 2.6 |
-| R-012-29 | WHEN a stack is selected and the player taps a slot of either grid, THE chosen quantity SHALL move to that slot: placed if the slot is empty, added up to its stack maximum if it holds the same item (the rest stays in the origin), and swapped with the slot's stack if it holds another item and the whole stack was chosen. | PMV §10, ACTION_PLAN 2.6 — pregunta 8 |
+| R-012-27 | WHEN the local player interacts with a chest, THE game SHALL open, through `UIManager`, a container screen with the chest's slots as a 2x2 grid, the player's inventory, a quantity selector, a "Transfer" button and a "Take all" button. **Sustituido en parte por R-013-12 y R-013-15** (spec 013, 2026-11-21): la disposición (cabeceras, ficha de acción) y el botón "Transfer", que pasa a nombrar el destino. Abrir la pantalla por `UIManager` sigue valiendo. | ACTION_PLAN 2.6, architecture §9.5 — preguntas 8 y 12 |
+| R-012-28 | ~~WHEN the player taps a stack in either grid, THE screen SHALL select it, with the quantity selector of spec 008 set by default to the whole stack; tapping the selected slot again SHALL clear the selection.~~ **Sustituido por R-013-14** (spec 013, 2026-11-21): tocar solo selecciona y la ficha muestra la pila. | PMV §10 (dividir y colocar pilas), ACTION_PLAN 2.6 |
+| R-012-29 | WHEN a stack is selected and the player taps a slot of either grid, THE chosen quantity SHALL move to that slot: placed if the slot is empty, added up to its stack maximum if it holds the same item (the rest stays in the origin), and swapped with the slot's stack if it holds another item and the whole stack was chosen. **Sustituido en parte por R-013-16** (spec 013, 2026-11-21): mover a una ranura tocada es un modo explícito "Colocar…"; la regla del movimiento (en `InventoryRules`) sigue valiendo. | PMV §10, ACTION_PLAN 2.6 — pregunta 8 |
 | R-012-30 | WHEN a stack is selected and the player presses "Transfer", THE chosen quantity SHALL move to the other grid, first into stacks of the same item and then into empty slots, as much as fits; the rest SHALL stay in the origin. | ACTION_PLAN 2.6 ("Transferir") — pregunta 8 |
 | R-012-31 | WHEN the player presses "Take all", THE game SHALL move every stack of the container to the player's inventory, in slot order, as much as fits, as the take-all of R-005-19; what does not fit SHALL stay in the container and THE HUD SHALL show the inventory full notice of R-005-20. | R-005-19, R-005-20 — pregunta 12 |
 | R-012-32 | THE move rules of R-012-29 to R-012-31 SHALL be pure code in `InventoryRules`, reusing its split rule (spec 008), and a move SHALL be all or nothing for what it moves, returning an `ActionResult`; an invalid request (slot out of range, quantity outside 1 to the stack) SHALL be reported with `push_error` and change nothing. | PMV §10 (reutiliza la regla de dividir), architecture §3, §9.2, Constitución P3 |
@@ -146,9 +146,9 @@ portátil, capacidad y límite de cofres, huellas) se citan por su fuente; el sp
 - Baterías portátiles en las cajas de loot: la caja básica da 0 % (BALANCE §2.1).
 - Dividir y colocar pilas dentro de la pantalla de inventario propia (Tab), sin contenedor: sigue como la deja
   la spec 008 (tirar). La colocación por ranura solo existe en la pantalla de contenedor.
-- Batería máxima del Core equipado, `StatsComponent` y `StatModifier`: spec 014. La bonificación del generador se
-  suma a la máxima que haya; la 014 decide cómo se integra en el cálculo de stats.
-- Más ranuras por nivel de chasis: spec 013.
+- Batería máxima del Core equipado, `StatsComponent` y `StatModifier`: spec 015. La bonificación del generador se
+  suma a la máxima que haya; la 015 decide cómo se integra en el cálculo de stats.
+- Más ranuras por nivel de chasis: spec 014.
 - Hora del servidor contra el cambio de hora del móvil: post-PMV; en el PMV se acepta (architecture §14,
   pregunta 2).
 - SFX (ACTION_PLAN 4.3), animaciones de abrir el cofre y modelos definitivos (4.4). El generador gira sus aspas
@@ -200,6 +200,6 @@ Todas cerradas (nov 2026). Las decisiones están en BALANCE.md §2, §5.2, §5.6
 | 8 | ~~Detalles de la pantalla de contenedor~~ | **Cerrada (nov 2026)**: tocar destino (también dentro de la misma rejilla) y "Transferir" (R-012-29, R-012-30); solo se intercambian pilas enteras (R-012-33). | — |
 | 9 | ~~Cuándo se guarda~~ | **Cerrada (nov 2026)**: al recoger baterías y al cerrar la pantalla de un cofre cuyo contenido cambió (R-012-44). Usar una batería no guarda. Lo que se coge o se deja en una caja de loot se guarda con el siguiente guardado normal, como hasta ahora. PMV §10 y ACTION_PLAN 2.3 actualizados. | — |
 | 10 | ~~ACTION_PLAN 2.5, "Construir (primera vez)" en el propio generador~~ | **Cerrada (nov 2026)**: se construye en el banco y se coloca como el resto (R-012-07); ACTION_PLAN 2.5 corregido. | — |
-| 11 | ~~Batería máxima en el cooperativo (v2.0)~~ | **Cerrada (nov 2026)**: sube a todos los robots del mundo; el generador es estado de la base (R-012-11). La spec 014 lo integra con la máxima del Core. | — |
+| 11 | ~~Batería máxima en el cooperativo (v2.0)~~ | **Cerrada (nov 2026)**: sube a todos los robots del mundo; el generador es estado de la base (R-012-11). La spec 015 lo integra con la máxima del Core. | — |
 | 12 | ~~"Coger todo" en la pantalla de contenedor~~ | **Cerrada (nov 2026)**: se mantiene el de la spec 005 (R-005-19), en cajas y en cofres (R-012-27, R-012-31). | — |
 | 13 | ~~Cerrar emergentes tocando fuera~~ | **Cerrada (nov 2026)**: añadido a esta spec a petición del usuario. Hoy solo se cierran con Escape, atrás o el botón de almacén. Tocar o hacer clic fuera del panel de la pantalla de arriba cuenta como "atrás" (R-012-46), también en PC (Constitución P8), y ese toque no llega al juego (R-012-47). La colocación y el aviso de versión no cambian (R-012-48). El plan añade la regla a architecture §9.5. | — |

@@ -1,7 +1,7 @@
 class_name ExperienceComponent
 extends Node
 ## Total XP of one player (spec 007): per-player state (constitution P4), never
-## in an autoload. It only accumulates until spec 013 applies the chassis
+## in an autoload. It only accumulates until spec 014 applies the chassis
 ## levels through xp_changed.
 ## It reads no autoload: the catalog and the uids come by parameter, so it is
 ## testable with hand-made catalogs.

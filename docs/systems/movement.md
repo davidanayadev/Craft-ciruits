@@ -84,7 +84,7 @@ píxeles) es de layout de UI, no de balance.
 | Una sola regla de "correr" (`gait`) | Velocidad y drenaje de batería no pueden discrepar | Comentario de `locomotion_system.gd` |
 | Cámara ortográfica que sigue rígidamente | La zona de 50x50 m no cabe en pantalla | R-002-02 |
 | Todos los números en `.tres` | Constitución P2, P5 | R-002-14 |
-| Piernas fijas en un `.tres` hasta tener piezas | Spec 014 las derivará de `StatsComponent` | Comentario de `movement_stats_data.gd` |
+| Piernas fijas en un `.tres` hasta tener piezas | Spec 015 las derivará de `StatsComponent` | Comentario de `movement_stats_data.gd` |
 
 ## Relación con otros sistemas
 

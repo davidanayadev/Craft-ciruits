@@ -43,7 +43,7 @@ modelo low-poly de Kenney queda como mejora visual dentro de ACTION_PLAN 4.x; as
 | `scripts/data/movement_stats_data.gd` | Nuevo | Resource: `walk_speed`, `run_speed`, `can_run` |
 | `scripts/data/control_config_data.gd` | Nuevo | Resource: umbrales del joystick y velocidad de giro |
 | `scripts/data/camera_config_data.gd` | Nuevo | Resource: yaw, pitch, distancia, tamaño ortográfico |
-| `resources/movement/basic_legs.tres` | Nuevo | Piernas básicas (BALANCE §4.2). El spec 014 lo migrará a modificadores de `StatsComponent` |
+| `resources/movement/basic_legs.tres` | Nuevo | Piernas básicas (BALANCE §4.2). El spec 015 lo migrará a modificadores de `StatsComponent` |
 | `resources/config/controls.tres` | Nuevo | Valores de BALANCE §11 |
 | `resources/config/camera.tres` | Nuevo | Valores de BALANCE §11 |
 | `tests/unit/test_joystick_logic.gd` | Nuevo | R-002-15, 16, y seguimiento de dedo/centrado (parte lógica de 10, 11) |
@@ -216,7 +216,7 @@ como lógica pura y los eventos táctiles reales se verifican en el móvil (T-00
 | P11 i18n | ✅ | Este spec no añade texto visible (el joystick es gráfico) |
 | P12 Presupuesto móvil | ✅ | 1 luz direccional con sombras, cielo procedural, primitivas; sin post-procesado; nada que poolear aún |
 | P13 Test primero | ✅ | Lógica con test rojo primero; UI táctil cubierta por lógica pura + paso manual documentado |
-| P14 Alcance | ✅ | Sin batería (003), sin HUD más allá del joystick, sin piezas (014), sin zoom |
+| P14 Alcance | ✅ | Sin batería (003), sin HUD más allá del joystick, sin piezas (015), sin zoom |
 
 ## 7. Riesgos y alternativas descartadas
 

@@ -47,7 +47,7 @@ Android y con teclado en PC, a la velocidad de las piernas básicas.
 - Batería y su consumo al moverse: spec 003.
 - Botones de atacar, interactuar y demás: specs de cada mecánica.
 - Animaciones de andar/correr: ACTION_PLAN 4.4 (en esta fase basta con el modelo estático).
-- Piezas equipables (`PieceData`): spec 014. Aquí se usan los valores de las piernas básicas.
+- Piezas equipables (`PieceData`): spec 015. Aquí se usan los valores de las piernas básicas.
 - Zoom de cámara (PMV §12 menciona 2-3 niveles): sin tarea en ACTION_PLAN; fuera hasta que se decida.
 
 ## 5. Criterio de hecho
@@ -56,7 +56,7 @@ El robot se mueve con joystick en un Android real y con teclado en PC, a 3.0 m/s
 (BALANCE §4.2), gira suave, choca con un obstáculo de prueba y la cámara lo sigue. ≥ 30 FPS en el Android de
 pruebas.
 
-Hasta spec 014 no hay piezas: el robot usa las piernas básicas y R-002-18 se verifica con un test que simula
+Hasta spec 015 no hay piezas: el robot usa las piernas básicas y R-002-18 se verifica con un test que simula
 "sin piernas".
 
 ## 6. Preguntas abiertas

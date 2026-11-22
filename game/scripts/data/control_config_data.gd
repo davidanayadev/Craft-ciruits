@@ -13,3 +13,5 @@ extends Resource
 @export var turn_speed_rad: float = 0.0
 ## Distance at which the nearest interactable is offered (R-004-17).
 @export var interaction_range_m: float = 0.0
+## Seconds the slots that received a move stay highlighted (R-013-19).
+@export var move_highlight_s: float = 0.0

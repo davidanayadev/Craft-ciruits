@@ -2,7 +2,7 @@
 
 > La escena `Main` mantiene el esqueleto persistente; `ZoneLoader` carga una zona cada vez ([travel.md](travel.md)).
 > La zona de granja se genera a partir de la semilla del mundo y de la visita.
-> Specs: [004](../../specs/004-green-zone/spec.md), [006](../../specs/006-zombies/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010 (Mundo guardado, `ZoneMemory`)
+> Specs: [004](../../specs/004-green-zone/spec.md), [006](../../specs/006-zombies/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) · Última actualización: spec 013 (cajas por sitios y visita)
 
 ## Piezas
 
@@ -27,12 +27,19 @@
 1. `ZoneLoader._populate` llama `farm.populate(seed, visita, pool, estado)` con `GameManager.get_visit_count(zone_id)` y
    el estado que `ZoneMemory.take_state` guarda de esa visita (`{}` si no hay); `populate` es `generate` más restaurar
    cajas abiertas y colocar los enemigos menos los muertos. La zona nunca lee la semilla por sí sola.
-2. `generate()` (una sola vez; la segunda llamada es `push_error`) crea un RNG con
-   `SeededRng.create(seed, zone_id, STREAM_BOX_PLACEMENT)` y `ZonePopulation.pick_box_markers()` elige cuántas cajas
-   y en qué marcadores de `%BoxMarkers`.
-3. Por cada marcador elegido instancia `box_scene`, la coloca en el transform del marcador y le pasa su semilla de
-   botín (flujo `box_loot`, visita e índice = marcador, con `derive_seed_for_visit`). Ver [loot.md](loot.md).
-   Cuántas cajas y dónde no dependen de la visita; su contenido sí.
+2. `generate()` (una sola vez; la segunda llamada es `push_error`) llama a `_place_boxes(seed, visita)`, el único
+   camino de colocación (lo comparte `repopulate`). Crea un RNG con
+   `SeededRng.create(seed, zone_id, STREAM_BOX_PLACEMENT, visita)` y `ZonePopulation.pick_box_markers()` elige
+   cuántas cajas y en qué marcadores (spec 013).
+3. Los marcadores de `%BoxMarkers` están agrupados en **sitios**: cada hijo es un `Node3D` y sus hijos son
+   `Marker3D`. `_collect_box_sites()` (en `_ready`, una sola pasada) llena la lista plana `_box_marker_nodes` y
+   `_site_marker_counts`. El índice de marcador es plano: sitios en orden de escena y, dentro de cada uno, marcadores
+   en orden de escena. Un hijo que no encaja (un `Marker3D` suelto, algo que no es `Node3D`) es `push_error` y se salta.
+4. `pick_box_markers(cuentas_por_sitio, min, max, max_por_sitio, rng)` saca el número de cajas, una permutación
+   completa de los marcadores y toma cada uno si su sitio no llegó a `ZoneData.box_max_per_site`; devuelve índices
+   planos ordenados. Por cada uno `_place_box` instancia `box_scene`, la coloca en el transform del marcador y le pasa
+   su semilla de botín (flujo `box_loot`, visita e índice = marcador, con `derive_seed_for_visit`). Ver [loot.md](loot.md).
+   Cuántas cajas, dónde y qué contienen dependen de la visita.
 4. `ZoneLoader` precalienta el pool con `enemy_count_max`; `populate` llama a `spawn_enemies` (con los índices muertos
    de la visita, que no se colocan pero sí consumen su semilla); los enemigos dependen de la visita. El pool vive bajo `World`, no en la zona.
 5. `ZoneLoader` coloca al robot en `get_spawn_position()`; `Main._on_zone_loaded` conecta `box_opened` y
@@ -51,8 +58,9 @@
 2. `increment_visit_count` emite `zone_visit_counted(zone_id, visit)`. `ZoneLoader` (antes `Main`) la escucha y, si es
    la `FarmZone` cargada y no hay viaje, llama en diferido a `FarmZone.repopulate(seed, visit, pool)` y después a
    `discard_expired_now()`.
-3. `repopulate` devuelve los zombis al pool, coloca los de la visita nueva y **sustituye** cada caja por una nueva,
-   cerrada, en el mismo marcador (`queue_free` de la vieja; lo que quedaba dentro se descarta).
+3. `repopulate` devuelve los zombis al pool, coloca los de la visita nueva, libera todas las cajas (`queue_free`; lo
+   que quedaba dentro se descarta) y llama a `_place_boxes` con la visita nueva: cajas cerradas en los marcadores
+   que esa visita elige, normalmente otros (spec 013).
 4. Los objetos caídos cuelgan de `World/DroppedItems`, no de la zona: sobreviven a la repoblación.
 
 ### Mundo y guardado (spec 010)
@@ -60,8 +68,9 @@
 1. El Mundo (id, nombre, semilla, ruleset) lo da `SaveManager` a `GameManager.begin_world`, que limpia contadores y
    zona actual. `GameManager` ya no lee ningún recurso de desarrollo ([data_catalog.md](data_catalog.md), [save.md](save.md)).
 2. `GameManager.from_save_data` repone contadores sin emitir `zone_visit_counted`: cargar no cuenta visita.
-3. `ZoneMemory` guarda, por zona, la visita y `FarmZone.get_visit_state()` (`boxes` abiertas por marcador con su
-   contenido, y `dead_enemies`). `ZoneLoader` llama `unbind_farm()` al descargar y `take_state` al cargar; el estado solo
+3. `ZoneMemory` guarda, por zona, la visita y `FarmZone.get_visit_state()` (`boxes` abiertas por índice plano de
+   marcador con su contenido, y `dead_enemies`). Al restaurar, una caja guardada cuyo marcador no tiene caja en esa
+   visita es `push_error` y se descarta solo ella (R-013-08). `ZoneLoader` llama `unbind_farm()` al descargar y `take_state` al cargar; el estado solo
    vale si coincide la visita, y al subir el contador se olvida. Una caja restaurada (`LootBox.restore_opened`) no emite
    `loot_generated` ni `opened`.
 
@@ -74,7 +83,8 @@ visita, luego el elemento), así que las semillas anteriores no cambian. Flujos:
 
 | Recurso | Clase | Valores en BALANCE |
 |---|---|---|
-| `resources/zones/green_zone.tres` | `ZoneData` | [§7.1](../../BALANCE.md) (cajas, enemigos, tamaño), reposición [§7.2](../../BALANCE.md) |
+| `resources/zones/green_zone.tres` | `ZoneData` (`box_max_per_site`, spec 013) | [§7.1](../../BALANCE.md) (cajas, sitios, máximo por sitio, enemigos, tamaño), reposición [§7.2](../../BALANCE.md) |
+| `scenes/farm_zone/farm_zone_green.tscn` (sitios y marcadores) | Diseño de nivel | [§7.1](../../BALANCE.md) "Sitios de cajas"; lo comprueba un test |
 | `resources/config/world_grid.tres` | `WorldGridConfigData` | [§7](../../BALANCE.md) (celda del mapa global) |
 
 ## Decisiones
@@ -93,6 +103,9 @@ visita, luego el elemento), así que las semillas anteriores no cambian. Flujos:
 | Se renombró `zone_visit_changed` a `zone_visit_counted` | Es un hecho, no un estado; cargar no la emite | [plan 010 §1.1 D15, D19](../../specs/010-save-profile-world/plan.md) |
 | Semilla encadenada (visita, luego elemento) en vez de un campo nuevo en `derive_seed` | No cambia ninguna semilla ya fijada por tests | [plan 008 §1](../../specs/008-death-recovery/plan.md) |
 | Repoblar sustituye las cajas en vez de reiniciarlas | Reiniciar obliga a deshacer la tirada y las conexiones de `LootBox` | [plan 008 §1](../../specs/008-death-recovery/plan.md) |
+| Número y marcadores de las cajas salen también de la visita (stream `box_placement` + visita) | El recorrido deja de ser predecible; misma semilla y visita dan lo mismo por cualquier camino | R-013-01, R-013-02, [plan 013 D4, D5](../../specs/013-loot-box-sites-container-ui/plan.md) |
+| Marcadores en sitios con máximo por sitio; índice plano | Reparte las cajas por la zona y mantiene el formato guardado | R-013-03..06, [plan 013 D1](../../specs/013-loot-box-sites-container-ui/plan.md) |
+| Permutación completa de marcadores y recorrido, no elegir sitio y luego marcador | El número de tiradas no depende del recorrido; el orden de llamadas es un contrato | [plan 013 D2](../../specs/013-loot-box-sites-container-ui/plan.md) |
 
 ## Relación con otros sistemas
 
@@ -101,15 +114,20 @@ visita, luego el elemento), así que las semillas anteriores no cambian. Flujos:
 
 ## Trampas y límites
 
-- Cada zona debe tener al menos tantos marcadores como `box_count_max` y `enemy_count_max`; si no, `push_error`.
-- El orden de llamadas al RNG en `ZonePopulation` es un contrato con los mundos guardados.
+- Los sitios de una zona deben poder alojar `box_count_max` cajas con `box_max_per_site` (si no, `push_error` y se
+  colocan las que caben); `enemy_count_max` pide al menos esos marcadores de enemigos.
+- El orden de llamadas al RNG en `ZonePopulation` es un contrato con los mundos guardados (cajas: número y
+  permutación completa).
+- Reordenar sitios o marcadores en la escena cambia qué caja es cuál y su contenido; con partidas reales exigirá
+  subir `schema_version` ([save.md](save.md)).
 - `Array.shuffle()` y `randf()` usan el RNG global y están prohibidos en código del juego (lo vigila `test_no_global_rng.gd`).
 - `WorldGridConfigData` solo lo leen los tests hoy; no hay mapa global ni más zonas que la base `(0, -1)` y la verde.
 - La semilla viene del Mundo cargado o creado; los tests que instancian `main.tscn` arrancan un Mundo con
   `SaveTestSupport.start_world()` ([save.md](save.md)). `clear_visit_counts()` solo lo usan los tests.
 - Una caja restaurada abierta y un enemigo muerto solo se recuerdan durante la visita en curso; al subir el contador
   se descartan.
-- El contenido de las cajas de la visita 0 cambió respecto a la spec 004 por la derivación nueva.
+- El contenido de las cajas de la visita 0 cambió respecto a la spec 004 por la derivación nueva, y su número y
+  posición cambiaron con la spec 013.
 - `generate()` y `repopulate()` reciben la visita; `repopulate` antes de `generate` es `push_error`.
 - Si cambias la geometría de la zona hay que volver a hornear `green_zone_navmesh.tres` en el editor.
 - El navmesh de zonas generadas en runtime depende del spike de la Tarea 0.5 (ver [CLAUDE.md](../../CLAUDE.md), huecos abiertos).
@@ -119,7 +137,8 @@ visita, luego el elemento), así que las semillas anteriores no cambian. Flujos:
 
 ## Cómo extenderlo
 
-Zona de granja nueva: escena `FarmZone` con los mismos nodos únicos (`%SpawnPoint`, `%ExitPoint`, `%BoxMarkers`,
+Zona de granja nueva: escena `FarmZone` con los mismos nodos únicos (`%SpawnPoint`, `%ExitPoint`, `%BoxMarkers` con
+sitios `Node3D` que contienen `Marker3D`,
 `%Boxes`, `%EnemyMarkers`, `%ZombieSpawner`), un `ZoneData` (`kind FARM`, `scene_path`) listado en el catálogo y un
 navmesh propio. Otro tipo de población: nuevo flujo en `SeededRng` y función en `ZonePopulation`.
 
@@ -129,11 +148,11 @@ navmesh propio. Otro tipo de población: nuevo flujo en `SeededRng` y función e
 |---|---|
 | `tests/unit/test_seeded_rng.gd` | Misma entrada, misma secuencia; respuestas conocidas (contrato) |
 | `tests/unit/test_no_global_rng.gd` | Sin RNG global en `scripts/` y `scenes/` |
-| `tests/unit/test_zone_population.gd` | Cajas y enemigos: rangos, marcadores distintos, errores |
-| `tests/unit/test_zone_resources.gd` | `zone_id`, celda y datos de zona contra BALANCE |
+| `tests/unit/test_zone_population.gd` | Cajas por sitios (rango, máximo por sitio, distintos, respuesta conocida, errores) y enemigos |
+| `tests/unit/test_zone_resources.gd` | `zone_id`, celda, `box_max_per_site` y datos de zona contra BALANCE |
 | `tests/unit/test_game_manager.gd` | `begin_world`, contador de visitas (empieza en 0, por zona, emite señal), guardado sin señales |
 | `tests/integration/test_zone_memory.gd` | Estado por visita, `populate`, enemigos muertos y cajas abiertas al descargar y guardar |
-| `tests/integration/test_green_zone.gd` | Suelo, colisiones, límites, misma semilla = mismas cajas; contenido por visita, posiciones estables, `repopulate` |
+| `tests/integration/test_green_zone.gd` | Suelo, colisiones, límites; sitios y marcadores, navmesh y obstáculos, misma semilla y visita = mismas cajas por cualquier camino, cambian con la visita, ningún marcador muerto, caja guardada sin marcador, `repopulate` |
 | `tests/integration/test_main_scene.gd` | Arranque en la base, zona verde tras viajar; generar no cuenta visita; cambio de visita repuebla |
 | `tests/integration/test_zone_loader.gd` | Ver [travel.md](travel.md) |
 | `tests/integration/test_zombie_spawner.gd` | Navmesh cubre la zona (R-006-20) y spawn |

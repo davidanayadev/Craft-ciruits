@@ -16,6 +16,9 @@ enum Kind { BASE, FARM }
 @export var size_m: Vector2 = Vector2.ZERO
 @export var box_count_min: int = 0
 @export var box_count_max: int = 0
+## Boxes a visit places at most in one site of box markers (BALANCE §7.1,
+## R-013-06; ZonePopulation.pick_box_markers).
+@export var box_max_per_site: int = 0
 ## Enemies placed on each visit: a number in [min, max], shared out among the
 ## entries (ZonePopulation.pick_enemy_spawns).
 @export var enemy_count_min: int = 0

@@ -1,7 +1,7 @@
 class_name BatteryConfigData
 extends Resource
 ## General battery numbers of the robot (BALANCE.md §1.1). The maximum is the
-## basic Core's (§4.2); spec 014 will move it to the equipped Core.
+## basic Core's (§4.2); spec 015 will move it to the equipped Core.
 
 ## Points.
 @export var maximum: float = 0.0

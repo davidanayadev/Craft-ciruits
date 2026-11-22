@@ -85,7 +85,7 @@
   paralelo, después `architecture-guardian` una vez.
 - [x] `system-documenter spec 010` (página nueva de guardado en `docs/systems/` y las que cambian: inventario,
   zonas, base, objetos caídos).
-- [x] Condiciones de entrada en `specs/README.md §6`: spec 013 (el nivel de chasis se aplica antes de que el
-  inventario lea sus ranuras) y spec 014 (ampliada: `DroppedItem.to_data()` también conserva `durability` y `uid`),
+- [x] Condiciones de entrada en `specs/README.md §6`: spec 014 (el nivel de chasis se aplica antes de que el
+  inventario lea sus ranuras) y spec 015 (ampliada: `DroppedItem.to_data()` también conserva `durability` y `uid`),
   plan §7.
 - [x] Estado del spec actualizado en `spec.md` y en `specs/README.md §6`.

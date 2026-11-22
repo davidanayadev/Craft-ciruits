@@ -1,11 +1,15 @@
 extends GutTest
-## ZonePopulation (spec 004, R-004-21): how many boxes a zone gets and on which
-## of its hand-placed markers, decided only by the RNG it is given.
+## ZonePopulation (spec 013, R-013-04, R-013-05; replaces R-004-21): how many
+## boxes a zone gets and on which of its hand-placed markers, grouped in sites
+## with a per-site maximum, decided only by the RNG it is given.
 ## Enemies (spec 006): how many, of which kind and on which marker (R-006-23),
 ## the same for the same RNG (R-006-25). The numbers here are test inputs; the
 ## values of the green zone are checked in test_zone_resources.gd.
 
 const MARKERS := 10
+## Markers of each site, as the green zone has them (BALANCE §7.1).
+const SITE_MARKERS: Array[int] = [4, 3, 4, 4, 3, 3]
+const MAX_PER_SITE := 2
 const MIN_BOXES := 5
 const MAX_BOXES := 7
 const SEEDS := 100
@@ -57,13 +61,36 @@ func _describe(spawns: Array[ZonePopulation.EnemySpawn]) -> PackedStringArray:
 	return lines
 
 
-func test_r_004_21_count_in_range() -> void:
+func _pick_boxes(rng_seed: int) -> Array[int]:
+	return ZonePopulation.pick_box_markers(
+		SITE_MARKERS, MIN_BOXES, MAX_BOXES, MAX_PER_SITE, _new_rng(rng_seed)
+	)
+
+
+## Site of each flat marker index, sites in order (FarmZone, plan 013 D1).
+func _site_of_markers(site_markers: Array[int]) -> Array[int]:
+	var sites: Array[int] = []
+	for site: int in site_markers.size():
+		for i: int in site_markers[site]:
+			sites.append(site)
+	return sites
+
+
+func _boxes_per_site(picked: Array[int], site_markers: Array[int]) -> Array[int]:
+	var site_of: Array[int] = _site_of_markers(site_markers)
+	var per_site: Array[int] = []
+	per_site.resize(site_markers.size())
+	per_site.fill(0)
+	for marker: int in picked:
+		per_site[site_of[marker]] += 1
+	return per_site
+
+
+func test_r_013_04_count_in_range() -> void:
 	var counts_seen: Dictionary[int, bool] = {}
 	var out_of_range: int = 0
 	for rng_seed: int in SEEDS:
-		var picked: Array[int] = ZonePopulation.pick_box_markers(
-			MARKERS, MIN_BOXES, MAX_BOXES, _new_rng(rng_seed)
-		)
+		var picked: Array[int] = _pick_boxes(rng_seed)
 		counts_seen[picked.size()] = true
 		if picked.size() < MIN_BOXES or picked.size() > MAX_BOXES:
 			out_of_range += 1
@@ -71,61 +98,93 @@ func test_r_004_21_count_in_range() -> void:
 	assert_eq(counts_seen.size(), MAX_BOXES - MIN_BOXES + 1, "every count of the range comes up")
 
 
-func test_r_004_21_distinct_sorted_markers() -> void:
+func test_r_013_04_at_most_max_per_site() -> void:
+	var over: int = 0
+	var full_sites: int = 0
+	for rng_seed: int in SEEDS:
+		for boxes: int in _boxes_per_site(_pick_boxes(rng_seed), SITE_MARKERS):
+			if boxes > MAX_PER_SITE:
+				over += 1
+			elif boxes == MAX_PER_SITE:
+				full_sites += 1
+	assert_eq(over, 0, "no site holds more than %d boxes" % MAX_PER_SITE)
+	assert_gt(full_sites, 0, "sites do reach the maximum")
+
+
+func test_r_013_04_distinct_sorted_markers() -> void:
 	var markers_seen: Dictionary[int, bool] = {}
 	var misplaced: int = 0
+	var marker_count: int = _site_of_markers(SITE_MARKERS).size()
 	for rng_seed: int in SEEDS:
-		var picked: Array[int] = ZonePopulation.pick_box_markers(
-			MARKERS, MIN_BOXES, MAX_BOXES, _new_rng(rng_seed)
-		)
+		var picked: Array[int] = _pick_boxes(rng_seed)
 		for i: int in picked.size():
 			markers_seen[picked[i]] = true
-			if picked[i] < 0 or picked[i] >= MARKERS:
+			if picked[i] < 0 or picked[i] >= marker_count:
 				misplaced += 1
 			elif i > 0 and picked[i] <= picked[i - 1]:
 				misplaced += 1
 	assert_eq(misplaced, 0, "marker indices are valid, ascending and without repeats")
-	assert_eq(markers_seen.size(), MARKERS, "every marker is used by some seed")
+	assert_eq(markers_seen.size(), marker_count, "every marker is used by some seed")
 
 
-func test_r_004_21_same_rng_same_markers() -> void:
-	var first: Array[int] = ZonePopulation.pick_box_markers(
-		MARKERS, MIN_BOXES, MAX_BOXES, _new_rng(42)
-	)
-	var second: Array[int] = ZonePopulation.pick_box_markers(
-		MARKERS, MIN_BOXES, MAX_BOXES, _new_rng(42)
-	)
-	assert_eq(first, second, "the same RNG seed gives the same boxes")
+func test_r_013_05_same_rng_same_markers() -> void:
+	assert_eq(_pick_boxes(42), _pick_boxes(42), "the same RNG seed gives the same boxes")
 
 
-func test_r_004_21_too_few_markers_reports_error() -> void:
-	var picked: Array[int] = ZonePopulation.pick_box_markers(3, MIN_BOXES, MAX_BOXES, _new_rng(1))
-	var every_marker: Array[int] = [0, 1, 2]
-	assert_eq(picked, every_marker, "at most one box per marker")
-	assert_push_error("markers")
-
-
-func test_r_004_21_invalid_range_reports_error() -> void:
-	var picked: Array[int] = ZonePopulation.pick_box_markers(MARKERS, 7, 5, _new_rng(1))
-	assert_eq(picked.size(), 0, "no boxes with an inverted range")
-	assert_push_error("range")
-
-
-func test_r_004_21_known_answer() -> void:
+func test_r_013_05_known_answer() -> void:
 	# Pins which markers each RNG seed gives. The box layout of saved worlds
 	# depends on it (BALANCE §7.2), so a refactor must not move it.
 	var expected: Dictionary[int, Array] = {
-		42: [0, 3, 4, 5, 6, 8, 9],
-		7: [1, 4, 5, 6, 7, 8, 9],
-		20261115: [0, 1, 2, 4, 6, 9],
+		42: [1, 2, 13, 15, 16, 18, 19],
+		7: [2, 5, 7, 9, 12, 13, 20],
+		20261115: [0, 2, 7, 8, 11, 13],
 	}
 	for rng_seed: int in expected:
-		var picked: Array[int] = ZonePopulation.pick_box_markers(
-			MARKERS, MIN_BOXES, MAX_BOXES, _new_rng(rng_seed)
-		)
 		var known: Array[int] = []
 		known.assign(expected[rng_seed])
-		assert_eq(picked, known, "markers of RNG seed %d" % rng_seed)
+		assert_eq(_pick_boxes(rng_seed), known, "markers of RNG seed %d" % rng_seed)
+
+
+func test_r_013_05_sites_too_small_reports_error() -> void:
+	# Capacity under a maximum of 2 per site: 1 + 1 + 2 = 4 boxes.
+	var small_sites: Array[int] = [1, 1, 3]
+	var picked: Array[int] = ZonePopulation.pick_box_markers(
+		small_sites, MIN_BOXES, MAX_BOXES, MAX_PER_SITE, _new_rng(1)
+	)
+	assert_push_error("sites")
+	assert_eq(picked.size(), 4, "as many boxes as fit")
+	for boxes: int in _boxes_per_site(picked, small_sites):
+		assert_lte(boxes, MAX_PER_SITE, "and never over the per-site maximum")
+
+
+func test_r_013_05_invalid_range_reports_error() -> void:
+	var inverted: Array[int] = ZonePopulation.pick_box_markers(
+		SITE_MARKERS, 7, 5, MAX_PER_SITE, _new_rng(1)
+	)
+	assert_eq(inverted.size(), 0, "no boxes with an inverted range")
+	var negative: Array[int] = ZonePopulation.pick_box_markers(
+		SITE_MARKERS, -1, 5, MAX_PER_SITE, _new_rng(1)
+	)
+	assert_eq(negative.size(), 0, "no boxes with a negative minimum")
+	assert_push_error("range", "the inverted range is reported")
+	assert_push_error("range", "the negative minimum is reported")
+
+
+func test_r_013_05_invalid_max_per_site_reports_error() -> void:
+	var picked: Array[int] = ZonePopulation.pick_box_markers(
+		SITE_MARKERS, MIN_BOXES, MAX_BOXES, 0, _new_rng(1)
+	)
+	assert_eq(picked.size(), 0, "no boxes without a per-site maximum")
+	assert_push_error("per site")
+
+
+func test_r_013_05_negative_site_count_reports_error() -> void:
+	var broken_sites: Array[int] = [4, -1, 4, 4]
+	var picked: Array[int] = ZonePopulation.pick_box_markers(
+		broken_sites, MIN_BOXES, MAX_BOXES, MAX_PER_SITE, _new_rng(1)
+	)
+	assert_eq(picked.size(), 0, "no boxes with a negative site")
+	assert_push_error("site")
 
 
 func test_r_006_23_count_in_range() -> void:

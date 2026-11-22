@@ -32,7 +32,7 @@
   guarda el id, nunca el recurso.
 - Lo que aplica la 008: `drops_inventory` (suelta o no el inventario), `keeps_xp` (si es `false`, la XP vuelve a 0)
   y `respawn_battery_ratio` (batería al reaparecer = máxima × ratio). `keeps_core` solo se declara: lo aplica la
-  spec 014, que crea las ranuras (pregunta 4).
+  spec 015, que crea las ranuras (pregunta 4).
 - Ningún script compara el id ni el nombre del ruleset: `DeathController` solo lee sus campos (R-008-03, con un
   test que busca esas comparaciones y otro con un ruleset hecho a mano).
 - No hay campo "reaparece sí/no": el Hardcore de v1.1 lo añadirá con su comportamiento. Añadirlo ahora obligaría a
@@ -94,7 +94,7 @@
   [x, y, z], dropped_at, stacks: [{item_id, quantity}]}`. `DroppedItemSpawner.to_data()` devuelve la lista. Leerlo de vuelta
   (`from_data`) es de la spec 010.
 - **Pilas fusionadas.** `take_from` apila con las reglas de `InventoryRules`: dos pilas parciales del mismo item
-  caen como una. El total por item no cambia. Con piezas (`stack_max = 1`, spec 014) no hay fusión. Tirar una
+  caen como una. El total por item no cambia. Con piezas (`stack_max = 1`, spec 015) no hay fusión. Tirar una
   parte y volver a cogerla puede dejar dos pilas parciales del mismo item, que al morir se juntan: el "tal como
   estaban" del spec §5 se cumple por item y cantidad, no por ranura (§7).
 
@@ -274,7 +274,7 @@ extends Resource
 @export var id: StringName                    # "normal"; stable forever (architecture §8)
 @export var drops_inventory: bool             # every inventory stack falls where the player died
 @export var keeps_xp: bool
-@export var keeps_core: bool                  # applied by spec 014 (EquipmentComponent)
+@export var keeps_core: bool                  # applied by spec 015 (EquipmentComponent)
 @export var respawn_battery_ratio: float      # fraction of the maximum, 0 < ratio <= 1
 func validate() -> PackedStringArray          # empty id, ratio out of range
 
@@ -458,7 +458,7 @@ de los controles del selector.
 | R-008-08 | `unit/test_seeded_rng.gd::test_r_008_08_visit_and_index_change_the_seed`, `test_r_008_08_known_answer`; `integration/test_green_zone.gd::test_r_008_08_contents_change_with_visit`, `test_r_008_08_positions_same_on_every_visit` |
 | R-008-09 | `integration/test_green_zone.gd::test_r_008_09_repopulate_closes_boxes_with_new_contents`, `test_r_008_09_repopulate_discards_leftovers`, `test_r_008_09_repopulate_places_enemies_of_the_visit`; `integration/test_main_scene.gd::test_r_008_09_visit_change_repopulates_loaded_zone` |
 | R-008-10 | `unit/test_dropped_item.gd::test_r_008_10_holds_stacks_uid_zone_and_time`; `integration/test_dropped_item_spawner.gd::test_r_008_10_position_is_local_to_the_zone` |
-| R-008-11 | `unit/test_inventory_component.gd::test_r_008_11_take_amount_moves_exactly`; `unit/test_dropped_item.gd::test_r_008_11_drop_and_pick_up_keep_totals`. Durabilidad y `uid` de pila: `ItemStack` aún no los tiene (los añade la spec 014 con su `copy()`); ver §7 |
+| R-008-11 | `unit/test_inventory_component.gd::test_r_008_11_take_amount_moves_exactly`; `unit/test_dropped_item.gd::test_r_008_11_drop_and_pick_up_keep_totals`. Durabilidad y `uid` de pila: `ItemStack` aún no los tiene (los añade la spec 015 con su `copy()`); ver §7 |
 | R-008-12 | `unit/test_dropped_item.gd::test_r_008_12_interactable_with_pick_up_prompt`, `test_r_008_12_prompt_translated_es_en` |
 | R-008-13 | `unit/test_dropped_item.gd::test_r_008_13_interact_takes_all_in_slot_order`, `test_r_008_13_interactor_without_inventory_reports_error` |
 | R-008-14 | `unit/test_dropped_item.gd::test_r_008_14_emptied_once`; `integration/test_dropped_item_spawner.gd::test_r_008_14_emptied_goes_back_to_pool` |
@@ -559,9 +559,9 @@ Ningún punto obliga a cambiar el plan.
   diga, como hace con R-003-12. Propuesta: añadir a R-008-38 "(sustituye a 'solo muestra' del plan 005)". El test
   se sustituye, no se debilita: `focus_mode` se sigue comprobando.
 - **R-008-11, durabilidad y `uid` de pila** → `ItemStack` hoy solo tiene `item` y `quantity`. El objeto caído mueve
-  pilas con `InventoryComponent`, así que conservará lo que la spec 014 añada a `ItemStack` si la 014 lo lleva
+  pilas con `InventoryComponent`, así que conservará lo que la spec 015 añada a `ItemStack` si la 015 lo lleva
   también por `InventoryRules`. En la 008 solo se puede comprobar item y cantidad. Se anota como condición de
-  entrada para la 014. Propuesta: anotarlo en R-008-11 del spec antes de pasar la puerta.
+  entrada para la 015. Propuesta: anotarlo en R-008-11 del spec antes de pasar la puerta.
 - **R-008-34 dice "solo el ruleset y los contadores"** → `GameManager` ya guarda la semilla y ahora también el
   reloj. Ninguno es estado de un jugador, que es lo que protege el requisito. Propuesta: que el spec diga "solo
   estado del mundo (semilla, ruleset, contadores de visitas) y el servicio de tiempo".

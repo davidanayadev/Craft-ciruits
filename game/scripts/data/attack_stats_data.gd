@@ -1,6 +1,6 @@
 class_name AttackStatsData
 extends Resource
-## Melee numbers of the robot's arms (BALANCE.md §4.2). Spec 014 will derive
+## Melee numbers of the robot's arms (BALANCE.md §4.2). Spec 015 will derive
 ## these from StatsComponent modifiers; until then the robot points at one
 ## .tres instance (one arm).
 

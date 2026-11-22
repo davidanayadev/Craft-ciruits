@@ -44,7 +44,7 @@
   global. El spawner pasa la posición global del marcador. Nada de esto se guarda: lo que se guardará (spec 010) es
   la visita, y los zombies se regeneran desde la semilla, así que P9 (posiciones guardadas como local a la zona) no
   se ve afectado.
-- `EnemyBrain` sirve también para el robot hostil (spec 015), porque no sabe nada de zombies.
+- `EnemyBrain` sirve también para el robot hostil (spec 016), porque no sabe nada de zombies.
 
 **Golpe al robot (R-006-16 a 18).**
 - El robot está en el grupo `Robot.PLAYER_GROUP`. El zombie busca allí al jugador vivo más cercano en cada paso de
@@ -52,7 +52,7 @@
 - Cuando el cerebro dice que hay golpe, el zombie llama a `target.receive_hit(data.hit_damage, self)`.
 - `Robot.receive_hit` no hace nada si la batería está a 0. Si no, llama a `battery.consume(damage)` y emite
   `hit_received(damage, attacker)`.
-- La degradación (spec 014) conectará `DegradationComponent` a `hit_received` sin tocar la IA (R-006-17).
+- La degradación (spec 015) conectará `DegradationComponent` a `hit_received` sin tocar la IA (R-006-17).
 - El zombie llama directamente al robot porque es una relación atacante-objetivo, como `interact()` en §9.1. No va
   por el `EventBus`.
 

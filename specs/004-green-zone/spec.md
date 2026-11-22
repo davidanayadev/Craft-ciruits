@@ -46,7 +46,7 @@ inventario, `InventoryComponent` y su UI son de la spec 005, que conecta esa se�
 | R-004-08 | ~~THE `GameManager` autoload SHALL hold the world seed of the current game.~~ **Sustituido por R-010-20** (spec 010, 2026-11-17): la semilla viene del Mundo cargado o creado. | architecture §5 — ver pregunta 1 |
 | R-004-09 | THE `SeededRng` utility SHALL return a `RandomNumberGenerator` derived only from the world seed and a `zone_id`, so the same inputs always give the same sequence and different `zone_id`s give different sequences. | PMV §4.5 gancho 3, architecture §11, Constitución P9 |
 | R-004-10 | THE zone generation code (box count, box positions, box contents) SHALL use only RNGs from `SeededRng`, never the global `randf()`, `randi()`, `randi_range()` or `randomize()`. | ACTION_PLAN 1.1, Constitución P9 |
-| R-004-11 | WHEN the green zone is generated twice with the same world seed, THE boxes SHALL appear in the same number and at the same positions. | ACTION_PLAN 1.1 (test) |
+| R-004-11 | ~~WHEN the green zone is generated twice with the same world seed, THE boxes SHALL appear in the same number and at the same positions.~~ **Sustituido por R-013-02** (spec 013, 2026-11-21): las cajas son las mismas con la misma semilla y la misma visita. | ACTION_PLAN 1.1 (test) |
 
 ### 3.3 Interacción
 
@@ -71,7 +71,7 @@ inventario, `InventoryComponent` y su UI son de la spec 005, que conecta esa se�
 
 | ID | Requisito | Fuente |
 |---|---|---|
-| R-004-21 | WHEN the green zone is generated, THE zone SHALL place a number of basic boxes within the range of BALANCE §7.1, chosen with its seeded RNG among candidate positions laid out in the scene. | ACTION_PLAN 1.1, BALANCE §7.1 — ver pregunta 4 |
+| R-004-21 | WHEN the green zone is generated, THE zone SHALL place a number of basic boxes within the range of BALANCE §7.1, chosen with its seeded RNG among candidate positions laid out in the scene. **Ampliado por R-013-01** (spec 013, 2026-11-21): el número y los marcadores dependen también de la visita, y los marcadores se agrupan en sitios con un máximo por sitio (R-013-03, R-013-04). | ACTION_PLAN 1.1, BALANCE §7.1 — ver pregunta 4 |
 | R-004-22 | THE basic box SHALL have a loot table as a data resource whose entries reference catalog items and give a quantity range per item, with the values of BALANCE §2.1. | ACTION_PLAN 1.1, BALANCE §2.1, Constitución P5 |
 | R-004-23 | WHEN a closed box is interacted with, THE box SHALL roll its loot table once, with every quantity inside its range, and emit `loot_generated(stacks, opener)` with the resulting item stacks, leaving out items rolled as 0. | ACTION_PLAN 1.1, 1.2 (conectar al jugador que abre), architecture §9.3 — ver pregunta 5 |
 | R-004-24 | WHEN a box has been opened, THE box SHALL show an opened state, disable its `InteractableComponent` and never generate loot again while the zone is loaded. **Sustituido por R-005-21** (spec 005, nov 2026): la caja ya no se desactiva al abrirse, sino al vaciarse; sigue sin volver a tirar. | ACTION_PLAN 1.1 — ver pregunta 2 |
@@ -84,7 +84,7 @@ interacción) se citan por su fuente; el spec no los fija.
 ## 4. Fuera de alcance
 
 - `InventoryComponent`, reglas de apilado, UI de inventario y conectar `loot_generated` al jugador: spec 005.
-- Spawns de zombies y robots en la zona, aunque la zona pueda reservar sus marcadores: specs 006 y 015.
+- Spawns de zombies y robots en la zona, aunque la zona pueda reservar sus marcadores: specs 006 y 016.
 - `ZoneData`, `ZoneLoader`, viaje entre base y zona, pantalla de carga y `EventBus.zone_changed`: spec 009 (la
   base es la zona `(0, -1)`, architecture §14 pregunta 1). En la 004 la zona se instancia directamente en `ZoneSlot`.
 - Crear la semilla al crear un mundo y guardar qué cajas están abiertas (cambios por zona): spec 010.

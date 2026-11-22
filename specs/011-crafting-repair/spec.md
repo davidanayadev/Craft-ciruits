@@ -4,7 +4,7 @@
 |---|---|
 | **Estado** | Hecho (2026-11-18) |
 | **Tarea(s) ACTION_PLAN** | 2.4 |
-| **Fuentes** | ACTION_PLAN.md Tarea 2.4 (y 2.2, 2.3, 2.5, 2.6, 3.1, 3.2, 3.3, 4.3, 4.4, 5.4 para los límites) · PMV.md §2.1, §2.2, §2.3, §2.4, §4.5 gancho 5, §8.2, §10 (base y viaje; guardado; muerte) · BALANCE.md §2, §4.1, §4.3, §5.1, §8.1, §8.2 · SPECS.md §29 · architecture.md §3, §8, §9.2, §9.3, §9.5, §10.3 · README §6 (condición de entrada de la spec 014) · Constitución P1, P2, P3, P4, P5, P11, P13, P14 |
+| **Fuentes** | ACTION_PLAN.md Tarea 2.4 (y 2.2, 2.3, 2.5, 2.6, 3.1, 3.2, 3.3, 4.3, 4.4, 5.4 para los límites) · PMV.md §2.1, §2.2, §2.3, §2.4, §4.5 gancho 5, §8.2, §10 (base y viaje; guardado; muerte) · BALANCE.md §2, §4.1, §4.3, §5.1, §8.1, §8.2 · SPECS.md §29 · architecture.md §3, §8, §9.2, §9.3, §9.5, §10.3 · README §6 (condición de entrada de la spec 015) · Constitución P1, P2, P3, P4, P5, P11, P13, P14 |
 | **Depende de** | 005 (`InventoryComponent`, `InventoryRules`, `UIManager`), 008 (objeto caído, dividir y tirar), 009 (`RecipeData`, `CraftingSystem`, banco, `BuildScreen`), 010 (guardado del inventario y del objeto caído, `Uid`) |
 | **Rama** | `feat/011-crafting-repair` |
 
@@ -14,7 +14,7 @@ Completar el banco de reparaciones: además de construir estructuras (spec 009),
 y reparar piezas dañadas, pagando con los materiales de BALANCE §4.3. Es la vía por la que el jugador consigue
 sus primeros Brazos y Piernas (BALANCE §8.2, "Día 2-3") y deja `RecipeData` y `CraftingSystem` listos para que
 el resto de recetas sean datos. Las piezas entran como objetos únicos del inventario (con `uid` y durabilidad);
-equiparlas y degradarlas es de la spec 014 (pregunta 1).
+equiparlas y degradarlas es de la spec 015 (pregunta 1).
 
 ## 2. Historias
 
@@ -24,7 +24,7 @@ equiparlas y degradarlas es de la spec 014 (pregunta 1).
 - Como jugador, quiero reparar una pieza dañada antes de que se rompa, para no perderla.
 - Como jugador, quiero que una pieza conserve su desgaste aunque la tire, muera o cierre el juego, para que
   reparar tenga sentido.
-- Como desarrollador de la spec 014 (piezas y degradación), quiero piezas que ya existen como objetos únicos y
+- Como desarrollador de la spec 015 (piezas y degradación), quiero piezas que ya existen como objetos únicos y
   una reparación probada, para solo añadir equipo, stats y desgaste.
 - Como desarrollador de v1.2 (crafteo por niveles), quiero que una receta nueva sea un `.tres`, para rellenar el
   árbol sin tocar código.
@@ -48,7 +48,7 @@ equiparlas y degradarlas es de la spec 014 (pregunta 1).
 |---|---|---|
 | R-011-07 | WHEN a piece is created, THE game SHALL give its `ItemStack` a quantity of 1, the maximum durability of its `PieceData` and a new `uid` from `Uid.generate()`. | architecture §9.3, §10.3, BALANCE §4.1, §5.1 |
 | R-011-08 | THE inventory rules SHALL keep every piece in a slot of its own, never merged with another piece, even of the same `PieceData`. | architecture §9.3 |
-| R-011-09 | WHEN a piece moves between inventories, is split or thrown, falls in the dropped object of a death or is picked up from a dropped object, THE game SHALL keep its durability and its `uid`. | README §6 (condición de entrada de la spec 014), R-008-11 — pregunta 1 |
+| R-011-09 | WHEN a piece moves between inventories, is split or thrown, falls in the dropped object of a death or is picked up from a dropped object, THE game SHALL keep its durability and its `uid`. | README §6 (condición de entrada de la spec 015), R-008-11 — pregunta 1 |
 | R-011-10 | THE saved data of a dropped object SHALL include the durability and `uid` of each of its stacks, and loading it SHALL restore them. | spec 010 (R-010-29), README §6 — pregunta 1 |
 | R-011-11 | IF a loaded piece stack has a durability outside 1 to its maximum or an empty `uid`, THEN THE game SHALL report it with `push_error` and drop that stack, as spec 010 does with any other invalid entry, keeping the rest. | Constitución §2 (errores), spec 010 |
 
@@ -95,17 +95,17 @@ por su fuente; el spec no los fija.
 ## 4. Fuera de alcance
 
 - Equipar y desequipar piezas, `EquipmentComponent`, `StatModifier`, `StatsComponent`, `RobotBaseStats.tres`,
-  `slot_type` y la UI de equipo: spec 014 (ACTION_PLAN 3.1). Hasta entonces una pieza creada es un objeto del
+  `slot_type` y la UI de equipo: spec 015 (ACTION_PLAN 3.1). Hasta entonces una pieza creada es un objeto del
   inventario sin efecto (pregunta 1).
 - Degradación por golpe, rotura, `piece_broken`, notificación "Pieza rota" y barra de durabilidad con colores:
-  spec 014 (ACTION_PLAN 3.2). Hasta entonces ninguna pieza se daña jugando (pregunta 7).
-- Reparar piezas equipadas sin desequiparlas: spec 014 (pregunta 6).
-- Qué pasa con un Core de repuesto al morir: lo decide la spec 014 con las ranuras (pregunta 8). Esta spec no
+  spec 015 (ACTION_PLAN 3.2). Hasta entonces ninguna pieza se daña jugando (pregunta 7).
+- Reparar piezas equipadas sin desequiparlas: spec 015 (pregunta 6).
+- Qué pasa con un Core de repuesto al morir: lo decide la spec 015 con las ranuras (pregunta 8). Esta spec no
   cambia la muerte: el inventario cae entero (R-008-26).
 - Recetas del generador eólico y del cofre, y su límite de cinco: spec 012 (ACTION_PLAN 2.5, 2.6). Entran como
   datos en la sección de construir.
-- Piezas dañadas en el loot del robot hostil (50 % de durabilidad): spec 015 (ACTION_PLAN 3.3). Red de seguridad
-  con "piezas medio rotas": pregunta abierta de PMV §10, con la spec 014.
+- Piezas dañadas en el loot del robot hostil (50 % de durabilidad): spec 016 (ACTION_PLAN 3.3). Red de seguridad
+  con "piezas medio rotas": pregunta abierta de PMV §10, con la spec 015.
 - Crafteo "uno mismo" y por nanobots, árbol de crafteo, desbloqueo de requisitos (`requires`) y tiers
   superiores: v1.2+ (PMV §2.3, SPECS §29). Banco crafteable a mano: v1.1 (SPECS §29, §32).
 - Armas y banco de armas: v1.1 (PMV §2.3).
@@ -138,11 +138,11 @@ actualiza al cambiar el inventario, sigue abierta tras crear o reparar); guardad
 
 | # | Pregunta | Propuesta | ¿Bloquea? |
 |---|---|---|---|
-| 1 | ~~Piezas antes de la spec 014~~ | **Cerrada (nov 2026): opción A**. La 011 crea `PieceData` mínima (durabilidad máxima y `stack_max` 1) y las tres piezas como objetos del inventario, sin efecto hasta la 014, y adelanta la condición de entrada de la 014: durabilidad y `uid` se conservan en todos los caminos de una pila, también en el objeto caído guardado (R-011-07 a R-011-11). La 014 añade `slot_type`, modificadores, equipo y desgaste. README §6 actualizado. Descartado: hacer la 014 antes (B) y dejar reparar para la 014 (C). | — |
+| 1 | ~~Piezas antes de la spec 015~~ | **Cerrada (nov 2026): opción A**. La 011 crea `PieceData` mínima (durabilidad máxima y `stack_max` 1) y las tres piezas como objetos del inventario, sin efecto hasta la 015, y adelanta la condición de entrada de la 015: durabilidad y `uid` se conservan en todos los caminos de una pila, también en el objeto caído guardado (R-011-07 a R-011-11). La 015 añade `slot_type`, modificadores, equipo y desgaste. README §6 actualizado. Descartado: hacer la 015 antes (B) y dejar reparar para la 015 (C). | — |
 | 2 | ~~Coste de reparación~~ | **Cerrada (nov 2026): opción A**. Tramos según la durabilidad que queda: por encima del 25 % de la máxima, 2 hierro + 1 cable; del 25 % para abajo (sin llegar a 0), 3 hierro + 2 cables; a 0, no reparable. BALANCE §4.1 y §5.1 remiten a §4.3.2, que habla de tramos; ACTION_PLAN 2.4 actualizado. Descartado: coste fijo (B) y proporcional (C). | — |
 | 3 | ~~Inventario lleno al crear~~ | **Cerrada (nov 2026): opción A**. Se comprueba antes de cobrar, contando la ranura que libera el pago; si no cabe, "Crear" desactivado con aviso. Descartado: dejar la pieza en el suelo (B). | — |
 | 4 | ~~Forma de la pantalla del banco~~ | **Cerrada (nov 2026): opción A**. Una sola pantalla con tres pestañas (Construir, Crear, Reparar) que sustituye a la de la spec 009 y abre en Construir; crear y reparar la dejan abierta, construir la cierra para colocar (R-009-65). Coste como hoy ("Chatarra x4"). | — |
 | 5 | ~~Guardar tras crear o reparar~~ | **Cerrada (nov 2026): opción A**. Se guarda tras crear y tras reparar (R-011-28), sin mensaje "Partida guardada"; PMV §10 y ACTION_PLAN 2.3 actualizados. | — |
-| 6 | ~~Reparar piezas equipadas~~ | **Cerrada (nov 2026)**: fuera de esta spec; la 014 hace que "Reparar" liste también las piezas equipadas, sin desequiparlas (anotado en README §6). | — |
-| 7 | ~~Probar reparar jugando~~ | **Cerrada (nov 2026): opción A**. Reparar se verifica con tests que inyectan una pieza dañada; la prueba jugando llega con la 014. Sin botón de depuración. | — |
-| 8 | ~~Core de repuesto al morir~~ | **Cerrada (nov 2026)**: se conserva solo el Core equipado (lo aplica la 014); uno de repuesto en el inventario cae como cualquier objeto. Anotado en PMV §10 para confirmarlo con la 014. | — |
+| 6 | ~~Reparar piezas equipadas~~ | **Cerrada (nov 2026)**: fuera de esta spec; la 015 hace que "Reparar" liste también las piezas equipadas, sin desequiparlas (anotado en README §6). | — |
+| 7 | ~~Probar reparar jugando~~ | **Cerrada (nov 2026): opción A**. Reparar se verifica con tests que inyectan una pieza dañada; la prueba jugando llega con la 015. Sin botón de depuración. | — |
+| 8 | ~~Core de repuesto al morir~~ | **Cerrada (nov 2026)**: se conserva solo el Core equipado (lo aplica la 015); uno de repuesto en el inventario cae como cualquier objeto. Anotado en PMV §10 para confirmarlo con la 015. | — |
