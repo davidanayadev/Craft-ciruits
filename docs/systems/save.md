@@ -3,7 +3,7 @@
 > `SaveManager` guarda y carga el estado en dos niveles: un Perfil que sobrevive a los mundos y un Mundo por partida.
 > Cada dueño de estado serializa solo lo suyo; el guardado no conoce ningún campo. `IStore` es el contrato de la tienda
 > (en el PMV, siempre la demo).
-> Specs: [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md) · Última actualización: spec 012
+> Specs: [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) · Última actualización: spec 013 (excepción de `schema_version`)
 
 ## Piezas
 
@@ -106,6 +106,7 @@ juego. Claves de traducción en `game/i18n/strings.csv`: `ERR_SAVE_FAILED`, `MSG
 | Cofres y generadores se guardan dentro de la parte de `BaseStructures`, no como dueños `persistent` | Su carga depende de qué `uid` están colocados, sin depender del orden de carga | [plan 012 D5, D6](../../specs/012-wind-generator-chests/plan.md), R-012-39, R-012-42 |
 | Se guarda al recoger baterías y al cerrar un cofre con cambios; usar una batería y cerrar una caja de loot no | Pregunta cerrada de la spec | R-012-44 |
 | Un campo opcional nuevo, con valor por defecto que reproduce lo anterior, no sube `schema_version` | Un archivo viejo carga igual | [plan 011 D12](../../specs/011-crafting-repair/plan.md), [architecture §10.2](../../specs/architecture.md) |
+| Excepción: el campo `marker` de cada caja abierta de la visita (`ZoneMemory`) cambió de significado (índice plano por sitios) sin subir `schema_version` | Solo hay partidas de desarrollo; lo peor es perder las cajas abiertas de la visita en curso, con `push_error` | [plan 013 D6 y §6](../../specs/013-loot-box-sites-container-ui/plan.md), [spec 013 pregunta 4](../../specs/013-loot-box-sites-container-ui/spec.md), R-013-08 |
 
 ## Relación con otros sistemas
 
@@ -127,6 +128,10 @@ Cada dueño documenta su formato: [battery.md](battery.md), [inventory.md](inven
 - Sin menú, sin varios mundos y sin nombre de Mundo (queda vacío). Compra real: v1.1.
 - Todos los guardados son silenciosos salvo el de la estación de carga ([ui.md](ui.md)); crear, reparar, recoger baterías y cerrar un cofre también lo son.
 - Una carga de batería por encima de la máxima base no es error al cargar (queda pendiente hasta que llegue la bonificación del generador); ver [battery.md](battery.md).
+- El `marker` guardado de las cajas abiertas es el índice plano de `FarmZone` (sitios y marcadores en orden de
+  escena, [world_zones.md](world_zones.md)). Los guardados anteriores a la spec 013 lo leen con otro significado:
+  una caja puede volver abierta en otro marcador o descartarse con `push_error`. Cuando existan partidas reales,
+  reordenar sitios o marcadores exigirá subir `schema_version` y migrar.
 - `StructureUseFlow` emite `chest_closed` también cuando un viaje o una muerte cierran la pantalla: el guardado espera la retención.
 
 ## Cómo extenderlo

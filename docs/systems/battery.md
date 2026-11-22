@@ -80,7 +80,7 @@ cambia nada. Una carga por encima del máximo (spec 012) carga en el máximo y q
 | `ProgressBar` en lugar de `TextureProgressBar` | Aún no hay texturas | [plan 003 §7](../../specs/003-battery/plan.md) |
 | Número entero redondeado hacia arriba en el HUD | Pregunta cerrada en nov 2026 | [spec 003](../../specs/003-battery/spec.md) (preguntas abiertas, nº 4) |
 | La muerte real sustituye al game over provisional | `GameOverScreen` y la recarga de escena se borraron | R-008-33, R-003-12 |
-| La bonificación del generador es un dato aplicado a la máxima, no se guarda | La spec 014 la suma a la del Core sin rehacerla | R-012-11, R-012-40 |
+| La bonificación del generador es un dato aplicado a la máxima, no se guarda | La spec 015 la suma a la del Core sin rehacerla | R-012-11, R-012-40 |
 | Carga guardada por encima de la máxima: pendiente, sin error todavía | Independiente del orden de carga y sin tocar `SaveManager` | [plan 012 D11](../../specs/012-wind-generator-chests/plan.md), R-012-14 |
 | El coste de ataque se descuenta en `Robot`, no en el componente de combate | Sin documentar (R-007-10 solo exige el coste por golpe) | R-007-10, [plan 007](../../specs/007-melee-combat/plan.md) |
 
@@ -94,8 +94,8 @@ cambia nada. Una carga por encima del máximo (spec 012) carga en el máximo y q
 
 ## Trampas y límites
 
-- `legs` se asigna a mano en el componente; el spec 014 lo sustituye por `StatsComponent`. El máximo también pasará al Core equipado.
-- La estación de carga recarga a la máxima con bonificación (spec 009). No hay degradación de piezas (spec 014; `Robot.hit_received` es el punto de enganche).
+- `legs` se asigna a mano en el componente; el spec 015 lo sustituye por `StatsComponent`. El máximo también pasará al Core equipado.
+- La estación de carga recarga a la máxima con bonificación (spec 009). No hay degradación de piezas (spec 015; `Robot.hit_received` es el punto de enganche).
 - La batería al reaparecer sale de `RulesetData.respawn_battery_ratio`, no de `BatteryConfigData`.
 - `battery_low` no tiene oyentes todavía.
 - Un valor guardado absurdo (por ejemplo 1e9) se informa más tarde que antes: al borrar la pendiente, no al cargar.

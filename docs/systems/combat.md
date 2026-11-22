@@ -68,7 +68,7 @@ Botón/Espacio/clic -> PlayerInput.poll_attack -> MeleeAttack.tick -> swing_star
 | `combat_feedback.tres` | `CombatFeedbackData` | BALANCE.md §11 ("Combate") |
 | `zombie_slow.tres`, `zombie_fast.tres` (`xp_reward`) | `EnemyData` | BALANCE.md §3.1 y §6.2 |
 
-El robot usa `one_arm.tres`. `basic_arms.tres` no lo usa nadie hasta la spec 014 (existe porque lo pide R-007-01).
+El robot usa `one_arm.tres`. `basic_arms.tres` no lo usa nadie hasta la spec 015 (existe porque lo pide R-007-01).
 El alto de la caja del hitbox y su altura son geometría de colisión en `robot.tscn`, no balance.
 
 ## Decisiones
@@ -79,7 +79,7 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 | `tick()` sin `_physics_process` propio | El ritmo se prueba con `delta` a mano | R-007-08, plan 007 §1 |
 | Sin auto-apuntado: golpea hacia donde mira | Se quita esa facilidad a propósito | R-007-13, PMV §10 |
 | Se mueve y gira libre durante el golpe | Decisión cerrada nov 2026 (pregunta 6) | R-007-14 |
-| El robot nunca se queda sin ataque: un brazo | Red de seguridad hasta la spec 014 | R-007-02, spec 007 pregunta 1 |
+| El robot nunca se queda sin ataque: un brazo | Red de seguridad hasta la spec 015 | R-007-02, spec 007 pregunta 1 |
 | El coste se paga al empezar, acierte o no | BALANCE §1.1 | R-007-10 |
 | `killer_uid` en `HurtboxComponent`, `take_damage` no cambia | `HealthComponent` no sabe de jugadores | plan 007 §1, spec pregunta 8 |
 | `enemy_killed` por el bus; el golpe, por llamada directa | La XP, la guía y el audio no se conocen entre sí; atacante-objetivo sí | plan 007 §6 (P6), [architecture §7](../../specs/architecture.md) |
@@ -99,7 +99,7 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 ## Trampas y límites
 
 - El impacto ve la posición del hurtbox del zombie un paso de física atrás (≤ 6 cm a su velocidad): aceptado.
-- No hay armas, degradación por golpe, retroceso, hit stop, SFX, HUD de XP ni nivel de chasis (specs 013, 014 y
+- No hay armas, degradación por golpe, retroceso, hit stop, SFX, HUD de XP ni nivel de chasis (specs 014, 015 y
   ACTION_PLAN 4.x). La XP solo se acumula.
 - `player_uid` es aleatorio hasta que `Robot.set_player_uid` le da el `player_uuid` del Perfil (también al ataque, `melee.attacker_uid`). `ExperienceComponent` es dueño de guardado (`experience`: el total) y cargar emite `xp_changed` pero nunca repite una subida de nivel ([save.md](save.md)).
 - `enemy_killed` sale dentro de un paso de física: un oyente que toque el árbol debe usar `call_deferred`.

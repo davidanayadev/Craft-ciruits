@@ -124,9 +124,9 @@ Cargar no emite señales.
 ## Trampas y límites
 
 - **Durabilidad y `uid` de pila (R-008-11):** desde la spec 011 se conservan al caer, recoger, tirar y guardar
-  ([inventory.md](inventory.md), R-011-09, R-011-10). La spec 014 debe quitar las piezas rotas del inventario o el
+  ([inventory.md](inventory.md), R-011-09, R-011-10). La spec 015 debe quitar las piezas rotas del inventario o el
   guardado las rechazará ([crafting.md](crafting.md)).
-- Se pierde y se conserva solo el inventario: `keeps_core` se declara pero no lo aplica nadie hasta la spec 014 (piezas).
+- Se pierde y se conserva solo el inventario: `keeps_core` se declara pero no lo aplica nadie hasta la spec 015 (piezas).
 - Las pilas parciales del mismo item se fusionan al caer: "tal como estaban" se cumple por item y cantidad, no por ranura. Una pieza no se fusiona nunca.
 - Contador de visitas y objetos caídos se guardan en disco ([save.md](save.md)). `DroppedItem.to_data()` usa solo tipos
   JSON (`SaveFields`) y guarda `durability` y `uid` de cada pila.

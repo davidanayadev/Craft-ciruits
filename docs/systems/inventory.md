@@ -2,23 +2,23 @@
 
 > Ranuras de ítems por entidad (robot, cajas de loot, cofres), con reglas de apilado puras y las
 > pantallas que las muestran. Es la primera pieza de estado por jugador después de la batería.
-> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md) · Última actualización: spec 012 (mover entre ranuras y contenedores)
+> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) · Última actualización: spec 013 (pantalla de contenedor, `count_used_slots`)
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
-| `InventoryRules` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/inventory_rules.gd` | Apila, cuenta y quita sobre un `Array[ItemStack]` recibido por parámetro (`null` = ranura vacía). Spec 011: `add_stack`, `is_valid_stack`, `index_of_uid`. Spec 012: `can_merge`, `move_to_slot`, `transfer` |
+| `InventoryRules` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/inventory_rules.gd` | Apila, cuenta y quita sobre un `Array[ItemStack]` recibido por parámetro (`null` = ranura vacía). Spec 011: `add_stack`, `is_valid_stack`, `index_of_uid`. Spec 012: `can_merge`, `move_to_slot`, `transfer`. Spec 013: `count_used_slots` (ranuras con pila) |
 | `InventoryComponent` | Componente (`Node`) | `game/scripts/components/inventory_component.gd` | Dueño y único escritor de las ranuras; valida, delega en las reglas y devuelve resultados. Spec 011: `craft` y `repair` ([crafting.md](crafting.md)). Spec 012: `move_to_slot`, `transfer_to` |
 | `ItemStack` | Dato (`RefCounted`) | `game/scripts/data/item_stack.gd` | `item`, `quantity`, `durability` (-1 si no aplica) y `uid` (vacío en pilas normales); `copy()` los conserva y no comparte estado. Una pieza (`PieceData`) siempre lleva ambos |
 | `InventoryAddResult` | Dato (hereda de `ActionResult`) | `game/scripts/data/inventory_add_result.gd` | Resultado de añadir/mover: `ok`, `error_key` y `leftovers` |
 | `ChassisLevelData` | Recurso | `game/scripts/data/chassis_level_data.gd` | Tabla de XP y ranuras por nivel de chasis |
 | `chassis_levels.tres` | `.tres` | `game/resources/progression/chassis_levels.tres` | La tabla real |
-| `InventoryGrid` | Presentación | `game/scenes/ui/inventory_grid.gd` | Una celda por ranura de un componente; se repinta con `inventory_changed` |
-| `InventorySlotView` | Presentación | `game/scenes/ui/inventory_slot.gd` | Una celda (`Button`): icono y cantidad, o aspecto vacío |
+| `InventoryGrid` | Presentación | `game/scenes/ui/inventory_grid.gd` | Una celda por ranura de un componente; se repinta con `inventory_changed`; `flash_slots` y `set_targets_marked` (spec 013) |
+| `InventorySlotView` | Presentación | `game/scenes/ui/inventory_slot.gd` | Una celda (`Button`): icono y cantidad, o aspecto vacío; marco de selección, resaltado que se apaga solo (`flash_highlight`) y contorno de destino (`set_target_marked`), spec 013 |
 | `InventoryScreen` | Pantalla | `game/scenes/ui/inventory_screen.gd` | Inventario del jugador; selecciona una pila y pide tirarla o, si es consumible, usarla (botón "Usar", spec 012) |
 | `QuantitySelector` | Presentación | `game/scenes/ui/quantity_selector.gd`, `.tscn` | − / + y deslizador de 1 a la pila; solo informa del número |
-| `ContainerScreen` | Pantalla | `game/scenes/ui/container_screen.gd` | Cofre o caja abierta junto al inventario del jugador: colocar, transferir, "Coger todo" (sustituye a `LootScreen`, spec 012) |
+| `ContainerScreen` | Pantalla | `game/scenes/ui/container_screen.gd` | Cofre o caja abierta junto al inventario del jugador: cabeceras con ocupación, ficha fija, pasar, colocar, "Coger todo" (sustituye a `LootScreen`, spec 012; ficha de la spec 013) |
 
 ## Cómo funciona
 
@@ -36,9 +36,11 @@
 6. Caja: `LootBox` ([loot.md](loot.md)) guarda su tirada en un `InventoryComponent` hijo y emite `opened(opener)`;
    `FarmZone` lo reemite como `box_opened` y `main.gd` abre `ContainerScreen` con
    `{container: caja, inventory: del que abre, title}` ([ui.md](ui.md)).
-7. En `ContainerScreen`, tocar una pila la selecciona y tocar una ranura mueve la cantidad elegida (ver "Mover entre
-   ranuras"); "Coger todo" pasa todas las ranuras ocupadas en orden con `take_from`. La pantalla no se cierra sola
-   al vaciarse el contenedor.
+7. En `ContainerScreen`, tocar una pila solo la selecciona (spec 013); mover es un botón: `%MoveButton` pasa la cantidad
+   elegida al otro lado con `transfer_to`, "Colocar…" abre un modo donde tocar una ranura usa `move_to_slot` (ver "Mover
+   entre ranuras") y "Coger todo" pasa todas las ranuras ocupadas en orden con `take_from`. Las cabeceras muestran
+   `usadas/total` con `InventoryRules.count_used_slots`. La pantalla no se cierra sola al vaciarse el contenedor
+   ([ui.md](ui.md)).
 8. `InventoryScreen` se abre con el botón de almacenamiento o Tab (`open_storage`).
 9. `InventoryGrid.bind()` pinta el estado inicial y se repinta solo con `inventory_changed` (nunca por
    `_process`). Las rejillas de la caja y del inventario tienen `interactive = true`.
@@ -153,7 +155,7 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
   ranura solo existe en `ContainerScreen`; `InventoryScreen` (Tab) sigue solo con tirar y usar. Lo que queda en una caja
   se descarta al repoblar la zona.
 - `durability` y `uid` se conservan en todos los caminos de una pila (spec 011). Quien cree una pieza (botín de la
-  spec 015) debe usar `CraftingSystem.create_result`: `ItemStack.new` sin `uid` la haría rechazar.
+  spec 016) debe usar `CraftingSystem.create_result`: `ItemStack.new` sin `uid` la haría rechazar.
 - Al caer, las pilas parciales del mismo item se fusionan: se conserva el total por item, no la ranura.
 - `remove_many(amounts)` (spec 009) cobra varios ítems a la vez, todo o nada y con un solo `inventory_changed`: ítem
   desconocido o cantidad no positiva es `ERR_INVALID_REQUEST`, falta de algo es `ERR_NOT_ENOUGH_ITEMS`. La regla pura
