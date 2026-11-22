@@ -123,7 +123,7 @@ Prueba desechable para decidir la generación procedural de zonas de v1.1 (SPECS
 - [x] Test: abrir cajas genera materiales
 - [x] Test: con la misma semilla, las cajas aparecen en las mismas posiciones
 
-Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario.
+Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario. Revisión (decisión nov 2026, spec 013): el número y los marcadores de las cajas salen también del número de visita, entre sitios repartidos por la zona (BALANCE.md §7.1, §7.2).
 
 **Entregable**: zona verde con cajas de loot recolectables.
 
@@ -372,6 +372,7 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
   - [x] Límite: máximo 5 cofres en base (PMV simplificado)
 - [x] Cajas de loot como contenedor (decisión nov 2026, PMV.md §10): misma UI de transferencia y capacidad de un cofre; lo depositado se pierde al empezar la visita siguiente (BALANCE.md §7.2). Desde que se abren, no solo vaciadas, y con "Coger todo" (decisión nov 2026, spec 012)
 - [x] Test: construir cofres, guardar items, recuperar items
+- [ ] Revisión de la pantalla de contenedor (decisión nov 2026, spec 013): cabeceras con nombre y ocupación, ficha de acción fija, tocar solo selecciona, botón con el destino y modo "Colocar…" explícito
 
 **Entregable**: cofres funcionales con UI de almacenamiento.
 

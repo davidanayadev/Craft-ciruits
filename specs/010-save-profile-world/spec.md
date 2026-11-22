@@ -174,7 +174,7 @@ Los valores numéricos (caducidad de los objetos caídos, recarga) se citan por 
 - Menú principal ("Jugar", "Continuar"), botón "Guardar" del menú de pausa y borrar la partida desde la UI:
   ACTION_PLAN 4.2. Aquí `delete_save()` existe y se prueba, pero no tiene pantalla (pregunta 8).
 - Ajustes del jugador (`user://settings.cfg`): ACTION_PLAN 4.2 (architecture §10.2). No son Perfil ni Mundo.
-- Piezas equipadas: spec 014. Nivel de chasis: spec 013. Cofres y sus items, generador y sus baterías, items
+- Piezas equipadas: spec 015. Nivel de chasis: spec 014. Cofres y sus items, generador y sus baterías, items
   dejados en cajas vaciadas: spec 012. Cada una añade su clave con el contrato de §3.2 (R-010-25).
 - Estado de los enemigos vivos (posición, vida, estado de la IA): no se guarda; al cargar vuelven a su punto de
   aparición (pregunta 3).

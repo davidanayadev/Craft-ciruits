@@ -71,7 +71,7 @@
 - `HurtboxComponent extends Area3D` (capa `hurtbox`, `monitorable`, sin `monitoring`) con `@export var health:
   HealthComponent`. `receive_attack(damage, attacker_uid)` guarda el uid como último atacante, llama a
   `health.take_damage(damage)` y emite `hurt(damage, attacker_uid)`. La firma de `take_damage` no cambia (pregunta
-  8). Mismo patrón que `InteractableComponent`/`InteractorComponent`, y sirve tal cual para el robot hostil (spec 015).
+  8). Mismo patrón que `InteractableComponent`/`InteractorComponent`, y sirve tal cual para el robot hostil (spec 016).
 - `Zombie` conecta `health.died`: si el hurtbox tiene último atacante, emite
   `EventBus.enemy_killed(data.id, uid)`. `died` sale una vez por vida (spec 006), así que el evento también
   (R-007-17). Una muerte sin atacante (no existe aún) no emite nada.
@@ -252,7 +252,7 @@ class_name MeleeAttackComponent
 extends Node3D
 signal swing_started(battery_cost: float)
 signal hit_dealt(target: HurtboxComponent)
-@export var attack: AttackStatsData           # one_arm.tres until spec 014 (R-007-02)
+@export var attack: AttackStatsData           # one_arm.tres until spec 015 (R-007-02)
 @export var config: CombatConfigData
 @export var hitbox_height_m: float            # collision geometry covering the robot body, not gameplay
 @export var hitbox_center_y_m: float
@@ -366,7 +366,7 @@ variables (un test lo comprueba).
 Valores técnicos o de presentación que viven en la escena, no en BALANCE: alto y altura de la caja del hitbox
 (cubren la cápsula del robot), forma del hurtbox del zombie (la misma `CapsuleShape3D` de su cuerpo, compartida, no
 copiada), número y vida de las chispas, colores del destello y del borde, tamaño y posición de los botones, y la
-animación placeholder del robot. `TIME_EPSILON` es técnico. `basic_arms.tres` no lo usa nadie hasta la spec 014; existe
+animación placeholder del robot. `TIME_EPSILON` es técnico. `basic_arms.tres` no lo usa nadie hasta la spec 015; existe
 porque R-007-01 lo pide y su test lo valida.
 
 ## 5. Verificación
@@ -450,7 +450,7 @@ documentación oficial en línea para los puntos 5 y 6.
 | Principio | Cumple | Nota |
 |---|---|---|
 | P1 Spec primero | ✅ | Spec 007 *Aprobado*; el plan pasa a *Planificado* solo con el usuario |
-| P2 Una fuente de verdad | ✅ | Daño, ritmo, coste, XP, alcance, ancho, impacto y feedback en `.tres` con su fuente en BALANCE. Un test busca literales. El alto del hitbox es técnico y vive en la escena (decisión para el revisor en §1). `basic_arms.tres` se reorganizará en la spec 014 con `StatModifier`; hoy no hay dos fuentes del mismo número |
+| P2 Una fuente de verdad | ✅ | Daño, ritmo, coste, XP, alcance, ancho, impacto y feedback en `.tres` con su fuente en BALANCE. Un test busca literales. El alto del hitbox es técnico y vive en la escena (decisión para el revisor en §1). `basic_arms.tres` se reorganizará en la spec 015 con `StatModifier`; hoy no hay dos fuentes del mismo número |
 | P3 Lógica separada | ✅ | `CombatSystem` puro. `MeleeAttackComponent`, `ExperienceComponent`, `HurtboxComponent` y `HitFlashComponent` reciben sus entradas por parámetro (`delta`, catálogo, uid) y se testean sin física. Robot, zombie y feedback solo cablean |
 | P4 Estado por jugador | ✅ | XP en `ExperienceComponent`, `player_uid` en el robot, golpe en su componente. `EventBus` no guarda nada (test). Cada robot suma solo sus muertes |
 | P5 Datos como recursos | ✅ | `AttackStatsData`, `CombatConfigData`, `CombatFeedbackData` con `class_name` y `.tres` en `resources/` |

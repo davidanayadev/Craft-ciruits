@@ -21,11 +21,11 @@ pasa a usarla, sin cambiar su firma ni sus tests.
 
 | Valor | Dueño en el PMV | Por qué ahí |
 |---|---|---|
-| Batería máxima, consumo pasivo, consumo al correr, umbral de batería baja | `BatteryConfigData` (`robot_battery.tres`) | BALANCE §1.1 los da como valores generales del robot. La máxima es la del Core básico (§4.2); el spec 014 la moverá al Core |
+| Batería máxima, consumo pasivo, consumo al correr, umbral de batería baja | `BatteryConfigData` (`robot_battery.tres`) | BALANCE §1.1 los da como valores generales del robot. La máxima es la del Core básico (§4.2); el spec 015 la moverá al Core |
 | Consumo al andar | `MovementStatsData.walk_drain` (`basic_legs.tres`) | BALANCE §4.2 lo da por piernas (básicas +0.05, sin piernas +0.1) |
 
 El componente recibe los dos recursos por `@export`. `robot.tscn` apunta al mismo `basic_legs.tres` desde el robot
-y desde la batería; el spec 014 sustituye ambos por `StatsComponent` (architecture.md §9.4).
+y desde la batería; el spec 015 sustituye ambos por `StatsComponent` (architecture.md §9.4).
 
 **Estado agotado sin bandera.** "Agotada" es `current == 0`. El componente emite `battery_depleted` en la
 transición de `> 0` a `0`, y a 0 el consumo ya no cambia nada ni emite nada (R-003-08). `add()` y `recharge_full()`
@@ -109,7 +109,7 @@ signal battery_low
 signal battery_depleted
 
 @export var config: BatteryConfigData
-@export var legs: MovementStatsData            # consumo al andar; lo sustituye StatsComponent en el spec 014
+@export var legs: MovementStatsData            # consumo al andar; lo sustituye StatsComponent en el spec 015
 
 func get_current() -> float
 func get_maximum() -> float
@@ -243,7 +243,7 @@ GUT 9.7.1 vendorizado. No queda nada **(verificar)**:
   dice lo contrario, se cambia solo en `robot.gd`.
 - **Dos `@export` apuntan a `basic_legs.tres`** (robot y batería). Podrían desalinearse al editar la escena a mano;
   `test_robot_battery.gd` usa la escena real y lo detectaría como velocidades o consumos raros. Desaparece con
-  `StatsComponent` (spec 014).
+  `StatsComponent` (spec 015).
 - **Descartado: pausar el árbol (`get_tree().paused`) en el game over.** Obliga a marcar la pantalla como
   `PROCESS_MODE_ALWAYS`, la pausa sobrevive a `reload_current_scene()` (hay que quitarla antes) y congelaría GUT en
   los tests. Desactivar `World` congela al robot y la zona sin estado global.

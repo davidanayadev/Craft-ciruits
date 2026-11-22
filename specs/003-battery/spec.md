@@ -44,7 +44,7 @@ La batería es la vida del robot y la tensión del juego (PMV.md §8, pro 3). Es
 - Reacción real a la muerte (drops, respawn al 100%, ruleset): spec 008. R-003-12 es provisional y se sustituye allí.
 - Recarga en la Estación de carga y batería máxima +20 del generador: specs 009 y 012 (usan R-003-09).
 - Notificación "Batería baja" y SFX: ACTION_PLAN 4.1 y 4.3 (escuchan `battery_low`).
-- Batería máxima según el Core equipado: spec 014.
+- Batería máxima según el Core equipado: spec 015.
 
 ## 5. Criterio de hecho
 
@@ -60,4 +60,4 @@ independencia de frame rate, valores negativos, dos instancias).
 | 2 | ~~¿El consumo al correr depende de las piernas?~~ | **Cerrada (nov 2026)**: valor general en el PMV (BALANCE §1.1); si v1.1 trae piernas que lo cambian, será un modificador `run_drain` de la pieza (architecture.md §9.4). | — |
 | 3 | ~~¿Se consume dentro de la base?~~ | **Cerrada (nov 2026)**: sí, en todas partes; solo recarga la Estación de carga al interactuar (BALANCE §1.1, §5.3). | — |
 | 4 | ~~¿El HUD muestra decimales?~~ | **Cerrada (nov 2026)**: número entero redondeado hacia arriba; no enseña 0 mientras quede algo (R-003-11). | — |
-| 5 | ~~En Fase 0 no existen piezas~~ | **Cerrada (nov 2026)**: se usan los valores de piernas básicas y Core básico desde datos hasta spec 014. | — |
+| 5 | ~~En Fase 0 no existen piezas~~ | **Cerrada (nov 2026)**: se usan los valores de piernas básicas y Core básico desde datos hasta spec 015. | — |

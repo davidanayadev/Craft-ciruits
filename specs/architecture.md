@@ -267,7 +267,7 @@ var durability: int = -1                     # -1 = no aplica (materiales); 0-10
 var uid: String = ""                         # solo objetos únicos (piezas): identidad estable
 ```
 
-- `PieceData extends ItemData` nace en la spec 011 con `durability_max` y `stack_max = 1`; la spec 014 añade
+- `PieceData extends ItemData` nace en la spec 011 con `durability_max` y `stack_max = 1`; la spec 015 añade
   `slot_type` y `modifiers: Array[StatModifier]`. Una pieza en un inventario siempre tiene cantidad 1,
   durabilidad entre 1 y su máxima y `uid` (`InventoryRules.is_valid_stack`), y todo camino que mueve una pila
   conserva su durabilidad y su `uid` (`InventoryRules.add_stack`).
@@ -366,7 +366,7 @@ sobrescriben (ONLINE.md). `SaveManager` recibe la implementación al arrancar; n
   (`"basic_arms"`), posiciones como `(zone_id, local)`. La semilla del mundo va como texto decimal (un número JSON
   es un `float` y perdería precisión) y los `float` se escriben con precisión completa (spec 010).
 - `from_save_data()` emite las señales **de estado** de su dueño y **nunca** las de hecho (§7): cargar no es que
-  algo haya pasado. Por ejemplo, al cargar el nivel de chasis (spec 013) se emiten `xp_changed` y `stats_changed`,
+  algo haya pasado. Por ejemplo, al cargar el nivel de chasis (spec 014) se emiten `xp_changed` y `stats_changed`,
   pero no `level_up`.
 - El archivo lleva `schema_version`. Cada cambio de formato añade una función `migrate_vN_to_vN1(data)`; cargar
   aplica la cadena hasta la versión actual (Tarea 2.3).

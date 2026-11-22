@@ -9,7 +9,7 @@ extends Resource
 ## Every inventory stack falls where the player died.
 @export var drops_inventory: bool = false
 @export var keeps_xp: bool = false
-## Applied by spec 014, which creates the equipment slots.
+## Applied by spec 015, which creates the equipment slots.
 @export var keeps_core: bool = false
 ## Battery after reappearing, as a fraction of the maximum: 0 < ratio <= 1.
 @export var respawn_battery_ratio: float = 0.0

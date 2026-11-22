@@ -288,6 +288,9 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 | **Zombies** | 5-8 (lentos y rápidos). Primero uno de cada tipo; cada uno de los demás es lento o rápido al 50 %. Número, tipo y posición salen de semilla del mundo + `zone_id` + número de visita, así que cambian en cada visita (decisión nov 2026, spec 006) |
 | **Robots hostiles** | 0-1 (básico) |
 | **Cajas** | 5-7 (básicas) |
+| **Sitios de cajas** | 6, repartidos por toda la zona, con 3-4 marcadores cada uno. Cada visita elige cuántas cajas y en qué marcadores (§7.2), así que el recorrido cambia de una visita a otra (decisión nov 2026, spec 013) |
+| **Máximo de cajas por sitio** | 2. Con 7 cajas quedan ocupados al menos 4 de los 6 sitios, y cada visita deja algún sitio vacío (spec 013) |
+| **Comprobación de marcadores** | 50 visitas con una semilla fija: todos los marcadores reciben alguna caja (ningún marcador muerto; spec 013) |
 | **Materiales principales** | Chatarra, cables (poco hierro) |
 | **Riesgo** | Bajo. Jugador sin piezas puede sobrevivir. |
 
@@ -306,7 +309,7 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Loot que no cabe en el inventario** | Se queda en la caja durante la visita; se recoge al volver a interactuar, sin nueva tirada. Se pierde al empezar la visita siguiente (decisión nov 2026) |
 | **Caja como contenedor** | Desde que se abre, la caja es un contenedor con la capacidad de un cofre (§5.4): se coge lo que se quiera y se deja lo que no, también antes de vaciarla. Lo depositado se pierde al empezar la visita siguiente: no es un almacén entre visitas (decisión nov 2026; spec 012: siempre contenedor, no solo vaciada) |
 | **Contenido de cada caja** | Semilla del mundo + `zone_id` + índice de la caja + número de visita (§2.1). Recargar no lo cambia |
-| **Número y posición de las cajas** | Solo semilla del mundo + `zone_id`. No cambian entre visitas |
+| **Número y posición de las cajas** | Semilla del mundo + `zone_id` + número de visita, como los enemigos: cambian en cada visita, entre los sitios de §7.1. Recargar dentro de la visita no los cambia (decisión nov 2026, spec 013; antes solo semilla + `zone_id`) |
 | **Enemigos** | Reaparecen con el mismo contador de visitas (spec 006) |
 | **Enemigos muertos** | Se guardan mientras dura la visita: cerrar y abrir la app no los resucita ni repite su drop. Los vivos vuelven a su punto de aparición con la vida completa (decisión nov 2026, spec 010) |
 | **Material soltado por los enemigos** | Misma regla que los soltados al morir: cae al suelo como objeto caído, no depende del contador y caduca con la misma duración (decisión nov 2026, spec 008) |
@@ -404,6 +407,7 @@ Si pieza.durabilidad <= 0 → Pieza rota; el siguiente golpe degrada la siguient
 | **Velocidad de giro del robot** | 10.0 rad/s | Media vuelta en ~0.3 s (plan 002). Ajustar en el móvil (T-002-08) |
 | **Radio de interacción** | 2.0 m | Distancia a la que aparece el botón "Interactuar" para el objeto más cercano (spec 004, decisión nov 2026). Ajustar en el móvil |
 | **Rango de la sensibilidad en Opciones** | Por definir | Se fija con la Tarea 4.2 |
+| **Resaltado de la ranura destino** | 0.4 s | Pantalla de contenedor: tras mover una pila, la ranura o ranuras que la reciben se iluminan (decisión nov 2026, spec 013) |
 
 **Combate** (valores iniciales, decisión nov 2026, spec 007; ajustar en el móvil):
 

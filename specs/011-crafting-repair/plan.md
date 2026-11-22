@@ -9,7 +9,7 @@
 
 Cuatro capas, como pide architecture §3:
 
-1. **Datos.** `PieceData extends ItemData` con solo `durability_max` (la spec 014 añade `slot_type` y
+1. **Datos.** `PieceData extends ItemData` con solo `durability_max` (la spec 015 añade `slot_type` y
    modificadores); tres `.tres` de pieza en `resources/pieces/`. `RecipeData` gana `result_item` y tres recetas
    nuevas. El coste de reparación es un recurso propio, `RepairCostData`, con tramos (`RepairTierData`), que el
    `DataCatalog` referencia como ya hace con `new_world_ruleset` (R-011-06).
@@ -36,7 +36,7 @@ dice ACTION_PLAN 2.4. Rompe architecture §3 regla 3 (un único dueño del estad
 
 | # | Decisión | Por qué |
 |---|---|---|
-| D1 | Una pieza en un inventario siempre es válida: cantidad 1, durabilidad entre 1 y su máxima y `uid` no vacío (`InventoryRules.is_valid_stack`). La regla solo mira pilas cuyo item **del catálogo** es `PieceData`: una pila de material sigue con las reglas de la spec 005 (por ejemplo, `add_stacks` reparte una pila por encima de `stack_max`, R-005-05) y `DroppedItemSpawner` sigue aceptando los materiales que acepta hoy. Se valida después de cambiar el item por el del catálogo (como ya hace `add_stacks`, R-005-11), para que un `ItemData` ajeno con id `basic_arms` no entre como material. `add(item_id, n)` de una pieza y `add_stacks` con una pila de pieza inválida se rechazan (`push_error`, `ERR_INVALID_REQUEST`). Las piezas solo entran creadas por `CraftingSystem.create_result` o como pila que ya trae su `uid`. | Sin esto, `add(&"basic_arms", 3)` crearía tres piezas sin identidad, o con el mismo `uid` si se copiara (R-011-07, R-011-08). Es la misma regla que aplica la carga (R-011-11), así que se escribe una vez. Una pieza a 0 no vive en un inventario: BALANCE §4.1 la da por perdida (la quita la spec 014). |
+| D1 | Una pieza en un inventario siempre es válida: cantidad 1, durabilidad entre 1 y su máxima y `uid` no vacío (`InventoryRules.is_valid_stack`). La regla solo mira pilas cuyo item **del catálogo** es `PieceData`: una pila de material sigue con las reglas de la spec 005 (por ejemplo, `add_stacks` reparte una pila por encima de `stack_max`, R-005-05) y `DroppedItemSpawner` sigue aceptando los materiales que acepta hoy. Se valida después de cambiar el item por el del catálogo (como ya hace `add_stacks`, R-005-11), para que un `ItemData` ajeno con id `basic_arms` no entre como material. `add(item_id, n)` de una pieza y `add_stacks` con una pila de pieza inválida se rechazan (`push_error`, `ERR_INVALID_REQUEST`). Las piezas solo entran creadas por `CraftingSystem.create_result` o como pila que ya trae su `uid`. | Sin esto, `add(&"basic_arms", 3)` crearía tres piezas sin identidad, o con el mismo `uid` si se copiara (R-011-07, R-011-08). Es la misma regla que aplica la carga (R-011-11), así que se escribe una vez. Una pieza a 0 no vive en un inventario: BALANCE §4.1 la da por perdida (la quita la spec 015). |
 | D2 | Las pilas se siguen fusionando solo por id, como hoy. Una pieza nunca se fusiona porque su `stack_max` es 1 (R-011-01): no hace falta otra regla de apilado. | Menos código; el test de R-011-08 lo vigila (dos Brazos, dos ranuras). |
 | D3 | `InventoryRules.add(slots, item, n)` pasa a ser `add_stack(slots, ItemStack.new(item, n))`; `add_stack` copia durabilidad y `uid` a cada ranura nueva. `split` devuelve una copia con durabilidad y `uid`. Los sobrantes (`leftovers`) también los conservan. | Un solo camino de llenado: lo que hoy pierde la pieza (`_fill_empty_slots`, `split`, `ItemStack.new` en los sobrantes) queda arreglado en un sitio (R-011-09). |
 | D4 | Tramos de reparación en porcentaje entero: el primer tramo, en orden ascendente, con `durabilidad × 100 ≤ up_to_percent × durability_max` da el coste. Datos: `{25: 3 hierro + 2 cables}`, `{100: 2 hierro + 1 cable}`. | Enteros: sin errores de coma flotante en el borde (25/100 → tramo caro, 26/100 → barato). El umbral del 25 % vive en el `.tres` (R-011-06); el `100` del script es la escala del porcentaje (`CraftingSystem.PERCENT`), no un valor de juego. |
@@ -93,7 +93,7 @@ dice ACTION_PLAN 2.4. Rompe architecture §3 regla 3 (un único dueño del estad
 class_name PieceData
 extends ItemData
 ## A robot piece (spec 011): a unique inventory item with its own uid and
-## durability in its ItemStack. Spec 014 adds slot_type and modifiers.
+## durability in its ItemStack. Spec 015 adds slot_type and modifiers.
 
 ## BALANCE §4.1. Its stack_max is always 1 (a catalog test guards it).
 @export var durability_max: int = 0
@@ -387,24 +387,24 @@ tests de `test_build_screen.gd`, no cuatro (D9); `ERR_INVALID_REQUEST` pasa a `A
 | P11 i18n | ✅ | Claves de §4.1 en ES y EN; títulos de pestaña con `tr()` (D10) |
 | P12 Presupuesto móvil | ✅ | Solo UI; sin luces ni mallas nuevas |
 | P13 Test primero | ✅ | Cada tarea de lógica empieza por su test (tasks.md) |
-| P14 Alcance | ✅ | Sin equipo, stats ni desgaste (spec 014). Dos cambios fuera de lo literal, justificados: el rechazo de piezas inválidas en `add`/`add_stacks` (D1, protege R-011-07 y R-011-08) y el borrado de `BuildScreen` (D9, lo pide R-011-21) |
+| P14 Alcance | ✅ | Sin equipo, stats ni desgaste (spec 015). Dos cambios fuera de lo literal, justificados: el rechazo de piezas inválidas en `add`/`add_stacks` (D1, protege R-011-07 y R-011-08) y el borrado de `BuildScreen` (D9, lo pide R-011-21) |
 
 ## 7. Riesgos y alternativas descartadas
 
 - **Borrar `BuildScreen`** cambia tests de las specs 009 y 010 que la nombran (`test_build_flow.gd`,
   `test_base_loop.gd`, `test_main_scene.gd`, `test_ui_manager.gd`, y el comentario de `test_base_structures.gd`) → se actualizan a `BenchScreen` sin quitar
   asserts; los cinco tests de `test_build_screen.gd` se mueven con sus nombres (D9).
-- **La spec 014 rompe piezas a 0**: si en vez de quitarlas las deja en el inventario, `is_valid_stack` las
-  rechazaría al cargar → se anota en el cierre para la 014 (BALANCE §4.1 dice que una pieza rota se pierde).
-- **La spec 015 suelta piezas en el loot**: `LootSystem` crea pilas con `ItemStack.new(item, n)`, que `add_stacks`
-  rechazaría para una pieza (D1) → la 015 debe crearlas con `CraftingSystem.create_result` (o un equivalente con
+- **La spec 015 rompe piezas a 0**: si en vez de quitarlas las deja en el inventario, `is_valid_stack` las
+  rechazaría al cargar → se anota en el cierre para la 015 (BALANCE §4.1 dice que una pieza rota se pierde).
+- **La spec 016 suelta piezas en el loot**: `LootSystem` crea pilas con `ItemStack.new(item, n)`, que `add_stacks`
+  rechazaría para una pieza (D1) → la 016 debe crearlas con `CraftingSystem.create_result` (o un equivalente con
   durabilidad al 50 %). Se anota en README §6 al cerrar.
 - **Refrescar dentro de la señal del botón** que se libera (Reparar) → `remove_child` + `queue_free` (D11); un
   test pulsa "Reparar" y comprueba que la fila nueva está y la vieja no.
 - **Dos guardados seguidos** al crear varias piezas en un fotograma → `SaveManager` ya los agrupa (spec 010).
 - **Una pila de material con `uid` dividida por encima de `stack_max`** (revisión al implementar, 2026-11-18):
   `InventoryRules._fill_empty_slots` copia la plantilla, así que el `uid` se repetiría en varias ranuras. Hoy no
-  pasa (los materiales no tienen `uid` y las piezas tienen `stack_max` 1). → Aceptado; a tener en cuenta en la 014
+  pasa (los materiales no tienen `uid` y las piezas tienen `stack_max` 1). → Aceptado; a tener en cuenta en la 015
   si algún item apilable gana `uid`.
 - **Descartado**: `craft_piece()` en `CraftingSystem` cambiando el inventario (§1); tres pantallas separadas y una
   lista mezclada (pregunta 4); un `uid` por pila de material (no hace falta identidad); subir `schema_version`

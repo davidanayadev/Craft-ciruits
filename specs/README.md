@@ -90,12 +90,16 @@ plan a *Planificado*.
 | [010](010-save-profile-world/spec.md) | Guardado Perfil/Mundo, `IStore` | 2.3 | Hecho |
 | [011](011-crafting-repair/spec.md) | Crafteo de piezas y reparación en el banco | 2.4 | Hecho |
 | [012](012-wind-generator-chests/spec.md) | Generador eólico, baterías portátiles y cofres | 2.5, 2.6 | Hecho |
-| 013 | Nivel de chasis | 2.7 | Por crear. Condición de entrada (spec 010, plan §7): al cargar, el nivel de chasis se aplica antes de que `InventoryComponent` lea sus ranuras, para no perder las de más |
-| 014 | Piezas, ranuras y degradación | 3.1, 3.2 | Por crear. La condición de entrada de las specs 008 y 010 (durabilidad y `uid` conservados al apilar, tirar, morir y guardar el objeto caído) la cumple la spec 011, que también crea `PieceData` y las tres piezas. Pendiente para la 014 (spec 011, preguntas 6 y 8): "Reparar" lista también las piezas equipadas, y decidir si un Core de repuesto en el inventario cae al morir. Una pieza que llega a 0 se quita del inventario (BALANCE §4.1), no se queda a 0: `InventoryRules.is_valid_stack` rechaza una pieza a 0 al cargar (plan 011 §7) |
-| 015 | Robot hostil y drops | 3.3 | Por crear. Condición de entrada (plan 011 §7): las piezas del loot se crean con `uid` y durabilidad (`CraftingSystem.create_result` o un equivalente al 50 %), nunca con `ItemStack.new(item, n)`, que `add_stacks` rechaza para una pieza |
-| 016+ | Fases 4-6 (HUD, menús, audio, feedback, guía, export) | 4.x-6.x | Por crear |
+| [013](013-loot-box-sites-container-ui/spec.md) | Cajas de loot en sitios variables por visita y nueva pantalla de contenedor | Revisión de 1.1 y 2.6 | En curso |
+| 014 | Nivel de chasis | 2.7 | Por crear. Condición de entrada (spec 010, plan §7): al cargar, el nivel de chasis se aplica antes de que `InventoryComponent` lea sus ranuras, para no perder las de más |
+| 015 | Piezas, ranuras y degradación | 3.1, 3.2 | Por crear. La condición de entrada de las specs 008 y 010 (durabilidad y `uid` conservados al apilar, tirar, morir y guardar el objeto caído) la cumple la spec 011, que también crea `PieceData` y las tres piezas. Pendiente para esta spec (spec 011, preguntas 6 y 8): "Reparar" lista también las piezas equipadas, y decidir si un Core de repuesto en el inventario cae al morir. Una pieza que llega a 0 se quita del inventario (BALANCE §4.1), no se queda a 0: `InventoryRules.is_valid_stack` rechaza una pieza a 0 al cargar (plan 011 §7) |
+| 016 | Robot hostil y drops | 3.3 | Por crear. Condición de entrada (plan 011 §7): las piezas del loot se crean con `uid` y durabilidad (`CraftingSystem.create_result` o un equivalente al 50 %), nunca con `ItemStack.new(item, n)`, que `add_stacks` rechaza para una pieza |
+| 017+ | Fases 4-6 (HUD, menús, audio, feedback, guía, export) | 4.x-6.x | Por crear |
 
-La numeración de "Por crear" es orientativa; se fija al crear cada spec.
+La numeración de "Por crear" es orientativa; se fija al crear cada spec. La spec 013 (2026-11-21) corrió una
+posición las siguientes (nivel de chasis 014, piezas 015, robot hostil 016) y las referencias de specs, docs y
+código se cambiaron a la vez; un "spec 013" anterior a esa fecha en el historial de git es el nivel de chasis
+(spec 013, pregunta 10).
 
 ## 7. Estructura
 

@@ -13,7 +13,7 @@
 Cerrar el bucle de amenaza que abrió la 006: el robot golpea, los zombies mueren y el jugador gana XP. Cada
 golpe cuesta batería, así que pelear es una decisión con coste, igual que huir. El robot nunca se queda sin
 ataque: sin los Brazos básicos pelea con un brazo, más débil. Con esto, la zona verde ya es un combate de verdad
-y queda lista la base para la muerte (spec 008) y el nivel de chasis (spec 013).
+y queda lista la base para la muerte (spec 008) y el nivel de chasis (spec 014).
 
 ## 2. Historias
 
@@ -26,7 +26,7 @@ y queda lista la base para la muerte (spec 008) y el nivel de chasis (spec 013).
 - Como jugador, quiero notar el golpe (destello, sacudida, chispas) y notar cuándo me golpean a mí, para
   entender el combate sin leer números.
 - Como jugador, quiero ganar XP al matar zombies, para progresar aunque muera (PMV §2.4).
-- Como desarrollador del nivel de chasis (spec 013), quiero la XP total en un componente del robot con una
+- Como desarrollador del nivel de chasis (spec 014), quiero la XP total en un componente del robot con una
   señal, para aplicar los umbrales sin tocar el combate.
 
 ## 3. Requisitos (EARS)
@@ -36,7 +36,7 @@ y queda lista la base para la muerte (spec 008) y el nivel de chasis (spec 013).
 | ID | Requisito | Fuente |
 |---|---|---|
 | R-007-01 | THE game SHALL define an attack-stats data resource with damage per hit, attacks per second and battery cost per hit, and two `.tres` with the values of BALANCE §4.2: one arm (the robot's base attack) and the basic arms. | ACTION_PLAN 1.4, BALANCE §4.2, architecture §9.4 — pregunta 1 |
-| R-007-02 | THE robot SHALL attack with the one-arm values until spec 014 derives its attack from `StatsComponent`. | BALANCE §4.2, §8.2 — pregunta 1 |
+| R-007-02 | THE robot SHALL attack with the one-arm values until spec 015 derives its attack from `StatsComponent`. | BALANCE §4.2, §8.2 — pregunta 1 |
 | R-007-03 | THE `EnemyData` resource SHALL gain an XP reward field, and the slow and fast zombie `.tres` SHALL carry the XP of BALANCE §3.1 and §6.2. | ACTION_PLAN 1.4, BALANCE §3.1, §6.2 |
 | R-007-04 | THE combat values (hitbox reach and width, impact moment of the swing) and the feedback values (shake strength and duration, flash durations) SHALL come from data resources with the values of BALANCE §11, not script literals. | Constitución P2, BALANCE §11 — preguntas 4 y 10 |
 | R-007-05 | THE tests SHALL reject attack data with zero or negative damage or attacks per second, so no data can leave the robot without an attack. | BALANCE §4.2 (un brazo como base) — pregunta 1 |
@@ -66,7 +66,7 @@ y queda lista la base para la muerte (spec 008) y el nivel de chasis (spec 013).
 | R-007-19 | THE robot SHALL own an `ExperienceComponent` that holds its total XP as an integer starting at 0, with `add_xp(amount)`, `get_total()` and a typed `xp_changed(total)` signal; no autoload SHALL hold the XP. | PMV §4.5 gancho 7, Constitución P4 — pregunta 7 |
 | R-007-20 | WHEN `enemy_killed` arrives with this robot's uid as killer, THE robot's `ExperienceComponent` SHALL add the XP reward of that enemy's `EnemyData`, looked up in `DataRegistry`. | ACTION_PLAN 1.4, BALANCE §6.2, architecture §8 |
 | R-007-21 | IF the XP to add is negative or the enemy id is not in the catalog, THEN THE `ExperienceComponent` SHALL report an error with context and change nothing. | Constitución §2 (errores) |
-| R-007-22 | THE XP SHALL keep accumulating with no other effect until spec 013 applies the chassis levels, and SHALL show in the debug HUD. | ACTION_PLAN 2.7, BALANCE §6.1 — pregunta 7 |
+| R-007-22 | THE XP SHALL keep accumulating with no other effect until spec 014 applies the chassis levels, and SHALL show in the debug HUD. | ACTION_PLAN 2.7, BALANCE §6.1 — pregunta 7 |
 | R-007-23 | WHEN a killed zombie comes back from the pool, THE zombie SHALL carry nothing from its previous life: full HP, no flash and no record of who hit it. | Spec 006 R-006-22, Constitución P12 |
 
 ### 3.4 Feedback
@@ -92,9 +92,9 @@ por su fuente; el spec no los fija.
 
 - Armas y banco de armas: v1.1 (PMV §2.3, SPECS §18). En el PMV el daño lo dan los brazos.
 - `EquipmentComponent`, `StatsComponent`, `RobotBaseStats.tres`, equipar los Brazos básicos y volver a un brazo
-  al romperse o perderse: spec 014 (ACTION_PLAN 3.1-3.2). Degradación de piezas por golpe recibido: spec 014.
+  al romperse o perderse: spec 015 (ACTION_PLAN 3.1-3.2). Degradación de piezas por golpe recibido: spec 015.
 - Auto-apuntado: no existe en el PMV (decisión nov 2026, PMV §10).
-- Subida de nivel de chasis y más ranuras de inventario: spec 013 (ACTION_PLAN 2.7). Mostrar la XP o el nivel
+- Subida de nivel de chasis y más ranuras de inventario: spec 014 (ACTION_PLAN 2.7). Mostrar la XP o el nivel
   en el HUD de juego y la notificación "Nivel up": ACTION_PLAN 4.1.
 - Guardar la XP y el `player_uuid` persistente: spec 010. Conservar la XP al morir: spec 008 (PMV §2.4).
 - Material que sueltan los zombies (BALANCE §3.1, "0-1 chatarra"): spec 008 (pregunta 9).
@@ -102,7 +102,7 @@ por su fuente; el spec no los fija.
 - Hit stop, animaciones de muerte y de daño, partículas de explosión al morir: ACTION_PLAN 4.4. En la 007 el
   zombie desaparece al morir, como en la 006.
 - Retroceso (knockback) de los zombies al recibir un golpe: no lo pide ningún documento.
-- XP del robot hostil (BALANCE §3.2): spec 015; el campo de XP de `EnemyData` ya le sirve.
+- XP del robot hostil (BALANCE §3.2): spec 016; el campo de XP de `EnemyData` ya le sirve.
 - Overclock y habilidades: v1.1 (SPECS §6).
 - Vibración del móvil al golpear: no la pide ningún documento.
 - Fuego amigo y PvP: ONLINE.md.
