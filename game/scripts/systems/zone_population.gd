@@ -1,8 +1,9 @@
 class_name ZonePopulation
 extends RefCounted
-## What a zone is filled with when it is generated (spec 004) and which
-## enemies each visit puts in it (spec 006). Pure rules: the RNG comes by
-## parameter, so the same seed always gives the same zone.
+## What a zone is filled with when it is generated (spec 004), on which box
+## markers each visit puts its boxes (spec 013) and which enemies (spec 006).
+## Pure rules: the RNG comes by parameter, so the same seed always gives the
+## same zone.
 
 ## Visit number of a zone nobody died in or left yet (BALANCE §7.2).
 const FIRST_VISIT := 0
@@ -19,24 +20,74 @@ class EnemySpawn:
 		enemy = spawn_enemy
 
 
-## Number of boxes in [min_count, max_count], then that many distinct marker
-## indices, sorted ascending. Fewer markers than max_count → push_error and at
-## most one box per marker. Invalid range → push_error and no boxes.
+## Number of boxes in [min_count, max_count], then that many distinct markers
+## with at most max_per_site in each site (spec 013). site_marker_counts[i] is
+## the number of markers of site i; markers are numbered flat, site by site
+## (FarmZone). Returns flat indices sorted ascending.
+## Sites that hold fewer than max_count under max_per_site → push_error and at
+## most what fits. Invalid range, max_per_site < 1 or a negative site count →
+## push_error and no boxes.
+## The order of the RNG calls is a contract with saved worlds: the count, then
+## a full permutation of the markers walked in order, taking each marker whose
+## site is not full yet (plan 013 D2).
 static func pick_box_markers(
-	marker_count: int, min_count: int, max_count: int, rng: RandomNumberGenerator
+	site_marker_counts: Array[int],
+	min_count: int,
+	max_count: int,
+	max_per_site: int,
+	rng: RandomNumberGenerator
 ) -> Array[int]:
 	var picked: Array[int] = []
-	if min_count < 0 or min_count > max_count:
-		push_error("ZonePopulation: invalid box count range %d-%d." % [min_count, max_count])
+	var problem: String = _find_box_site_problem(site_marker_counts, min_count, max_count, max_per_site)
+	if not problem.is_empty():
+		push_error("ZonePopulation: %s." % problem)
 		return picked
-	if marker_count < max_count:
+	var site_of_marker: Array[int] = _site_of_each_marker(site_marker_counts)
+	var capacity: int = _box_capacity(site_marker_counts, max_per_site)
+	if capacity < max_count:
 		push_error(
-			"ZonePopulation: %d box markers for up to %d boxes." % [marker_count, max_count]
+			"ZonePopulation: box sites hold %d boxes under %d per site, for up to %d boxes."
+			% [capacity, max_per_site, max_count]
 		)
-	var count: int = mini(rng.randi_range(min_count, max_count), marker_count)
-	picked = _pick_distinct(marker_count, count, rng)
+	var count: int = mini(rng.randi_range(min_count, max_count), capacity)
+	var order: Array[int] = _pick_distinct(site_of_marker.size(), site_of_marker.size(), rng)
+	picked = _take_within_sites(order, site_of_marker, site_marker_counts.size(), max_per_site, count)
 	picked.sort()
 	return picked
+
+
+## Site index of each flat marker index.
+static func _site_of_each_marker(site_marker_counts: Array[int]) -> Array[int]:
+	var site_of_marker: Array[int] = []
+	for site: int in site_marker_counts.size():
+		for i: int in site_marker_counts[site]:
+			site_of_marker.append(site)
+	return site_of_marker
+
+
+## Boxes the sites hold under max_per_site.
+static func _box_capacity(site_marker_counts: Array[int], max_per_site: int) -> int:
+	var capacity: int = 0
+	for markers: int in site_marker_counts:
+		capacity += mini(markers, max_per_site)
+	return capacity
+
+
+## The first count markers of order whose site is not full yet.
+static func _take_within_sites(
+	order: Array[int], site_of_marker: Array[int], site_count: int, max_per_site: int, count: int
+) -> Array[int]:
+	var taken: Array[int] = []
+	var boxes_per_site: Array[int] = []
+	boxes_per_site.resize(site_count)
+	boxes_per_site.fill(0)
+	for marker: int in order:
+		if taken.size() == count:
+			break
+		if boxes_per_site[site_of_marker[marker]] < max_per_site:
+			boxes_per_site[site_of_marker[marker]] += 1
+			taken.append(marker)
+	return taken
 
 
 ## Number of enemies in [min_count, max_count], each on a marker of its own,
@@ -79,6 +130,20 @@ static func _pick_distinct(total: int, count: int, rng: RandomNumberGenerator) -
 		indices[i] = indices[other]
 		indices[other] = swapped
 	return indices.slice(0, count)
+
+
+## Empty when the box data is valid; otherwise what is wrong with it.
+static func _find_box_site_problem(
+	site_marker_counts: Array[int], min_count: int, max_count: int, max_per_site: int
+) -> String:
+	if min_count < 0 or min_count > max_count:
+		return "invalid box count range %d-%d" % [min_count, max_count]
+	if max_per_site < 1:
+		return "invalid maximum of %d boxes per site" % max_per_site
+	for site: int in site_marker_counts.size():
+		if site_marker_counts[site] < 0:
+			return "box site %d has %d markers" % [site, site_marker_counts[site]]
+	return ""
 
 
 ## Empty when the data is valid; otherwise what is wrong with it.

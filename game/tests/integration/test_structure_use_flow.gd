@@ -1,6 +1,7 @@
 extends GutTest
 ## StructureUseFlow (spec 012): a chest used by the local player opens the
-## container screen on its contents and the player's inventory (R-012-27), and
+## container screen on its contents and the player's inventory (R-012-27),
+## with the chest header of spec 013 (R-013-12), and
 ## closing it after a change announces chest_closed so the World saves
 ## (R-012-44, plan D15); a generator used by the local player asks
 ## BaseStructures to collect, and an empty one shows the time left (R-012-20).
@@ -85,11 +86,14 @@ func test_r_012_27_chest_opens_container_screen() -> void:
 		return
 	var title: Label = screen.get_node("%Title") as Label
 	assert_eq(title.text, String(ContainerScreen.CHEST_TITLE_KEY), "titled as a chest")
+	var contents: InventoryComponent = _structures.get_chest_contents(uid)
+	var header: Label = screen.get_node("%ContainerHeader") as Label
+	assert_eq(header.text, tr(&"CONTAINER_HEADER_CHEST") % [0, contents.get_slot_count()], "a chest header (R-013-12)")
 	var grid: InventoryGrid = screen.get_node("%ContainerGrid") as InventoryGrid
-	assert_eq(grid.get_child_count(), _structures.get_chest_contents(uid).get_slot_count(), "the chest's slots")
+	assert_eq(grid.get_child_count(), contents.get_slot_count(), "the chest's slots")
 	assert_true(_robot.inventory.add(&"scrap", 2).ok)
 	(screen.get_node("%PlayerGrid") as InventoryGrid).slot_pressed.emit(0)
-	(screen.get_node("%TransferButton") as Button).pressed.emit()
+	(screen.get_node("%MoveButton") as Button).pressed.emit()
 	assert_eq(_structures.get_chest_contents(uid).count(&"scrap"), 2, "the screen works on the chest's own contents")
 
 

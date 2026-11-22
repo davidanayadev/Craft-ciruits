@@ -2,6 +2,7 @@ extends GutTest
 ## QuantitySelector (spec 008, R-008-38): a range 1..maximum that starts at the
 ## whole stack, moved by - / + one by one and a slider, reporting only real
 ## changes. Headless cannot click Controls: pressed is emitted by hand.
+## Spec 013: it can be disabled without hiding it (R-013-13).
 
 const SELECTOR_SCENE := preload("res://scenes/ui/quantity_selector.tscn")
 const MAXIMUM := 5
@@ -91,3 +92,20 @@ func test_r_008_38_label_shows_the_value() -> void:
 	assert_eq(_label.text, str(MAXIMUM - 1), "it follows the value")
 	_selector.set_maximum(9)
 	assert_eq(_label.text, "9", "and a new range")
+
+
+func test_r_013_13_set_editable() -> void:
+	_selector.set_maximum(MAXIMUM)
+	_minus.pressed.emit()
+	assert_true(_selector.is_editable(), "editable by default")
+	_selector.set_editable(false)
+	assert_false(_selector.is_editable(), "not editable")
+	assert_true(_minus.disabled, "minus is disabled")
+	assert_true(_plus.disabled, "plus is disabled")
+	assert_false(_slider.editable, "the slider is disabled")
+	for control: Control in [_minus, _plus, _slider, _label]:
+		assert_true(control.visible, "%s stays visible" % control.name)
+	_selector.set_editable(true)
+	assert_false(_minus.disabled, "minus works again")
+	assert_false(_plus.disabled, "plus works again")
+	assert_true(_slider.editable, "the slider works again")

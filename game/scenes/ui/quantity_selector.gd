@@ -8,6 +8,8 @@ signal value_changed(value: int)
 
 const MINIMUM := 1
 
+var _editable: bool = true
+
 @onready var _minus_button: Button = %MinusButton
 @onready var _plus_button: Button = %PlusButton
 @onready var _slider: HSlider = %Slider
@@ -29,6 +31,17 @@ func set_maximum(maximum: int) -> void:
 	_refresh()
 
 
+## Disables −, + and the slider without hiding them (R-013-13).
+func set_editable(editable: bool) -> void:
+	_editable = editable
+	_slider.editable = editable
+	_refresh()
+
+
+func is_editable() -> bool:
+	return _editable
+
+
 func get_value() -> int:
 	return roundi(_slider.value)
 
@@ -46,5 +59,5 @@ func _on_slider_value_changed(_value: float) -> void:
 func _refresh() -> void:
 	var value: int = get_value()
 	_value_label.text = str(value)
-	_minus_button.disabled = value <= MINIMUM
-	_plus_button.disabled = value >= roundi(_slider.max_value)
+	_minus_button.disabled = not _editable or value <= MINIMUM
+	_plus_button.disabled = not _editable or value >= roundi(_slider.max_value)

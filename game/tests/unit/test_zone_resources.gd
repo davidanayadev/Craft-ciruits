@@ -6,6 +6,7 @@ extends GutTest
 ## Spec 009: every zone has a kind and a scene, and the base is zone (0, -1)
 ## (R-009-01, architecture §14).
 ## Spec 010: a local position is inside the zone's playable area (R-010-36).
+## Spec 013: the per-site box maximum is data of the zone (R-013-06).
 
 const GREEN_ZONE_PATH := "res://resources/zones/green_zone.tres"
 const BASE_ZONE_PATH := "res://resources/zones/base.tres"
@@ -49,6 +50,13 @@ func test_r_004_21_box_counts_match_balance() -> void:
 		return
 	assert_eq(_zone.box_count_min, 5, "minimum boxes (BALANCE §7.1)")
 	assert_eq(_zone.box_count_max, 7, "maximum boxes (BALANCE §7.1)")
+
+
+func test_r_013_06_box_max_per_site_matches_balance() -> void:
+	if _zone == null:
+		fail_test("green_zone.tres is missing")
+		return
+	assert_eq(_zone.box_max_per_site, 2, "maximum boxes per site (BALANCE §7.1)")
 
 
 func test_r_006_23_enemy_counts_match_balance() -> void:

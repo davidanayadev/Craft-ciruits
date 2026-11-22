@@ -14,8 +14,19 @@ MSG_INVENTORY_FULL,Inventory full,Inventario lleno
 INVENTORY_TITLE,Inventory,Inventario
 LOOT_TITLE,Loot,Botín
 CHEST_TITLE,Chest,Cofre
-CONTAINER_TRANSFER,Transfer,Transferir
-CONTAINER_TAKE_ALL,Take all,Coger todo
+CONTAINER_TAKE_ALL,Take all →,Coger todo →
+CONTAINER_HEADER_BOX,Box %d/%d,Caja %d/%d
+CONTAINER_HEADER_CHEST,Chest %d/%d,Cofre %d/%d
+CONTAINER_HEADER_INVENTORY,Inventory %d/%d,Inventario %d/%d
+CONTAINER_HINT_SELECT,Tap a stack to choose it,Toca una pila para elegirla
+CONTAINER_HINT_PLACE,Tap the slot where it goes,Toca la ranura de destino
+CONTAINER_SELECTED,%s ×%d,%s ×%d
+CONTAINER_MOVE,Move,Pasar
+CONTAINER_MOVE_TO_INVENTORY,Move to inventory →,Pasar al inventario →
+CONTAINER_MOVE_TO_BOX,← Move to box,← Pasar a la caja
+CONTAINER_STORE_IN_CHEST,← Store in chest,← Guardar en el cofre
+CONTAINER_PLACE,Place…,Colocar…
+CONTAINER_CANCEL,Cancel,Cancelar
 ERR_PARTIAL_SWAP,Choose the whole stack to swap,Elige la pila entera para intercambiar
 ERR_SLOT_FULL,That slot is full,Esa ranura está llena
 ERR_NO_ROOM,No room on the other side,No hay sitio en el otro lado

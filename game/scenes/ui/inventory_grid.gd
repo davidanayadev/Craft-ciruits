@@ -16,6 +16,7 @@ var _cells: Array[InventorySlotView] = []
 ## -1 = none.
 var _selected_index: int = -1
 var _empty_cells_pressable: bool = false
+var _targets_marked: bool = false
 
 
 ## Paints now and on every inventory_changed.
@@ -43,6 +44,23 @@ func set_empty_cells_pressable(pressable: bool) -> void:
 		cell.set_empty_pressable(pressable)
 
 
+## Highlights the cells that received a move (spec 013, R-013-19). An index
+## outside the grid → push_error, skipped.
+func flash_slots(indices: Array[int], duration_s: float) -> void:
+	for index: int in indices:
+		if index < 0 or index >= _cells.size():
+			push_error("InventoryGrid '%s': no slot %d to highlight." % [name, index])
+			continue
+		_cells[index].flash_highlight(duration_s)
+
+
+## Outlines every cell as a possible destination (placing mode, R-013-16).
+func set_targets_marked(marked: bool) -> void:
+	_targets_marked = marked
+	for cell: InventorySlotView in _cells:
+		cell.set_target_marked(marked)
+
+
 func _refresh() -> void:
 	var slots: Array[ItemStack] = _inventory.get_slots()
 	_set_cell_count(slots.size())
@@ -60,6 +78,7 @@ func _set_cell_count(count: int) -> void:
 		cell.set_interactive(interactive)
 		cell.set_empty_pressable(_empty_cells_pressable)
 		cell.set_selected(_cells.size() == _selected_index)
+		cell.set_target_marked(_targets_marked)
 		cell.pressed.connect(_on_cell_pressed.bind(_cells.size()))
 		_cells.append(cell)
 

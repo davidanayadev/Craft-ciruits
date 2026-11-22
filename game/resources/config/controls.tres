@@ -9,3 +9,4 @@ joystick_run_ratio = 0.8
 joystick_walk_back_ratio = 0.7
 turn_speed_rad = 10.0
 interaction_range_m = 2.0
+move_highlight_s = 0.4

@@ -9,6 +9,11 @@ extends GutTest
 ## Spec 012 (R-012-38): what the player left in an opened box is lost when the
 ## zone's next visit starts.
 ## Spec 009: one exit point next to the spawn point, towards the base (R-009-10, R-009-12).
+## Spec 013: box markers grouped in sites (R-013-03), reachable and clear of
+## obstacles (R-013-09); number and markers of the boxes depend on the visit
+## (R-013-01, R-013-02, R-013-07), never over the per-site maximum (R-013-04),
+## with no dead marker (R-013-10); a saved box whose marker has no box in that
+## visit is dropped (R-013-08).
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -16,8 +21,18 @@ const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
 const KNOWN_SEED := 20261115
 const SEED_A := 1001
-## Seeds checked to give different layouts; see test_r_004_11_other_seed_other_layout.
+## Seeds checked to give different layouts; see test_r_013_02_other_seed_other_layout.
 const SEED_B := 1002
+## Sites and markers per site of the green zone (BALANCE §7.1).
+const MIN_SITES := 6
+const MIN_MARKERS_PER_SITE := 3
+const MAX_MARKERS_PER_SITE := 4
+## Visits over which every marker must receive a box (BALANCE §7.1).
+const LIVE_MARKER_VISITS := 50
+const CONTROLS_PATH := "res://resources/config/controls.tres"
+const NAV_SYNC_MAX_FRAMES := 30
+## How far a marker may lie from the navigation mesh on the ground plane.
+const NAV_TOLERANCE_M := 0.1
 const DECORATION_KINDS: PackedStringArray = ["Tree", "Rock", "Scrap"]
 ## Distance from the edge at which the robot starts pushing outward.
 const EDGE_MARGIN := 1.0
@@ -54,11 +69,32 @@ func _box_positions(zone: FarmZone) -> Array[Vector3]:
 	return positions
 
 
+## Box markers in flat order: sites in scene order, markers in scene order.
+func _markers(zone: FarmZone) -> Array[Marker3D]:
+	var markers: Array[Marker3D] = []
+	for site: Node in zone.get_node("%BoxMarkers").get_children():
+		for marker: Node in site.get_children():
+			markers.append(marker as Marker3D)
+	return markers
+
+
+## Positions relative to the zone, like the boxes' (Boxes sits at the origin).
 func _marker_positions(zone: FarmZone) -> Array[Vector3]:
 	var positions: Array[Vector3] = []
-	for marker: Node in zone.get_node("%BoxMarkers").get_children():
-		positions.append((marker as Marker3D).position)
+	for marker: Marker3D in _markers(zone):
+		positions.append(marker.position + (marker.get_parent() as Node3D).position)
 	return positions
+
+
+## Site index of each marker position.
+func _site_by_position(zone: FarmZone) -> Dictionary[Vector3, int]:
+	var sites: Dictionary[Vector3, int] = {}
+	var site_nodes: Array[Node] = zone.get_node("%BoxMarkers").get_children()
+	for site: int in site_nodes.size():
+		var site_node: Node3D = site_nodes[site] as Node3D
+		for marker: Node in site_node.get_children():
+			sites[(marker as Marker3D).position + site_node.position] = site
+	return sites
 
 
 func _half_size(zone: FarmZone) -> Vector2:
@@ -182,20 +218,20 @@ func test_r_004_05_spawn_point_inside_and_clear() -> void:
 		assert_gt(marker.distance_to(spawn), 3.0, "no box marker on top of the spawn point")
 
 
-func test_r_004_11_same_seed_same_boxes() -> void:
+func test_r_013_02_same_seed_and_visit_same_boxes() -> void:
 	var first: FarmZone = _generated_zone(SEED_A)
 	var second: FarmZone = _generated_zone(SEED_A)
 	assert_gt(first.get_boxes().size(), 0, "the zone has boxes")
 	assert_eq(_box_positions(first), _box_positions(second), "same number and same positions")
 
 
-func test_r_004_11_other_seed_other_layout() -> void:
+func test_r_013_02_other_seed_other_layout() -> void:
 	var first: FarmZone = _generated_zone(SEED_A)
 	var second: FarmZone = _generated_zone(SEED_B)
 	assert_ne(_box_positions(first), _box_positions(second), "another seed, another layout")
 
 
-func test_r_004_11_generate_twice_reports_error() -> void:
+func test_r_013_02_generate_twice_reports_error() -> void:
 	var zone: FarmZone = _generated_zone(SEED_A)
 	var before: Array[Vector3] = _box_positions(zone)
 	zone.generate(SEED_B, ZonePopulation.FIRST_VISIT)
@@ -218,19 +254,30 @@ func test_r_004_21_boxes_on_markers() -> void:
 	assert_eq(used.size(), boxes.size(), "one box per marker at most")
 
 
-func test_r_004_21_dev_seed_known_boxes() -> void:
-	# Pins the boxes of the development world. Number and position of the boxes
-	# depend only on seed + zone_id (BALANCE §7.2): later changes to the zone's
-	# generation must not move them.
-	var zone: FarmZone = _generated_zone(KNOWN_SEED)
-	var expected: Array[Vector3] = [
-		Vector3(-12, 0, -13),
-		Vector3(-3, 0, -18),
-		Vector3(7, 0, 2),
-		Vector3(-10, 0, 13),
-		Vector3(17, 0, 11),
-	]
-	assert_eq(_box_positions(zone), expected, "boxes of the development world")
+func test_r_013_02_dev_seed_known_boxes() -> void:
+	# Pins the boxes of the development world on two visits. Number and markers
+	# depend on seed + zone_id + visit (BALANCE §7.2, R-013-01): later changes
+	# to the zone's generation must not move them.
+	var expected: Dictionary[int, Array] = {
+		0: [
+			Vector3(-9, 0, -15),
+			Vector3(-3, 0, -18),
+			Vector3(1, 0, -20),
+			Vector3(11, 0, -17),
+			Vector3(14, 0, 9),
+		],
+		3: [
+			Vector3(-13, 0, -16),
+			Vector3(16, 0, 15),
+			Vector3(-10, 0, 13),
+			Vector3(-19, 0, -1),
+			Vector3(-16, 0, 1),
+		],
+	}
+	for visit: int in expected:
+		var known: Array[Vector3] = []
+		known.assign(expected[visit])
+		assert_eq(_box_positions(_visit_zone(KNOWN_SEED, visit)), known, "boxes of visit %d" % visit)
 
 
 func test_r_004_21_box_count_in_range_for_many_seeds() -> void:
@@ -334,25 +381,35 @@ func test_r_008_08_contents_change_with_visit() -> void:
 	assert_false(all_equal, "another visit rolls other contents for the same boxes")
 
 
-func test_r_008_08_positions_same_on_every_visit() -> void:
-	var reference: Array[Vector3] = _box_positions(_visit_zone(SEED_A, 0))
-	assert_gt(reference.size(), 0, "the zone has boxes")
-	for visit: int in [1, 5]:
-		assert_eq(
-			_box_positions(_visit_zone(SEED_A, visit)), reference, "visit %d: same boxes in the same places" % visit
-		)
+func test_r_013_01_layout_changes_with_visit() -> void:
+	var layouts: Dictionary[String, bool] = {}
+	for visit: int in 6:
+		var positions: Array[Vector3] = _box_positions(_visit_zone(SEED_A, visit))
+		assert_gt(positions.size(), 0, "visit %d has boxes" % visit)
+		layouts[str(positions)] = true
+	assert_gt(layouts.size(), 1, "other visits place the boxes elsewhere")
+
+
+func test_r_013_01_same_on_every_path() -> void:
+	var visit: int = 3
+	var expected: Array[Vector3] = _box_positions(_visit_zone(SEED_A, visit))
+	var pool: ObjectPool = _new_zombie_pool()
+	var repopulated: FarmZone = _visit_zone(SEED_A, 0)
+	repopulated.repopulate(SEED_A, visit, pool)
+	await wait_process_frames(1)
+	assert_eq(_box_positions(repopulated), expected, "repopulate() places the boxes of that visit")
+	var populated: FarmZone = _new_zone()
+	populated.populate(SEED_A, visit, pool, {})
+	assert_eq(_box_positions(populated), expected, "populate() places the boxes of that visit")
 
 
 func test_r_008_09_repopulate_closes_boxes_with_new_contents() -> void:
 	var pool: ObjectPool = _new_zombie_pool()
 	var zone: FarmZone = _visit_zone(SEED_A, 0)
-	var positions: Array[Vector3] = _box_positions(zone)
 	var old_boxes: Array[LootBox] = zone.get_boxes().duplicate()
 	_describe_contents(zone)
 	zone.repopulate(SEED_A, 1, pool)
 	await wait_process_frames(1)
-	assert_eq(zone.get_boxes().size(), positions.size(), "same number of boxes")
-	assert_eq(_box_positions(zone), positions, "on the same markers")
 	for box: LootBox in zone.get_boxes():
 		assert_false(box.is_opened(), "a new visit closes every box")
 	for old_box: LootBox in old_boxes:
@@ -473,3 +530,192 @@ func test_r_012_38_deposited_item_lost_next_visit() -> void:
 		(new_box.get_node("%Interactable") as InteractableComponent).interact(opener)
 		var index: int = InventoryRules.index_of_uid(new_box.get_contents().get_slots(), piece.uid)
 		assert_eq(index, -1, "the item left in the previous visit is gone")
+
+
+func test_r_013_03_sites_and_markers() -> void:
+	var zone: FarmZone = _new_zone()
+	var sites: Array[Node] = zone.get_node("%BoxMarkers").get_children()
+	assert_gte(sites.size(), MIN_SITES, "sites of boxes (BALANCE §7.1)")
+	for site: Node in sites:
+		assert_true(site is Node3D and not site is Marker3D, "%s is a site, not a marker" % site.name)
+		var children: Array[Node] = site.get_children()
+		assert_between(
+			children.size(), MIN_MARKERS_PER_SITE, MAX_MARKERS_PER_SITE, "markers of %s" % site.name
+		)
+		for marker: Node in children:
+			assert_true(marker is Marker3D, "%s/%s is a Marker3D" % [site.name, marker.name])
+
+
+func test_r_013_03_sites_cover_the_zone() -> void:
+	var zone: FarmZone = _new_zone()
+	var half: Vector2 = _half_size(zone)
+	var quadrants: Dictionary[Vector2i, bool] = {}
+	for site: Node in zone.get_node("%BoxMarkers").get_children():
+		var centre: Vector3 = Vector3.ZERO
+		for marker: Node in site.get_children():
+			centre += (marker as Marker3D).position + (site as Node3D).position
+		centre /= maxi(site.get_child_count(), 1)
+		quadrants[Vector2i(int(signf(centre.x)), int(signf(centre.z)))] = true
+	for quadrant: Vector2i in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+		assert_true(quadrants.has(quadrant), "a site in quadrant %s" % quadrant)
+	for position: Vector3 in _marker_positions(zone):
+		assert_lt(absf(position.x), half.x, "marker %s inside the zone on X" % position)
+		assert_lt(absf(position.z), half.y, "marker %s inside the zone on Z" % position)
+
+
+func test_r_013_03_markers_apart() -> void:
+	var zone: FarmZone = _new_zone()
+	var reach: float = (load(CONTROLS_PATH) as ControlConfigData).interaction_range_m
+	var positions: Array[Vector3] = _marker_positions(zone)
+	for i: int in positions.size():
+		for j: int in range(i + 1, positions.size()):
+			var distance: float = positions[i].distance_to(positions[j])
+			assert_gt(distance, reach, "markers %s and %s apart" % [positions[i], positions[j]])
+
+
+func test_r_013_03_stray_marker_reports_error() -> void:
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	var stray: Marker3D = Marker3D.new()
+	stray.name = "StrayMarker"
+	stray.position = Vector3(0.0, 0.0, 10.0)
+	zone.get_node("BoxMarkers").add_child(stray)
+	add_child_autofree(zone)
+	assert_push_error("StrayMarker")
+	var with_stray: Array[Vector3] = []
+	zone.generate(SEED_A, ZonePopulation.FIRST_VISIT)
+	with_stray = _box_positions(zone)
+	assert_false(with_stray.has(stray.position), "no box on the stray marker")
+	assert_eq(
+		with_stray,
+		_box_positions(_visit_zone(SEED_A, ZonePopulation.FIRST_VISIT)),
+		"the stray marker does not shift the others"
+	)
+
+
+func test_r_013_04_per_site_limit_over_visits() -> void:
+	var zone: FarmZone = _new_zone()
+	var site_of: Dictionary[Vector3, int] = _site_by_position(zone)
+	var max_per_site: int = zone.data.box_max_per_site
+	for visit: int in LIVE_MARKER_VISITS:
+		var visited: FarmZone = _visit_zone(SEED_A, visit)
+		var positions: Array[Vector3] = _box_positions(visited)
+		assert_between(
+			positions.size(), zone.data.box_count_min, zone.data.box_count_max, "visit %d" % visit
+		)
+		var per_site: Dictionary[int, int] = {}
+		for position: Vector3 in positions:
+			var site: int = site_of.get(position, -1)
+			per_site[site] = per_site.get(site, 0) + 1
+		assert_false(per_site.has(-1), "visit %d: every box on a marker" % visit)
+		for site: int in per_site:
+			assert_lte(per_site[site], max_per_site, "visit %d: site %d" % [visit, site])
+
+
+func test_r_013_07_repopulate_places_new_visit_markers() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var zone: FarmZone = _visit_zone(SEED_A, 0)
+	var before: Array[Vector3] = _box_positions(zone)
+	_describe_contents(zone)
+	zone.repopulate(SEED_A, 1, pool)
+	await wait_process_frames(1)
+	var expected: Array[Vector3] = _box_positions(_visit_zone(SEED_A, 1))
+	assert_ne(expected, before, "visits 0 and 1 of this seed place the boxes differently")
+	assert_eq(_box_positions(zone), expected, "the boxes of visit 1, as if generated directly")
+	for box: LootBox in zone.get_boxes():
+		assert_false(box.is_opened(), "every box of the new visit is closed")
+
+
+func test_r_013_08_saved_box_without_marker_dropped() -> void:
+	var pool: ObjectPool = _new_zombie_pool()
+	var played: FarmZone = _visit_zone(SEED_A, 0)
+	var opener: Node3D = Node3D.new()
+	add_child_autofree(opener)
+	(played.get_boxes()[0].get_node("%Interactable") as InteractableComponent).interact(opener)
+	var state: Dictionary = played.get_visit_state()
+	var saved_boxes: Array = state["boxes"]
+	assert_eq(saved_boxes.size(), 1, "one box was opened")
+	var markers: Array[Vector3] = _marker_positions(played)
+	var box_markers: Array[int] = []
+	for box: LootBox in played.get_boxes():
+		box_markers.append(markers.find(box.position))
+	var free_marker: int = 0
+	while box_markers.has(free_marker):
+		free_marker += 1
+	var orphan: Dictionary = (saved_boxes[0] as Dictionary).duplicate(true)
+	orphan["marker"] = free_marker
+	saved_boxes.append(orphan)
+	var loaded: FarmZone = _new_zone()
+	loaded.populate(SEED_A, 0, pool, state)
+	assert_push_error("no box on its marker")
+	var opened: int = 0
+	for box: LootBox in loaded.get_boxes():
+		if box.is_opened():
+			opened += 1
+	assert_eq(opened, 1, "only the box with a marker comes back opened")
+	assert_true(loaded.get_boxes()[0].is_opened(), "on its marker")
+
+
+func test_r_013_09_markers_on_navmesh_and_reachable() -> void:
+	var zone: FarmZone = _new_zone()
+	var map: RID = zone.get_world_3d().navigation_map
+	assert_true(await _wait_for_navigation(map), "the navigation map synchronised")
+	var spawn: Vector3 = NavigationServer3D.map_get_closest_point(map, zone.get_spawn_position())
+	for marker: Marker3D in _markers(zone):
+		var target: Vector3 = marker.global_position
+		var closest: Vector3 = NavigationServer3D.map_get_closest_point(map, target)
+		assert_lt(_ground_distance(closest, target), NAV_TOLERANCE_M, "%s lies on the navmesh" % marker.name)
+		var path: PackedVector3Array = NavigationServer3D.map_get_path(map, spawn, target, true)
+		assert_gt(path.size(), 1, "a path reaches %s" % marker.name)
+		if path.size() > 1:
+			var reached: Vector3 = path[path.size() - 1]
+			assert_lt(_ground_distance(reached, target), NAV_TOLERANCE_M, "the path ends at %s" % marker.name)
+
+
+func test_r_013_09_markers_clear_of_obstacles() -> void:
+	var zone: FarmZone = _new_zone()
+	await wait_physics_frames(2)
+	var box: LootBox = zone.box_scene.instantiate() as LootBox
+	var body_shape: CollisionShape3D = box.get_node("CollisionShape3D") as CollisionShape3D
+	var query: PhysicsShapeQueryParameters3D = PhysicsShapeQueryParameters3D.new()
+	query.shape = body_shape.shape
+	var obstacles: Array[Node] = [zone.get_node("%Decoration"), zone.get_node("%Boundaries")]
+	var space: PhysicsDirectSpaceState3D = zone.get_world_3d().direct_space_state
+	var checked: int = 0
+	for marker: Marker3D in _markers(zone):
+		query.transform = marker.global_transform * body_shape.transform
+		for hit: Dictionary in space.intersect_shape(query):
+			var collider: Node = hit["collider"] as Node
+			for obstacle_root: Node in obstacles:
+				assert_false(obstacle_root.is_ancestor_of(collider), "%s overlaps %s" % [marker.name, collider.name])
+		checked += 1
+	box.free()
+	assert_gt(checked, 0, "markers were checked")
+
+
+func test_r_013_10_no_dead_marker() -> void:
+	var zone: FarmZone = _new_zone()
+	var unused: Dictionary[Vector3, bool] = {}
+	for position: Vector3 in _marker_positions(zone):
+		unused[position] = true
+	for visit: int in LIVE_MARKER_VISITS:
+		for position: Vector3 in _box_positions(_visit_zone(KNOWN_SEED, visit)):
+			unused.erase(position)
+	assert_eq(unused.size(), 0, "markers with no box in %d visits: %s" % [LIVE_MARKER_VISITS, unused.keys()])
+
+
+## Waits until the navigation map has synchronised the zone's region.
+func _wait_for_navigation(map: RID) -> bool:
+	for i: int in NAV_SYNC_MAX_FRAMES:
+		await wait_physics_frames(1)
+		if NavigationServer3D.map_get_iteration_id(map) == 0:
+			continue
+		var path: PackedVector3Array = NavigationServer3D.map_get_path(
+			map, Vector3(-20.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0), true
+		)
+		if path.size() >= 2:
+			return true
+	return false
+
+
+func _ground_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))

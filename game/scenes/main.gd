@@ -192,7 +192,7 @@ func _on_box_opened(box: LootBox, opener: Node3D) -> void:
 		{
 			ContainerScreen.CONTEXT_CONTAINER: box.get_contents(),
 			ContainerScreen.CONTEXT_INVENTORY: inventory,
-			ContainerScreen.CONTEXT_TITLE: ContainerScreen.LOOT_TITLE_KEY,
+			ContainerScreen.CONTEXT_KIND: ContainerScreen.Kind.LOOT_BOX,
 		}
 	)
 

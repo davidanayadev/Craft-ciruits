@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/container_screen.gd" id="1_screen"]
 [ext_resource type="PackedScene" path="res://scenes/ui/inventory_grid.tscn" id="2_grid"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quantity_selector.tscn" id="3_selector"]
+[ext_resource type="Resource" path="res://resources/config/controls.tres" id="4_controls"]
 
 [node name="ContainerScreen" type="Control"]
 layout_mode = 3
@@ -12,6 +13,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_screen")
+controls = ExtResource("4_controls")
 closes_on_outside_tap = true
 
 [node name="Backdrop" type="ColorRect" parent="."]
@@ -59,7 +61,17 @@ layout_mode = 2
 alignment = 1
 theme_override_constants/separation = 32
 
-[node name="ContainerGrid" parent="Center/Panel/Margin/Content/Grids" instance=ExtResource("2_grid")]
+[node name="ContainerSide" type="VBoxContainer" parent="Center/Panel/Margin/Content/Grids"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ContainerHeader" type="Label" parent="Center/Panel/Margin/Content/Grids/ContainerSide"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+
+[node name="ContainerGrid" parent="Center/Panel/Margin/Content/Grids/ContainerSide" instance=ExtResource("2_grid")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
@@ -69,46 +81,121 @@ interactive = true
 [node name="Separator" type="VSeparator" parent="Center/Panel/Margin/Content/Grids"]
 layout_mode = 2
 
-[node name="PlayerGrid" parent="Center/Panel/Margin/Content/Grids" instance=ExtResource("2_grid")]
+[node name="PlayerSide" type="VBoxContainer" parent="Center/Panel/Margin/Content/Grids"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayerHeader" type="Label" parent="Center/Panel/Margin/Content/Grids/PlayerSide"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+
+[node name="PlayerGrid" parent="Center/Panel/Margin/Content/Grids/PlayerSide" instance=ExtResource("2_grid")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 interactive = true
 
-[node name="Notice" type="Label" parent="Center/Panel/Margin/Content"]
+[node name="ActionCard" type="PanelContainer" parent="Center/Panel/Margin/Content"]
 unique_name_in_owner = true
-visible = false
+custom_minimum_size = Vector2(1440, 264)
 layout_mode = 2
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
-theme_override_font_sizes/font_size = 28
 
-[node name="Controls" type="HBoxContainer" parent="Center/Panel/Margin/Content"]
-custom_minimum_size = Vector2(0, 96)
+[node name="CardMargin" type="MarginContainer" parent="Center/Panel/Margin/Content/ActionCard"]
 layout_mode = 2
-theme_override_constants/separation = 24
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
 
-[node name="QuantitySelector" parent="Center/Panel/Margin/Content/Controls" instance=ExtResource("3_selector")]
+[node name="CardRows" type="VBoxContainer" parent="Center/Panel/Margin/Content/ActionCard/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SelectionRow" type="HBoxContainer" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SelectedIcon" type="TextureRect" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/SelectionRow"]
 unique_name_in_owner = true
-visible = false
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SelectedLabel" type="Label" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/SelectionRow"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 32
+text_overrun_behavior = 3
 
-[node name="TransferButton" type="Button" parent="Center/Panel/Margin/Content/Controls"]
+[node name="QuantitySelector" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/SelectionRow" instance=ExtResource("3_selector")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 88)
 layout_mode = 2
-size_flags_horizontal = 10
+
+[node name="MoveButton" type="Button" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/SelectionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(480, 88)
+layout_mode = 2
 focus_mode = 0
 theme_override_font_sizes/font_size = 36
 disabled = true
-text = "CONTAINER_TRANSFER"
+text = "CONTAINER_MOVE"
+text_overrun_behavior = 3
 
-[node name="TakeAllButton" type="Button" parent="Center/Panel/Margin/Content/Controls"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 88)
+[node name="ActionRow" type="HBoxContainer" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows"]
 layout_mode = 2
-size_flags_horizontal = 8
+theme_override_constants/separation = 16
+
+[node name="Hint" type="Label" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 30
+text = "CONTAINER_HINT_SELECT"
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="PlaceButton" type="Button" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 88)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 36
+disabled = true
+text = "CONTAINER_PLACE"
+text_overrun_behavior = 3
+
+[node name="TakeAllButton" type="Button" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 88)
+layout_mode = 2
 focus_mode = 0
 theme_override_font_sizes/font_size = 36
 text = "CONTAINER_TAKE_ALL"
+text_overrun_behavior = 3
+
+[node name="NoticeLine" type="Control" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Notice" type="Label" parent="Center/Panel/Margin/Content/ActionCard/CardMargin/CardRows/NoticeLine"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+theme_override_font_sizes/font_size = 28
+vertical_alignment = 1
+text_overrun_behavior = 3

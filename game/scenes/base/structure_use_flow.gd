@@ -43,7 +43,7 @@ func _open_chest(structure_uid: String, contents: InventoryComponent) -> void:
 		{
 			ContainerScreen.CONTEXT_CONTAINER: contents,
 			ContainerScreen.CONTEXT_INVENTORY: _player.inventory,
-			ContainerScreen.CONTEXT_TITLE: ContainerScreen.CHEST_TITLE_KEY,
+			ContainerScreen.CONTEXT_KIND: ContainerScreen.Kind.CHEST,
 		}
 	)
 	if screen == null:

@@ -1,13 +1,19 @@
 class_name FarmZone
 extends Zone
 ## A farm zone (spec 004): ground, decoration, boundaries, a spawn point and
-## hand-placed box markers. generate() fills it from the world seed; the zone
-## never reads the seed itself, so whoever loads it (ZoneLoader, spec 009)
-## decides the world, and tests can generate it with any seed.
+## hand-placed box markers grouped in sites (spec 013). generate() fills it
+## from the world seed; the zone never reads the seed itself, so whoever loads
+## it (ZoneLoader, spec 009) decides the world, and tests can generate it with
+## any seed.
 ## Positions are local to the zone, whose origin is the centre of its grid cell.
-## Where the boxes are never changes; what they hold and which enemies there
-## are depend on the visit (BALANCE §7.2). Enemies come from a pool that
-## outlives the zone (spec 006). repopulate() starts a new visit (spec 008).
+## How many boxes there are, on which markers, what they hold and which enemies
+## there are all depend on the visit (BALANCE §7.2). Enemies come from a pool
+## that outlives the zone (spec 006). repopulate() starts a new visit (spec 008).
+## Box markers: each child of %BoxMarkers is a site (a Node3D) and its
+## children are its Marker3D. A marker's index is flat, sites in scene order
+## and markers in scene order inside each site; saved open boxes and the
+## contents of each box use that index, so reordering sites or markers changes
+## which box is which in saved worlds (plan 013 D1).
 ## populate() brings back a saved visit: its open boxes and its dead enemies
 ## (spec 010).
 
@@ -26,6 +32,10 @@ const _DEAD_ENEMIES_KEY := "dead_enemies"
 var _boxes: Array[LootBox] = []
 ## Marker of each box, in the same order as _boxes.
 var _box_marker_indices: Array[int] = []
+## Every box marker, flat: the index here is the saved "marker".
+var _box_marker_nodes: Array[Marker3D] = []
+## Markers of each site, in scene order.
+var _site_marker_counts: Array[int] = []
 var _generated: bool = false
 var _visit: int = ZonePopulation.FIRST_VISIT
 
@@ -38,13 +48,14 @@ var _visit: int = ZonePopulation.FIRST_VISIT
 func _ready() -> void:
 	super()
 	_zombie_spawner.enemy_loot_dropped.connect(_on_enemy_loot_dropped)
+	_collect_box_sites()
 
 
 ## Places the boxes once (second call → push_error, no change). How many and
-## on which markers comes from the box_placement stream, without the visit;
-## the contents of each box from the box_loot stream, the visit and its marker
-## index, so they depend neither on the opening order nor on how many boxes
-## there are (R-008-08).
+## on which markers comes from the box_placement stream and the visit
+## (R-013-01); the contents of each box from the box_loot stream, the visit
+## and its marker index, so they depend neither on the opening order nor on
+## how many boxes there are (R-008-08).
 func generate(world_seed: int, visit: int) -> void:
 	if _generated:
 		push_error("FarmZone '%s': generate() was already called." % name)
@@ -53,39 +64,26 @@ func generate(world_seed: int, visit: int) -> void:
 		push_error("FarmZone '%s': data and box_scene must be assigned." % name)
 		return
 	_generated = true
-	_visit = visit
-	var markers: Array[Node] = _box_markers.get_children()
-	var rng: RandomNumberGenerator = SeededRng.create(
-		world_seed, data.zone_id, SeededRng.STREAM_BOX_PLACEMENT
-	)
-	var picked: Array[int] = ZonePopulation.pick_box_markers(
-		markers.size(), data.box_count_min, data.box_count_max, rng
-	)
-	for marker_index: int in picked:
-		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed, visit)
+	_place_boxes(world_seed, visit)
 
 
-## Starts a new visit (R-008-09): the enemies are replaced by those of that
-## visit and every box by a closed one on the same marker with the contents of
-## that visit; what was left inside goes with the old box. Before generate() →
-## push_error, no change.
+## Starts a new visit (R-008-09, R-013-07): the enemies are replaced by those
+## of that visit and the boxes by closed ones on the markers of that visit,
+## with its contents; what was left inside goes with the old boxes. Before
+## generate() → push_error, no change.
 func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
 	if not _generated:
 		push_error("FarmZone '%s': repopulate() needs generate() first." % name)
 		return
-	_visit = visit
 	despawn_enemies()
 	spawn_enemies(world_seed, visit, pool)
 	# Replaced, not reset: a new box is cheaper to get right than undoing the
 	# roll of an old one, and this runs once per death, behind the transfer screen.
-	var markers: Array[Node] = _box_markers.get_children()
-	var marker_indices: Array[int] = _box_marker_indices
 	for box: LootBox in _boxes:
 		box.queue_free()
 	_boxes = []
 	_box_marker_indices = []
-	for marker_index: int in marker_indices:
-		_place_box(markers[marker_index] as Marker3D, marker_index, world_seed, visit)
+	_place_boxes(world_seed, visit)
 
 
 ## generate() plus the saved state of that visit (get_visit_state(), spec
@@ -147,10 +145,38 @@ func get_enemies() -> Array[Zombie]:
 	return _zombie_spawner.get_active()
 
 
+## One pass over the sites, so the flat markers and the count per site never
+## disagree. Anything that is not a site holding markers → push_error, skipped.
+func _collect_box_sites() -> void:
+	for site: Node in _box_markers.get_children():
+		if site is Marker3D or not site is Node3D:
+			push_error("FarmZone '%s': box marker '%s' is not inside a site." % [name, site.name])
+			continue
+		var marker_count: int = 0
+		for marker: Node in site.get_children():
+			if not marker is Marker3D:
+				push_error("FarmZone '%s': '%s/%s' is not a Marker3D." % [name, site.name, marker.name])
+				continue
+			_box_marker_nodes.append(marker as Marker3D)
+			marker_count += 1
+		_site_marker_counts.append(marker_count)
+
+
+## The one placement path of generate() and repopulate(), so a visit places
+## the same boxes whichever way it starts (R-013-02).
+func _place_boxes(world_seed: int, visit: int) -> void:
+	_visit = visit
+	var rng: RandomNumberGenerator = SeededRng.create(
+		world_seed, data.zone_id, SeededRng.STREAM_BOX_PLACEMENT, visit
+	)
+	var picked: Array[int] = ZonePopulation.pick_box_markers(
+		_site_marker_counts, data.box_count_min, data.box_count_max, data.box_max_per_site, rng
+	)
+	for marker_index: int in picked:
+		_place_box(_box_marker_nodes[marker_index], marker_index, world_seed, visit)
+
+
 func _place_box(marker: Marker3D, marker_index: int, world_seed: int, visit: int) -> void:
-	if marker == null:
-		push_error("FarmZone '%s': box marker %d is not a Marker3D." % [name, marker_index])
-		return
 	var box: LootBox = box_scene.instantiate() as LootBox
 	if box == null:
 		push_error("FarmZone '%s': box_scene is not a LootBox." % name)
