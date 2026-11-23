@@ -10,7 +10,7 @@
 - Para balance numérico: ver **BALANCE.md**
 - Para features futuras (post-PMV): ver **SPECS.md**
 
-> **Actualización nov 2026**: las tareas incluyen los ganchos de arquitectura de PMV.md §4.5 (Perfil/Mundo, zona y semilla, ruleset, recetas, facción, estado por jugador, tienda). Se añaden la Tarea 0.5 (spike de navmesh) y la Tarea 2.7 (subida de nivel de chasis). Total: 392h → 426h. Después se añade la Tarea 2.8 (colocación libre en la base): 446h.
+> **Actualización nov 2026**: las tareas incluyen los ganchos de arquitectura de PMV.md §4.5 (Perfil/Mundo, zona y semilla, ruleset, recetas, facción, estado por jugador, tienda). Se añaden la Tarea 0.5 (spike de navmesh) y la Tarea 2.7 (subida de nivel de chasis). Total: 392h → 426h. Después se añade la Tarea 2.8 (colocación libre en la base): 446h. Después, la Tarea 3.4 (recuerdos y huecos del Core): 466h.
 
 ---
 
@@ -378,15 +378,16 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 
 ### Tarea 2.7: Subida de nivel de chasis (5h)
 Depende de la Tarea 1.2 (inventario) y la Tarea 2.3 (guardado). Antes no existía ninguna tarea que aplicara la subida: la XP se acumulaba sin efecto.
-- [ ] Crear recurso `ChassisLevelData.gd` y un `.tres` con los umbrales de XP y los slots por nivel de BALANCE.md §6.1 (niveles 1-5: 0/50/150/300/500 XP; 5/7/10/15/20 slots). Sin literales en el código
+- [ ] Crear recurso `ChassisLevelData.gd` y un `.tres` con los umbrales de XP y los slots por nivel de BALANCE.md §6.1 (niveles 1-10: 0/50/150/300/500/750/1000/1300/1650/2000 XP; 5/7/10/15/20 slots en los niveles 1-5 y 20 en los niveles 6-10; decisión nov 2026). Sin literales en el código
 - [ ] Lógica pura (`scripts/systems/`): calcular el nivel a partir de la XP total
 - [ ] Al ganar XP: si se supera el siguiente umbral, subir de nivel (también varios niveles de golpe) y emitir la señal `level_up(new_level)`
 - [ ] Al subir: ampliar los slots del `InventoryComponent` del jugador
 - [ ] Conectar `level_up` a la notificación "Nivel up" (Tarea 4.1) y al SFX de nivel (Tarea 4.3)
 - [ ] El nivel y la XP se guardan con la Tarea 2.3; al cargar, recalcular los slots desde el nivel
-- [ ] Test: con 49 XP nivel 1 y 5 slots; con 50 XP nivel 2 y 7 slots; con 500 XP nivel 5 y 20 slots; ganar XP de sobra no pasa del nivel 5
+- [ ] Test: con 49 XP nivel 1 y 5 slots; con 50 XP nivel 2 y 7 slots; con 500 XP nivel 5 y 20 slots; con 750 XP nivel 6 y 20 slots; ganar XP de sobra no pasa del nivel 10
+- [ ] Fuera de esta tarea: recuerdos, huecos del Core y fuentes nuevas de XP (Tarea 3.4)
 
-**Entregable**: la XP sube de nivel el chasis y amplía el inventario.
+**Entregable**: la XP sube de nivel el chasis (hasta el 10) y amplía el inventario en los niveles 1-5.
 
 ### Tarea 2.8: Colocación libre en la base (20h, estimación)
 Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura que construye, dentro de los límites de la base. La base en cualquier sitio del mundo llega en v1.1 (SPECS.md §32). Antes de la Tarea 2.2, que la usa.
@@ -477,8 +478,24 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 
 **Entregable**: robot hostil básico funcional con drops de piezas.
 
-**Tiempo total Fase 3**: ~44h (1.5 semanas)  
-**Criterio de "hecho"**: sistema de piezas completo con degradación, robot hostil dropea piezas.
+### Tarea 3.4: Recuerdos, huecos del Core y fuentes nuevas de XP (20h, estimación)
+Decisión nov 2026 (PMV.md §6.3, BALANCE.md §6.1-§6.3). Depende de la Tarea 2.7 (niveles hasta el 10) y de las Tareas 3.1-3.2 (`StatsComponent`, `StatModifier`, Core equipado y rotura). Va en la spec 016.
+- [ ] Recurso de datos para los recuerdos (nombre en inglés a elegir en el plan; evitar `Memory`) con sus `StatModifier`, y los 7 recuerdos de BALANCE.md §6.3 como `.tres`
+- [ ] La tabla de niveles (`ChassisLevelData`) dice qué da cada nivel: un recuerdo o un hueco (niveles 2, 6 y 10). Sin literales en el código
+- [ ] Huecos máximos por Core como dato de `PieceData` (Core básico: 3)
+- [ ] Componente por jugador en el robot: recuerdos aprendidos, huecos abiertos e instalados. Aprender es permanente; huecos activos = mínimo entre los del nivel y los del Core
+- [ ] Los recuerdos instalados aportan sus modificadores a `StatsComponent`; sin Core equipado (roto o perdido) se desactivan sin perderse
+- [ ] Instalar y cambiar recuerdos en el banco de la base (pestaña nueva del `BenchScreen`), nunca en la zona
+- [ ] Guardado (Tarea 2.3): ids de los recuerdos aprendidos e instalados, no "el recuerdo del nivel N", para que el sorteo de v1.1 (SPECS.md §6.3) no rompa las partidas. Los huecos abiertos se recalculan desde la XP
+- [ ] XP por craftear una pieza (`EventBus.item_crafted`), reparar una pieza (`piece_repaired`) y vaciar un sitio de cajas (evento nuevo); valores de BALANCE.md §6.2
+- [ ] Revisar la curva de los niveles 6-10 y los valores de XP con `balance-auditor` y en una prueba en el juego (objetivo: nivel 10 entre el día 30 y el 45, BALANCE.md §8.2)
+- [ ] Textos de los recuerdos con i18n (ES + EN)
+- [ ] Test: el nivel 1 enseña Célula eficiente y el nivel 2 abre el hueco; un recuerdo sin instalar no cambia los stats; instalado sí; Core roto desactiva sin perder; guardar y cargar conserva aprendidos e instalados; craftear, reparar y vaciar un sitio dan XP
+
+**Entregable**: cada nivel enseña un recuerdo o abre un hueco, y los recuerdos instalados cambian los stats del robot.
+
+**Tiempo total Fase 3**: ~64h (2 semanas)  
+**Criterio de "hecho"**: sistema de piezas completo con degradación, robot hostil dropea piezas, recuerdos instalables en los huecos del Core.
 
 ---
 
@@ -741,13 +758,13 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 | **F0: Configuración** | 1-2 | 42h | Robot se mueve, batería funciona, spike de navmesh medido |
 | **F1: Core loop** | 3-5 | 75h | Bucle completo: base → zona → combate → muerte |
 | **F2: Base y crafteo** | 6-8 | 109h | Base con colocación libre, 2 bancos + cofres + estaciones de carga + subida de nivel |
-| **F3: Piezas** | 9-10 | 44h | Sistema de piezas con degradación |
+| **F3: Piezas** | 9-10 | 64h | Sistema de piezas con degradación y recuerdos |
 | **F4: UI/UX** | 11-13 | 64h | HUD, menús, audio, animaciones |
 | **F5: QA** | 14-15 | 64h | Juego estable y optimizado |
 | **F6: Export** | 16-17 | 48h | Publicado en Play Store (demo gratis) |
-| **TOTAL** | **17 semanas** | **446h** | **PMV publicado** |
+| **TOTAL** | **17 semanas** | **466h** | **PMV publicado** |
 
-**Nota (nov 2026)**: +34h por los ganchos de PMV.md §4.5, la Tarea 0.5 y la Tarea 2.7, y +20h por la colocación libre en la base (Tarea 2.8). Las 17 semanas (680h a 40h/semana) siguen teniendo margen sobre las horas estimadas.
+**Nota (nov 2026)**: +34h por los ganchos de PMV.md §4.5, la Tarea 0.5 y la Tarea 2.7, +20h por la colocación libre en la base (Tarea 2.8) y +20h por los recuerdos (Tarea 3.4). Las 17 semanas (680h a 40h/semana) siguen teniendo margen sobre las horas estimadas.
 
 **Comparación con PMV original**: 17 semanas vs 25 semanas. Ahorro: 8 semanas (2 meses).
 

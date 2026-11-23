@@ -252,15 +252,22 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 
 ### 6.1 Niveles de chasis
 
-| Nivel | XP requerida | Beneficio |
-|---|---|---|
-| **1** | 0 | Base: 5 slots inventario |
-| **2** | 50 núcleos | +2 slots inventario (7 total) |
-| **3** | 150 núcleos | +3 slots inventario (10 total) |
-| **4** | 300 núcleos | +5 slots inventario (15 total) |
-| **5** | 500 núcleos | +5 slots inventario (20 total) |
+| Nivel | XP requerida | Slots inventario | Recompensa (§6.3) |
+|---|---|---|---|
+| **1** | 0 | 5 | Recuerdo: Célula eficiente |
+| **2** | 50 núcleos | 7 (+2) | 1er hueco del Core |
+| **3** | 150 núcleos | 10 (+3) | Recuerdo: Servos ágiles |
+| **4** | 300 núcleos | 15 (+5) | Recuerdo: Puño reforzado |
+| **5** | 500 núcleos | 20 (+5) | Recuerdo: Golpe económico |
+| **6** | 750 núcleos | 20 | 2º hueco del Core |
+| **7** | 1000 núcleos | 20 | Recuerdo: Batería ampliada |
+| **8** | 1300 núcleos | 20 | Recuerdo: Zancada eficiente |
+| **9** | 1650 núcleos | 20 | Recuerdo: Chasis reforzado |
+| **10** | 2000 núcleos | 20 | 3er hueco del Core |
 
-> XP **acumulada** (umbral total, no XP adicional por nivel; decisión nov 2026). Estos valores van a un `.tres` de `ChassisLevelData` y los aplica ACTION_PLAN.md Tarea 2.7.
+> XP **acumulada** (umbral total, no XP adicional por nivel; decisión nov 2026). Estos valores van a un `.tres` de `ChassisLevelData` y los aplica ACTION_PLAN.md Tarea 2.7 (umbrales y slots) y la Tarea 3.4 (recuerdos y huecos).
+>
+> **Niveles 6-10** (decisión nov 2026): umbrales **provisionales**. Objetivo: nivel 10 entre el día 30 y el 45 (§8.2). Se revisan con `balance-auditor` y en una prueba en el juego, junto con las fuentes nuevas de §6.2, antes de cerrarlos. Los niveles 6-10 no dan slots y el stack máximo no cambia (§2).
 
 ### 6.2 Fuentes de XP (núcleos de datos)
 
@@ -269,8 +276,27 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 | Matar zombie lento | 2 |
 | Matar zombie rápido | 3 |
 | Matar robot hostil básico | 10 |
+| Craftear una pieza en el banco | Por definir |
+| Reparar una pieza en el banco | Por definir |
+| Vaciar un sitio de cajas (todas sus cajas vacías en la visita) | Por definir |
 
-> **Nota**: Para el sistema de progresión extendido (10 niveles con habilidades desbloqueables), ver SPECS.md §6 (v1.1+).
+> Fuentes nuevas decididas en nov 2026 para que el nivel 10 no dependa solo de matar. Valores por definir con la curva de §6.1.
+
+### 6.3 Recuerdos y huecos del Core
+
+Mejoras pasivas fijas por nivel en el PMV (PMV.md §6.3). Cada recuerdo es un modificador de una estadística; solo funciona instalado en un hueco. El Core básico admite **3 huecos** (abiertos en los niveles 2, 6 y 10).
+
+| Recuerdo | Nivel | Efecto | Notas |
+|---|---|---|---|
+| **Célula eficiente** | 1 | -20% consumo pasivo | 0.1/s → 0.08/s |
+| **Servos ágiles** | 3 | +10% velocidad andando y corriendo | Andando, 3.3 m/s: sigue sin escapar del zombie rápido (3.5 m/s, §3.1) |
+| **Puño reforzado** | 4 | +50% daño | Brazos básicos 15: matan al zombie rápido de 1 golpe. Un brazo 7.5: mata al lento en 3 golpes en vez de 4. Con +20% no cambiaba ningún número de golpes |
+| **Golpe económico** | 5 | -50% batería por golpe | 1 → 0.5 por golpe |
+| **Batería ampliada** | 7 | +15 batería máxima | Se suma al Core y al generador eólico |
+| **Zancada eficiente** | 8 | -30% consumo al andar y correr | Sobre el consumo de las piernas (§4.2) |
+| **Chasis reforzado** | 9 | -1 durabilidad perdida por golpe | 5 → 4 (§4.1) |
+
+> Las habilidades activas de v1.1 vienen de las piezas, no del nivel: ver SPECS.md §6.
 
 ---
 
@@ -340,7 +366,8 @@ Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar bater
 | **Día 2-3** | Consigue brazos básicos y piernas básicas. Empieza a explorar con más confianza. |
 | **Día 4-7** | Tiene piezas básicas. Aprende a reparar. Generador eólico genera baterías. |
 | **Día 7-14** | Nivel de chasis 2-3. Tiene combinación de piezas. Optimiza rutas de farmeo. |
-| **Día 14-30** | Nivel 4-5. Tiene piezas reparadas. Explora zona verde con estrategia. Espera v1.1 (zona roja). |
+| **Día 14-30** | Nivel 4-5. Tiene piezas reparadas. Explora zona verde con estrategia. |
+| **Día 30-45** | Nivel 10 (objetivo, decisión nov 2026): 3 huecos del Core y los 7 recuerdos aprendidos. Espera v1.1 (zona roja). |
 
 ---
 

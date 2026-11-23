@@ -257,4 +257,5 @@ implementing anything that depends on one of them. None blocks the MVP. The ones
 
 - **Runtime navmesh on mobile.** Whether zones can be generated procedurally in v1.1, and whether
   player-built walls (v1.1, SPECS.md §32) can update enemy navigation, depends on the Tarea 0.5 spike.
-- **Overclock duration and levels 6–10 (v1.1).** See SPECS.md §6.2–§6.3.
+- **XP values for crafting, repairing and emptying a box site, and the level 6–10 curve.** Pending in
+  BALANCE.md §6.2; review with `balance-auditor` and an in-game test before closing them.
