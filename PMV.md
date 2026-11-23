@@ -432,9 +432,10 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **XP de §6.1**: ✅ Decidido (nov 2026): XP **acumulada** (50, 150, 300, 500 en total), no XP adicional por nivel. Ampliado al nivel 10 con 750, 1000, 1300, 1650 y 2000 (ver "Progresión y recuerdos").
 
 **Progresión y recuerdos** (decididas el 23 nov 2026, salvo la última; razonamiento en `docs/ideas/progresion-habilidades.md`)
-- [x] **Niveles del PMV**: ✅ hasta el **10** (antes 5). El máximo de pila no cambia (BALANCE.md §2).
+- [x] **Niveles del PMV**: ✅ hasta el **10** (antes 5).
+- [x] **Máximo de pila de los materiales**: ✅ chatarra 20, cables 10, hierro 10 (antes 99 / 50 / 50); baterías portátiles sin cambio (5). Llevar 99 de chatarra era exagerado para el PMV: con estos valores los materiales de una visita ocupan 4-5 slots y el inventario obliga a elegir (BALANCE.md §2). Toda receta cabe en un stack. Valores iniciales, a revisar en la prueba en el juego.
 - [x] **Recompensa del nivel**: ✅ 7 niveles enseñan un recuerdo y 3 (2, 6 y 10) abren un hueco del Core (§6.3). Las ranuras no motivaban: con los ítems del PMV, 7 ya bastaban para llevar uno de cada.
-- [x] **Ranuras de inventario**: ✅ de 5 a 8, +1 en los niveles 5, 6 y 7 (sustituye a 5/7/10/15/20). Subir ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con el stack máximo actual los materiales de una visita caben siempre en 3 slots; lo que compite por el espacio son las piezas y las baterías portátiles (BALANCE.md §6.1).
+- [x] **Ranuras de inventario**: ✅ de 5 a 8, +1 en los niveles 5, 6 y 7 (sustituye a 5/7/10/15/20). Subir ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con el máximo de pila nuevo, los materiales de una visita ocupan 4-5 slots y compiten con las piezas y las baterías portátiles (BALANCE.md §6.1).
 - [x] **Dinámica de los recuerdos**: ✅ **fija** en el PMV (más fácil de probar y equilibrar); en v1.1 pasa a aleatoria con semilla o condicional al estilo de juego (SPECS.md §6.3).
 - [x] **Core**: ✅ el básico admite los 3 huecos; si se rompe, los recuerdos se desactivan pero no se pierden.
 - [x] **Recuerdos con contrapartida**: ✅ dos de los siete, para que los huecos marquen un estilo de juego: Puño reforzado (+50% daño, +20% batería por golpe) y Servos ágiles (+10% velocidad, +10% consumo al moverse). Los otros cinco no cambian. Valores iniciales, a revisar con `balance-auditor` y en una prueba en el juego (BALANCE.md §6.3).

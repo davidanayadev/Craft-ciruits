@@ -131,7 +131,7 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario. Revi
 - [ ] Crear componente `InventoryComponent.gd` en la entidad del jugador (no un autoload: cada jugador tiene su inventario, PMV.md §4.5, gancho 7):
   - [ ] Variables: `inventory_slots = []` (Array de 5 slots; el tamaño crece con el nivel de chasis, Tarea 2.7)
   - [ ] Métodos: `add_item(item_id, quantity)`, `remove_item(item_id, quantity)`, `has_item(item_id, quantity)`
-  - [ ] Lógica: stack máximo por item (chatarra: 99, cables: 50, hierro: 50)
+  - [ ] Lógica: stack máximo por item (chatarra: 99, cables: 50, hierro: 50; bajados a 20 / 10 / 10 en nov 2026, BALANCE.md §2 y Tarea 2.7)
 - [ ] Crear recurso `ItemData.gd` (extends Resource):
   - [ ] Variables: `id`, `name`, `icon`, `stack_max`, `description`
 - [ ] Crear items básicos (chatarra, cables, hierro):
@@ -385,6 +385,7 @@ Depende de la Tarea 1.2 (inventario) y la Tarea 2.3 (guardado). Antes no existí
 - [ ] Conectar `level_up` a la notificación "Nivel up" (Tarea 4.1) y al SFX de nivel (Tarea 4.3)
 - [ ] El nivel y la XP se guardan con la Tarea 2.3; al cargar, recalcular los slots desde el nivel
 - [ ] Test: con 499 XP nivel 4 y 5 slots; con 500 XP nivel 5 y 6 slots; con 1000 XP nivel 7 y 8 slots; con 2000 XP nivel 10 y 8 slots; ganar XP de sobra no pasa del nivel 10
+- [ ] Bajar el `stack_max` de chatarra, cables y hierro a 20 / 10 / 10 en sus `.tres` (BALANCE.md §2, decisión nov 2026) y actualizar el test del catálogo que los guarda
 - [ ] Fuera de esta tarea: recuerdos, huecos del Core y fuentes nuevas de XP (Tarea 3.4)
 
 **Entregable**: la XP sube de nivel el chasis (hasta el 10) y amplía el inventario (de 5 a 8 slots).

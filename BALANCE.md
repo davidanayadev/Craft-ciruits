@@ -53,10 +53,12 @@
 
 | Material | Drop fuente | Uso principal | Stack máximo |
 |---|---|---|---|
-| **Chatarra** | Cajas, robot hostil | Crafteo básico (piezas) | 99 |
-| **Cables** | Cajas, robot hostil | Reparación, crafteo | 50 |
-| **Hierro** | Cajas, robot hostil | Reparación de piezas, estructura | 50 |
+| **Chatarra** | Cajas, robot hostil | Crafteo básico (piezas) | 20 (antes 99) |
+| **Cables** | Cajas, robot hostil | Reparación, crafteo | 10 (antes 50) |
+| **Hierro** | Cajas, robot hostil | Reparación de piezas, estructura | 10 (antes 50) |
 | **Baterías (item)** | Cajas raras, generador eólico | Recargar batería (+20 puntos) | 5 (decisión nov 2026, spec 012) |
+
+> **Stack máximo de los materiales** (decisión nov 2026): 20 / 10 / 10 en vez de 99 / 50 / 50, para que el inventario (5 a 8 slots, §6.1) obligue a elegir qué loot vuelve a la base. Una visita a la zona verde da unas 20-30 chatarra, 6-8 cables y 3-5 hierro (estimación con §2.1, §3 y §7.1): 1-2 stacks de chatarra y uno de cables y de hierro, así que los materiales de una visita ocupan 4-5 slots. Toda receta cabe en un stack (la más cara, el Core básico: 6 chatarra, 3 cables, 2 hierro, §4.3.1; la reparación más cara: 3 hierro y 2 cables, §4.3.2). Valores iniciales, a revisar en la prueba en el juego (ACTION_PLAN Tarea 5.2).
 
 > **XP (núcleos de datos)**: no es un item. Se otorga directamente al matar un enemigo (ver §6.2), no ocupa slot y no se pierde al morir. "Núcleos" es solo el nombre de la unidad de XP.
 
@@ -271,7 +273,7 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 >
 > **Slots** (decisión nov 2026, sustituye a 5/7/10/15/20): **+1 en los niveles 5, 6 y 7**, de 5 a 8. Cada subida da un solo slot, para que subir ayude sin que quepa todo: el inventario tiene que obligar a elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con 20 slots el inventario igualaba a todos los cofres de la base juntos (5 × 4, §5.4).
 >
-> Qué cabe (estimación): una visita a la zona verde da unas 25 chatarra, 7 cables y 4 hierro (§2.1, §3, §7.1), así que con el stack máximo actual (§2) los materiales ocupan siempre 3 slots y nunca se llenan. Lo que compite por el espacio son las baterías portátiles y las piezas (stack 1): repuestos y piezas soltadas por el robot hostil. Con 5 slots caben los 3 materiales, las baterías y **una** pieza; con 8, un repuesto de cada pieza y una más.
+> Qué cabe (estimación): con el stack máximo de §2 (20 / 10 / 10), los materiales de una visita ocupan 4-5 slots. Con 5 slots (niveles 1-4), traer todo el loot de una visita llena el inventario: no queda sitio para baterías portátiles ni piezas de repuesto, y hay que elegir. Con 8 (nivel 7), caben los materiales de una visita y 3-4 slots para baterías, repuestos y piezas soltadas por el robot hostil.
 
 ### 6.2 Fuentes de XP (núcleos de datos)
 

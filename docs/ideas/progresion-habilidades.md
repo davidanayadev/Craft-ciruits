@@ -19,8 +19,9 @@ Si este documento y un documento fuente no coinciden, manda el documento fuente.
 - **Core**: el Core básico admite los 3 huecos. Si el Core se rompe, los recuerdos se desactivan pero no se
   pierden. El nivel 1 enseña un recuerdo y el nivel 2 abre el hueco para instalarlo.
 - **Inventario**: de 5 a 8 ranuras, +1 en los niveles 5, 6 y 7 (sustituye a 5/7/10/15/20). Subir
-  ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. No se
-  baja el máximo de pila en el PMV.
+  ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan.
+- **Máximo de pila**: chatarra 20, cables 10, hierro 10 (antes 99 / 50 / 50); baterías portátiles, 5 sin cambio.
+  Con 99 de chatarra los materiales nunca competían por el espacio.
 - **XP**: además de matar, se gana al **craftear** una pieza, **reparar** una pieza y **vaciar un sitio de cajas**.
   Curva de los niveles 6-10: 750, 1000, 1300, 1650 y 2000. Objetivo: nivel 10 entre el día 30 y el 45. Los valores
   se revisan con `balance-auditor` y en una prueba en el juego antes de cerrarlos.
@@ -56,16 +57,16 @@ N": así cambiar a una oferta sorteada no rompe las partidas guardadas.
 
 ## 4. Inventario: por qué las ranuras no motivan
 
-Hecho: el PMV tiene 4 ítems apilables (chatarra 99, cables 50, hierro 50, batería portátil 5) y 3 piezas
+Hecho: el PMV tenía 4 ítems apilables (chatarra 99, cables 50, hierro 50, batería portátil 5) y 3 piezas
 (`game/resources/items/`, `game/resources/pieces/`). Inferencia: con 7 ranuras (nivel 2) cabe un ejemplar de
 cada cosa, así que las ranuras de los niveles 3-5 casi no cambian nada al jugar. Por eso la recompensa principal
 del nivel pasa a ser el recuerdo o el hueco, y las ranuras crecen poco (de 5 a 8, una por subida).
 
-Qué cabe (estimación): una visita a la zona verde da unas 25 chatarra, 7 cables y 4 hierro, así que con el máximo
-de pila actual los materiales ocupan siempre 3 ranuras. Lo que compite por el espacio son las baterías portátiles y
-las piezas (pila de 1): repuestos y piezas soltadas por el robot hostil. Con 5 ranuras caben los materiales, las
-baterías y una pieza; con 8, un repuesto de cada pieza y una más. Si hiciera falta que también
-los materiales compitan por el espacio, habría que bajar el máximo de pila (hoy descartado para el PMV).
+Qué cabe (estimación): una visita a la zona verde da unas 20-30 chatarra, 6-8 cables y 3-5 hierro. Con el máximo
+de pila antiguo (99 / 50 / 50) eso ocupaba siempre 3 ranuras y los materiales nunca competían por el espacio. Con
+el nuevo (20 / 10 / 10) ocupan 4-5 ranuras: con 5 (niveles 1-4), traer todo el loot de una visita llena el
+inventario y no queda sitio para baterías ni repuestos; con 8 (nivel 7), quedan 3-4 ranuras para baterías, repuestos
+y piezas soltadas por el robot hostil. Toda receta cabe en una pila (la más cara, el Core básico: 6 chatarra).
 
 Idea para v1.1: un recuerdo "Compartimento de carga" (+ranuras) que compite por un hueco. Choca con R-014-08/11
 (el inventario no encoge): solo se podría quitar con esas ranuras vacías.
