@@ -42,7 +42,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 | — Generador eólico | Uno por base (decisión nov 2026, spec 012). Aumenta capacidad de batería (+20 máx). **Genera baterías portátiles con el tiempo** (1 batería cada 4h, máx 3 almacenadas). En v1.1 se añadirán bancos avanzados que requieren baterías portátiles (horno, ensamblador, reciclador). Ver SPECS.md §3. |
 | — Estación de carga | **Crafteable** (receta barata, BALANCE.md §5.3), todas las que quieras, solo dentro de la base. La base empieza sin ninguna. Al interactuar: batería al 100% (instantáneo) + guardado. Al entrar en la base hay autoguardado, pero no recarga (decisión nov 2026: tensión desde el minuto 0). |
 | — Cofres | 5 slots inventario personaje. Hasta 5 cofres, 4 slots cada uno. |
-| **XP / Progresión** | El personaje gana XP al matar enemigos, craftear y reparar piezas y vaciar sitios de cajas. 10 niveles de chasis: los niveles 1-5 amplían el inventario, y cada nivel enseña un recuerdo (mejora pasiva) o abre un hueco del Core para instalarlo (ver §6). |
+| **XP / Progresión** | El personaje gana XP al matar enemigos, craftear y reparar piezas y vaciar sitios de cajas. 10 niveles de chasis: el inventario crece poco (de 5 a 8 slots), y cada nivel enseña un recuerdo (mejora pasiva) o abre un hueco del Core para instalarlo (ver §6). |
 | **Piezas intercambiables** | **3 piezas básicas** (brazos, piernas, core). Cada una con ventaja/desventaja clara. |
 | **Persistencia** | Guardado local en dispositivo (JSON/encriptado), separado en **Perfil** (global) y **Mundo** (por partida; en el PMV solo hay uno). Ver §4.5. |
 | **Controles táctiles** | Joystick virtual flotante (aparece donde tocas en la mitad izquierda de la pantalla), Botón atacar grande (derecha), Minimapa (arriba derecha), HUD batería + estado piezas (arriba izquierda), Botón consumibles (junto a atacar), Botón interactuar (bancos/objetos), Botón almacenamiento (abajo). |
@@ -264,7 +264,7 @@ Desarrollador solo, tiempo completo (40h/semana), con experiencia previa en Godo
 
 ## 6. Progresión (XP / Inventario / Recuerdos)
 
-> **Decisión nov 2026**: el PMV llega al **nivel 10**. Las ranuras de inventario dejan de ser la recompensa principal (con los ítems del PMV, 7 ranuras ya bastan para llevar uno de cada): cada nivel enseña un **recuerdo** o abre un **hueco del Core**. Razonamiento en `docs/ideas/progresion-habilidades.md`.
+> **Decisión nov 2026**: el PMV llega al **nivel 10**. Las ranuras de inventario dejan de ser la recompensa principal: cada nivel enseña un **recuerdo** o abre un **hueco del Core**. El inventario crece poco (de 5 a 8), para que ayude sin que quepa todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Razonamiento en `docs/ideas/progresion-habilidades.md`.
 
 ### 6.1 Niveles de chasis
 
@@ -273,15 +273,17 @@ Umbrales de XP acumulada, ranuras y recompensas en BALANCE.md §6.1.
 | Nivel | Ranuras de inventario | Recompensa |
 |---|---|---|
 | **1** | 5 | Recuerdo: Célula eficiente |
-| **2** | 7 | 1er hueco del Core |
-| **3** | 10 | Recuerdo: Servos ágiles |
-| **4** | 15 | Recuerdo: Puño reforzado |
-| **5** | 20 | Recuerdo: Golpe económico |
-| **6** | 20 | 2º hueco del Core |
-| **7** | 20 | Recuerdo: Batería ampliada |
-| **8** | 20 | Recuerdo: Zancada eficiente |
-| **9** | 20 | Recuerdo: Chasis reforzado |
-| **10** | 20 | 3er hueco del Core |
+| **2** | 5 | 1er hueco del Core |
+| **3** | 5 | Recuerdo: Servos ágiles |
+| **4** | 5 | Recuerdo: Puño reforzado |
+| **5** | 6 | Recuerdo: Golpe económico |
+| **6** | 7 | 2º hueco del Core |
+| **7** | 8 | Recuerdo: Batería ampliada |
+| **8** | 8 | Recuerdo: Zancada eficiente |
+| **9** | 8 | Recuerdo: Chasis reforzado |
+| **10** | 8 | 3er hueco del Core |
+
+Regla de slots: +1 en los niveles 5, 6 y 7.
 
 ### 6.2 Fuentes de XP (núcleos de datos)
 
@@ -294,6 +296,8 @@ La subida de nivel (umbral de XP → nuevo nivel → más slots de inventario) l
 ### 6.3 Recuerdos y huecos del Core
 
 Los recuerdos son fragmentos de memoria del humano cuya consciencia lleva el robot (SPECS.md §21). Cada uno es una mejora pasiva; valores en BALANCE.md §6.3.
+
+- **Contrapartida**: como las piezas (§2.2), un recuerdo puede tener ventaja y desventaja (Puño reforzado: más daño, pero cada golpe cuesta más batería; Servos ágiles: más velocidad, pero más consumo al moverse). Así los 3 huecos marcan un estilo de juego y no se eligen siempre los mismos.
 
 - **Fijos en el PMV**: cada nivel enseña siempre el mismo recuerdo, para probar la dinámica. En v1.1 el sistema pasa a aleatorio o condicional (SPECS.md §6.3).
 - **Permanentes**: un recuerdo aprendido no se pierde, tampoco al morir, como la XP. Se guardan por id, no por nivel, para que el cambio de v1.1 no rompa las partidas.
@@ -428,10 +432,12 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **XP de §6.1**: ✅ Decidido (nov 2026): XP **acumulada** (50, 150, 300, 500 en total), no XP adicional por nivel. Ampliado al nivel 10 con 750, 1000, 1300, 1650 y 2000 (ver "Progresión y recuerdos").
 
 **Progresión y recuerdos** (decididas el 23 nov 2026, salvo la última; razonamiento en `docs/ideas/progresion-habilidades.md`)
-- [x] **Niveles del PMV**: ✅ hasta el **10** (antes 5). Los niveles 6-10 no dan ranuras; la tabla de ranuras de los niveles 1-5 no cambia y el máximo de pila tampoco (BALANCE.md §6.1).
-- [x] **Recompensa del nivel**: ✅ 7 niveles enseñan un recuerdo y 3 (2, 6 y 10) abren un hueco del Core (§6.3). Las ranuras no motivan: con los ítems del PMV, 7 ya bastan.
+- [x] **Niveles del PMV**: ✅ hasta el **10** (antes 5). El máximo de pila no cambia (BALANCE.md §2).
+- [x] **Recompensa del nivel**: ✅ 7 niveles enseñan un recuerdo y 3 (2, 6 y 10) abren un hueco del Core (§6.3). Las ranuras no motivaban: con los ítems del PMV, 7 ya bastaban para llevar uno de cada.
+- [x] **Ranuras de inventario**: ✅ de 5 a 8, +1 en los niveles 5, 6 y 7 (sustituye a 5/7/10/15/20). Subir ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con el stack máximo actual los materiales de una visita caben siempre en 3 slots; lo que compite por el espacio son las piezas y las baterías portátiles (BALANCE.md §6.1).
 - [x] **Dinámica de los recuerdos**: ✅ **fija** en el PMV (más fácil de probar y equilibrar); en v1.1 pasa a aleatoria con semilla o condicional al estilo de juego (SPECS.md §6.3).
 - [x] **Core**: ✅ el básico admite los 3 huecos; si se rompe, los recuerdos se desactivan pero no se pierden.
+- [x] **Recuerdos con contrapartida**: ✅ dos de los siete, para que los huecos marquen un estilo de juego: Puño reforzado (+50% daño, +20% batería por golpe) y Servos ágiles (+10% velocidad, +10% consumo al moverse). Los otros cinco no cambian. Valores iniciales, a revisar con `balance-auditor` y en una prueba en el juego (BALANCE.md §6.3).
 - [x] **Fuentes de XP nuevas**: ✅ craftear una pieza, reparar una pieza y vaciar un sitio de cajas, además de matar. Objetivo: nivel 10 entre el día 30 y el 45 (BALANCE.md §8.2).
 - [x] **Orden de trabajo**: ✅ spec 014 (solo amplía la tabla de niveles hasta el 10) → spec 015 (piezas y estadísticas) → spec 016 (recuerdos y huecos del Core, ACTION_PLAN Tarea 3.4).
 - [ ] **Valores de XP de las fuentes nuevas y curva 6-10**: por definir en BALANCE.md §6.2; revisar con `balance-auditor` y en una prueba en el juego antes de cerrarlos.

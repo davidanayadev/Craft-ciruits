@@ -378,16 +378,16 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 
 ### Tarea 2.7: Subida de nivel de chasis (5h)
 Depende de la Tarea 1.2 (inventario) y la Tarea 2.3 (guardado). Antes no existía ninguna tarea que aplicara la subida: la XP se acumulaba sin efecto.
-- [ ] Crear recurso `ChassisLevelData.gd` y un `.tres` con los umbrales de XP y los slots por nivel de BALANCE.md §6.1 (niveles 1-10: 0/50/150/300/500/750/1000/1300/1650/2000 XP; 5/7/10/15/20 slots en los niveles 1-5 y 20 en los niveles 6-10; decisión nov 2026). Sin literales en el código
+- [ ] Crear recurso `ChassisLevelData.gd` y un `.tres` con los umbrales de XP y los slots por nivel de BALANCE.md §6.1 (niveles 1-10: 0/50/150/300/500/750/1000/1300/1650/2000 XP; 5/5/5/5/6/7/8/8/8/8 slots; decisión nov 2026). Sin literales en el código
 - [ ] Lógica pura (`scripts/systems/`): calcular el nivel a partir de la XP total
 - [ ] Al ganar XP: si se supera el siguiente umbral, subir de nivel (también varios niveles de golpe) y emitir la señal `level_up(new_level)`
 - [ ] Al subir: ampliar los slots del `InventoryComponent` del jugador
 - [ ] Conectar `level_up` a la notificación "Nivel up" (Tarea 4.1) y al SFX de nivel (Tarea 4.3)
 - [ ] El nivel y la XP se guardan con la Tarea 2.3; al cargar, recalcular los slots desde el nivel
-- [ ] Test: con 49 XP nivel 1 y 5 slots; con 50 XP nivel 2 y 7 slots; con 500 XP nivel 5 y 20 slots; con 750 XP nivel 6 y 20 slots; ganar XP de sobra no pasa del nivel 10
+- [ ] Test: con 499 XP nivel 4 y 5 slots; con 500 XP nivel 5 y 6 slots; con 1000 XP nivel 7 y 8 slots; con 2000 XP nivel 10 y 8 slots; ganar XP de sobra no pasa del nivel 10
 - [ ] Fuera de esta tarea: recuerdos, huecos del Core y fuentes nuevas de XP (Tarea 3.4)
 
-**Entregable**: la XP sube de nivel el chasis (hasta el 10) y amplía el inventario en los niveles 1-5.
+**Entregable**: la XP sube de nivel el chasis (hasta el 10) y amplía el inventario (de 5 a 8 slots).
 
 ### Tarea 2.8: Colocación libre en la base (20h, estimación)
 Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura que construye, dentro de los límites de la base. La base en cualquier sitio del mundo llega en v1.1 (SPECS.md §32). Antes de la Tarea 2.2, que la usa.

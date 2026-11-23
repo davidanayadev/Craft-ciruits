@@ -42,7 +42,7 @@
 
 | Parámetro | Valor | Notas |
 |---|---|---|
-| **Slots personaje** | 5 | A nivel 1 de chasis; crecen con el nivel (§6.1) |
+| **Slots personaje** | 5 | A nivel 1 de chasis; crecen con el nivel hasta 8 (§6.1) |
 | **Slots por cofre** | 4 | Fijo en PMV |
 | **Cofres máximos en base** | 5 | Límite duro en PMV (20 en v1.1) |
 | **Slots totales (base)** | 5 + (5 × 4) = 25 | Personaje + cofres |
@@ -255,19 +255,23 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 | Nivel | XP requerida | Slots inventario | Recompensa (§6.3) |
 |---|---|---|---|
 | **1** | 0 | 5 | Recuerdo: Célula eficiente |
-| **2** | 50 núcleos | 7 (+2) | 1er hueco del Core |
-| **3** | 150 núcleos | 10 (+3) | Recuerdo: Servos ágiles |
-| **4** | 300 núcleos | 15 (+5) | Recuerdo: Puño reforzado |
-| **5** | 500 núcleos | 20 (+5) | Recuerdo: Golpe económico |
-| **6** | 750 núcleos | 20 | 2º hueco del Core |
-| **7** | 1000 núcleos | 20 | Recuerdo: Batería ampliada |
-| **8** | 1300 núcleos | 20 | Recuerdo: Zancada eficiente |
-| **9** | 1650 núcleos | 20 | Recuerdo: Chasis reforzado |
-| **10** | 2000 núcleos | 20 | 3er hueco del Core |
+| **2** | 50 núcleos | 5 | 1er hueco del Core |
+| **3** | 150 núcleos | 5 | Recuerdo: Servos ágiles |
+| **4** | 300 núcleos | 5 | Recuerdo: Puño reforzado |
+| **5** | 500 núcleos | 6 (+1) | Recuerdo: Golpe económico |
+| **6** | 750 núcleos | 7 (+1) | 2º hueco del Core |
+| **7** | 1000 núcleos | 8 (+1) | Recuerdo: Batería ampliada |
+| **8** | 1300 núcleos | 8 | Recuerdo: Zancada eficiente |
+| **9** | 1650 núcleos | 8 | Recuerdo: Chasis reforzado |
+| **10** | 2000 núcleos | 8 | 3er hueco del Core |
 
 > XP **acumulada** (umbral total, no XP adicional por nivel; decisión nov 2026). Estos valores van a un `.tres` de `ChassisLevelData` y los aplica ACTION_PLAN.md Tarea 2.7 (umbrales y slots) y la Tarea 3.4 (recuerdos y huecos).
 >
-> **Niveles 6-10** (decisión nov 2026): umbrales **provisionales**. Objetivo: nivel 10 entre el día 30 y el 45 (§8.2). Se revisan con `balance-auditor` y en una prueba en el juego, junto con las fuentes nuevas de §6.2, antes de cerrarlos. Los niveles 6-10 no dan slots y el stack máximo no cambia (§2).
+> **Niveles 6-10** (decisión nov 2026): umbrales **provisionales**. Objetivo: nivel 10 entre el día 30 y el 45 (§8.2). Se revisan con `balance-auditor` y en una prueba en el juego, junto con las fuentes nuevas de §6.2, antes de cerrarlos.
+>
+> **Slots** (decisión nov 2026, sustituye a 5/7/10/15/20): **+1 en los niveles 5, 6 y 7**, de 5 a 8. Cada subida da un solo slot, para que subir ayude sin que quepa todo: el inventario tiene que obligar a elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con 20 slots el inventario igualaba a todos los cofres de la base juntos (5 × 4, §5.4).
+>
+> Qué cabe (estimación): una visita a la zona verde da unas 25 chatarra, 7 cables y 4 hierro (§2.1, §3, §7.1), así que con el stack máximo actual (§2) los materiales ocupan siempre 3 slots y nunca se llenan. Lo que compite por el espacio son las baterías portátiles y las piezas (stack 1): repuestos y piezas soltadas por el robot hostil. Con 5 slots caben los 3 materiales, las baterías y **una** pieza; con 8, un repuesto de cada pieza y una más.
 
 ### 6.2 Fuentes de XP (núcleos de datos)
 
@@ -284,17 +288,19 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 
 ### 6.3 Recuerdos y huecos del Core
 
-Mejoras pasivas fijas por nivel en el PMV (PMV.md §6.3). Cada recuerdo es un modificador de una estadística; solo funciona instalado en un hueco. El Core básico admite **3 huecos** (abiertos en los niveles 2, 6 y 10).
+Mejoras pasivas fijas por nivel en el PMV (PMV.md §6.3). Cada recuerdo son uno o dos modificadores de estadísticas; solo funciona instalado en un hueco. El Core básico admite **3 huecos** (abiertos en los niveles 2, 6 y 10). Dos recuerdos tienen contrapartida, como las piezas, para que los huecos marquen un estilo de juego y no se elijan siempre los mismos (decisión nov 2026). Valores iniciales: se revisan con `balance-auditor` y en una prueba en el juego.
 
 | Recuerdo | Nivel | Efecto | Notas |
 |---|---|---|---|
 | **Célula eficiente** | 1 | -20% consumo pasivo | 0.1/s → 0.08/s |
-| **Servos ágiles** | 3 | +10% velocidad andando y corriendo | Andando, 3.3 m/s: sigue sin escapar del zombie rápido (3.5 m/s, §3.1) |
-| **Puño reforzado** | 4 | +50% daño | Brazos básicos 15: matan al zombie rápido de 1 golpe. Un brazo 7.5: mata al lento en 3 golpes en vez de 4. Con +20% no cambiaba ningún número de golpes |
+| **Servos ágiles** | 3 | +10% velocidad andando y corriendo; **+10% consumo al moverse** | Te mueves más rápido, pero gastas más batería. Andando, 3.3 m/s: sigue sin escapar del zombie rápido (3.5 m/s, §3.1). Con Piernas básicas, el consumo al andar pasa de +0.05/s a +0.055/s |
+| **Puño reforzado** | 4 | +50% daño; **+20% batería por golpe** | Combate fuerte, pero cada golpe cuesta más: con un brazo o con Brazos básicos, de 1 a 1.2 por golpe. Brazos básicos 15: matan al zombie rápido de 1 golpe. Un brazo 7.5: mata al lento en 3 golpes en vez de 4. Con +20% de daño no cambiaba ningún número de golpes |
 | **Golpe económico** | 5 | -50% batería por golpe | 1 → 0.5 por golpe |
 | **Batería ampliada** | 7 | +15 batería máxima | Se suma al Core y al generador eólico |
 | **Zancada eficiente** | 8 | -30% consumo al andar y correr | Sobre el consumo de las piernas (§4.2) |
 | **Chasis reforzado** | 9 | -1 durabilidad perdida por golpe | 5 → 4 (§4.1) |
+
+> Recuerdos que tocan la misma estadística se combinan con el orden de `StatsCalculator` (`SET` → `ADD` → `MULTIPLY`, specs/architecture.md §9.4): Puño reforzado con Golpe económico (batería por golpe) y Servos ágiles con Zancada eficiente (consumo al moverse). El resultado exacto lo fija el plan de la spec 016.
 
 > Las habilidades activas de v1.1 vienen de las piezas, no del nivel: ver SPECS.md §6.
 
@@ -367,7 +373,7 @@ Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar bater
 | **Día 4-7** | Tiene piezas básicas. Aprende a reparar. Generador eólico genera baterías. |
 | **Día 7-14** | Nivel de chasis 2-3. Tiene combinación de piezas. Optimiza rutas de farmeo. |
 | **Día 14-30** | Nivel 4-5. Tiene piezas reparadas. Explora zona verde con estrategia. |
-| **Día 30-45** | Nivel 10 (objetivo, decisión nov 2026): 3 huecos del Core y los 7 recuerdos aprendidos. Espera v1.1 (zona roja). |
+| **Día 30-45** | Nivel 10 (objetivo, decisión nov 2026): 3 huecos del Core, los 7 recuerdos aprendidos y 8 slots. Espera v1.1 (zona roja). |
 
 ---
 

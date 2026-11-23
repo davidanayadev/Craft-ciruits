@@ -18,8 +18,9 @@ Si este documento y un documento fuente no coinciden, manda el documento fuente.
   aprender, instalar y cambiar. **En v1.1 el sistema pasa a aleatorio o condicional** (ver §3).
 - **Core**: el Core básico admite los 3 huecos. Si el Core se rompe, los recuerdos se desactivan pero no se
   pierden. El nivel 1 enseña un recuerdo y el nivel 2 abre el hueco para instalarlo.
-- **Inventario**: se queda la tabla de BALANCE §6.1 (5, 7, 10, 15, 20 en los niveles 1-5); los niveles 6-10 no
-  dan ranuras. No se baja el máximo de pila en el PMV.
+- **Inventario**: de 5 a 8 ranuras, +1 en los niveles 5, 6 y 7 (sustituye a 5/7/10/15/20). Subir
+  ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. No se
+  baja el máximo de pila en el PMV.
 - **XP**: además de matar, se gana al **craftear** una pieza, **reparar** una pieza y **vaciar un sitio de cajas**.
   Curva de los niveles 6-10: 750, 1000, 1300, 1650 y 2000. Objetivo: nivel 10 entre el día 30 y el 45. Los valores
   se revisan con `balance-auditor` y en una prueba en el juego antes de cerrarlos.
@@ -58,7 +59,13 @@ N": así cambiar a una oferta sorteada no rompe las partidas guardadas.
 Hecho: el PMV tiene 4 ítems apilables (chatarra 99, cables 50, hierro 50, batería portátil 5) y 3 piezas
 (`game/resources/items/`, `game/resources/pieces/`). Inferencia: con 7 ranuras (nivel 2) cabe un ejemplar de
 cada cosa, así que las ranuras de los niveles 3-5 casi no cambian nada al jugar. Por eso la recompensa principal
-del nivel pasa a ser el recuerdo o el hueco, y la tabla de ranuras se queda como está.
+del nivel pasa a ser el recuerdo o el hueco, y las ranuras crecen poco (de 5 a 8, una por subida).
+
+Qué cabe (estimación): una visita a la zona verde da unas 25 chatarra, 7 cables y 4 hierro, así que con el máximo
+de pila actual los materiales ocupan siempre 3 ranuras. Lo que compite por el espacio son las baterías portátiles y
+las piezas (pila de 1): repuestos y piezas soltadas por el robot hostil. Con 5 ranuras caben los materiales, las
+baterías y una pieza; con 8, un repuesto de cada pieza y una más. Si hiciera falta que también
+los materiales compitan por el espacio, habría que bajar el máximo de pila (hoy descartado para el PMV).
 
 Idea para v1.1: un recuerdo "Compartimento de carga" (+ranuras) que compite por un hueco. Choca con R-014-08/11
 (el inventario no encoge): solo se podría quitar con esas ranuras vacías.
@@ -81,26 +88,27 @@ máximo, como premio final.
 | Nivel | XP acumulada | Ranuras de inventario | Recompensa |
 |---|---|---|---|
 | 1 | 0 | 5 | Recuerdo: **Célula eficiente** |
-| 2 | 50 | 7 | **1er hueco** |
-| 3 | 150 | 10 | Recuerdo: **Servos ágiles** |
-| 4 | 300 | 15 | Recuerdo: **Puño reforzado** |
-| 5 | 500 | 20 | Recuerdo: **Golpe económico** |
-| 6 | 750 | 20 | **2º hueco** |
-| 7 | 1000 | 20 | Recuerdo: **Batería ampliada** |
-| 8 | 1300 | 20 | Recuerdo: **Zancada eficiente** |
-| 9 | 1650 | 20 | Recuerdo: **Chasis reforzado** |
-| 10 | 2000 | 20 | **3er hueco** |
+| 2 | 50 | 5 | **1er hueco** |
+| 3 | 150 | 5 | Recuerdo: **Servos ágiles** |
+| 4 | 300 | 5 | Recuerdo: **Puño reforzado** |
+| 5 | 500 | 6 | Recuerdo: **Golpe económico** |
+| 6 | 750 | 7 | **2º hueco** |
+| 7 | 1000 | 8 | Recuerdo: **Batería ampliada** |
+| 8 | 1300 | 8 | Recuerdo: **Zancada eficiente** |
+| 9 | 1650 | 8 | Recuerdo: **Chasis reforzado** |
+| 10 | 2000 | 8 | **3er hueco** |
 
 ### 5.1 Recuerdos fijos del PMV
 
-Elegidos por **sencillos**: todos son un modificador de una estadística, sin lógica propia, para probar la dinámica
-sin coste.
+Elegidos por **sencillos**: todos son modificadores de estadísticas, sin lógica propia, para probar la dinámica
+sin coste. Dos tienen **contrapartida**, como las piezas, para que los 3 huecos marquen un estilo de juego y no se
+elijan siempre los mismos. Valores iniciales, a revisar con `balance-auditor` y en una prueba en el juego.
 
 | Nivel | Recuerdo | Efecto | Por qué ese valor |
 |---|---|---|---|
 | 1 | Célula eficiente | -20% consumo pasivo | — |
-| 3 | Servos ágiles | +10% velocidad andando y corriendo | Andando (3,3 m/s) sigue sin escapar del zombie rápido (3,5 m/s) |
-| 4 | Puño reforzado | +50% daño | Con +20% no cambiaban los golpes para matar. Con +50%, los Brazos básicos (15) matan al zombie rápido de 1 golpe y un brazo solo (7,5) mata al lento en 3 golpes en vez de 4 |
+| 3 | Servos ágiles | +10% velocidad andando y corriendo; +10% consumo al moverse | Te mueves más rápido, pero gastas más batería. Andando (3,3 m/s) sigue sin escapar del zombie rápido (3,5 m/s) |
+| 4 | Puño reforzado | +50% daño; +20% batería por golpe | Combate fuerte, pero cada golpe cuesta más (con un brazo solo, de 1 a 1,2). Con +20% de daño no cambiaban los golpes para matar. Con +50%, los Brazos básicos (15) matan al zombie rápido de 1 golpe y un brazo solo (7,5) mata al lento en 3 golpes en vez de 4 |
 | 5 | Golpe económico | -50% batería por golpe | — |
 | 7 | Batería ampliada | +15 batería máxima | — |
 | 8 | Zancada eficiente | -30% consumo al andar y correr | — |
