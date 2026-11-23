@@ -440,7 +440,7 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Core**: ✅ el básico admite los 3 huecos; si se rompe, los recuerdos se desactivan pero no se pierden.
 - [x] **Recuerdos con contrapartida**: ✅ dos de los siete, para que los huecos marquen un estilo de juego: Puño reforzado (+50% daño, +20% batería por golpe) y Servos ágiles (+10% velocidad, +10% consumo al moverse). Los otros cinco no cambian. Valores iniciales, a revisar con `balance-auditor` y en una prueba en el juego (BALANCE.md §6.3).
 - [x] **Fuentes de XP nuevas**: ✅ craftear una pieza, reparar una pieza y vaciar un sitio de cajas, además de matar. Objetivo: nivel 10 entre el día 30 y el 45 (BALANCE.md §8.2).
-- [x] **Orden de trabajo**: ✅ spec 014 (solo amplía la tabla de niveles hasta el 10) → spec 015 (piezas y estadísticas) → spec 016 (recuerdos y huecos del Core, ACTION_PLAN Tarea 3.4).
+- [x] **Orden de trabajo**: ✅ spec 014 (amplía la tabla de niveles hasta el 10, ranuras de 5 a 8 y máximo de pila de los materiales) → spec 015 (piezas y estadísticas) → spec 017 (recuerdos y huecos del Core, ACTION_PLAN Tarea 3.4). La 016 sigue siendo el robot hostil (Tarea 3.3).
 - [ ] **Valores de XP de las fuentes nuevas y curva 6-10**: por definir en BALANCE.md §6.2; revisar con `balance-auditor` y en una prueba en el juego antes de cerrarlos.
 
 **Estación de carga crafteable** (todas decididas en nov 2026)

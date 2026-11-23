@@ -4,7 +4,7 @@
 |---|---|
 | **Estado** | Aprobado (23 nov 2026). Las decisiones están trasladadas a los documentos fuente; este documento guarda el razonamiento |
 | **Fuente de verdad** | Alcance en `PMV.md` §2.3, §6 y §10; habilidades de v1.1 en `SPECS.md` §6; números en `BALANCE.md` §6; tareas en `ACTION_PLAN.md` 2.7 y 3.4 |
-| **Orden de trabajo** | Commit de documentación → spec 014 (solo amplía la tabla de niveles hasta el 10) → spec 015 (piezas y estadísticas) → spec 016 (recuerdos y huecos del Core) |
+| **Orden de trabajo** | Commit de documentación → spec 014 (niveles hasta el 10, ranuras de 5 a 8, máximo de pila) → spec 015 (piezas y estadísticas) → spec 017 (recuerdos y huecos del Core; la 016 es el robot hostil) |
 
 Si este documento y un documento fuente no coinciden, manda el documento fuente.
 
@@ -190,7 +190,7 @@ Cada recuerdo es un **fragmento de memoria** del humano cuya consciencia lleva e
 nivel. Une la progresión con el experimento fallido (SPECS §21). El Core es donde vive esa consciencia, por eso
 los huecos están en él.
 
-## 9. Encaje técnico (inferencia, a validar en el plan de la spec 016)
+## 9. Encaje técnico (inferencia, a validar en el plan de la spec 017)
 
 - Recuerdos como `StatModifier` con su propio origen, sumados a los de las piezas en `StatsComponent`
   (architecture §9.4): **dependen de la spec 015**.

@@ -480,7 +480,7 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 **Entregable**: robot hostil básico funcional con drops de piezas.
 
 ### Tarea 3.4: Recuerdos, huecos del Core y fuentes nuevas de XP (20h, estimación)
-Decisión nov 2026 (PMV.md §6.3, BALANCE.md §6.1-§6.3). Depende de la Tarea 2.7 (niveles hasta el 10) y de las Tareas 3.1-3.2 (`StatsComponent`, `StatModifier`, Core equipado y rotura). Va en la spec 016.
+Decisión nov 2026 (PMV.md §6.3, BALANCE.md §6.1-§6.3). Depende de la Tarea 2.7 (niveles hasta el 10) y de las Tareas 3.1-3.2 (`StatsComponent`, `StatModifier`, Core equipado y rotura). Va en la spec 017 (la 016 es el robot hostil, Tarea 3.3).
 - [ ] Recurso de datos para los recuerdos (nombre en inglés a elegir en el plan; evitar `Memory`) con sus `StatModifier`, y los 7 recuerdos de BALANCE.md §6.3 como `.tres`
 - [ ] La tabla de niveles (`ChassisLevelData`) dice qué da cada nivel: un recuerdo o un hueco (niveles 2, 6 y 10). Sin literales en el código
 - [ ] Huecos máximos por Core como dato de `PieceData` (Core básico: 3)

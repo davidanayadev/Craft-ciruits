@@ -302,7 +302,7 @@ Mejoras pasivas fijas por nivel en el PMV (PMV.md §6.3). Cada recuerdo son uno 
 | **Zancada eficiente** | 8 | -30% consumo al andar y correr | Sobre el consumo de las piernas (§4.2) |
 | **Chasis reforzado** | 9 | -1 durabilidad perdida por golpe | 5 → 4 (§4.1) |
 
-> Recuerdos que tocan la misma estadística se combinan con el orden de `StatsCalculator` (`SET` → `ADD` → `MULTIPLY`, specs/architecture.md §9.4): Puño reforzado con Golpe económico (batería por golpe) y Servos ágiles con Zancada eficiente (consumo al moverse). El resultado exacto lo fija el plan de la spec 016.
+> Recuerdos que tocan la misma estadística se combinan con el orden de `StatsCalculator` (`SET` → `ADD` → `MULTIPLY`, specs/architecture.md §9.4): Puño reforzado con Golpe económico (batería por golpe) y Servos ágiles con Zancada eficiente (consumo al moverse). El resultado exacto lo fija el plan de la spec 017.
 
 > Las habilidades activas de v1.1 vienen de las piezas, no del nivel: ver SPECS.md §6.
 
