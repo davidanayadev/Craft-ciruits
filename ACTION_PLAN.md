@@ -217,7 +217,7 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario. Revi
 - [ ] Tirar items del inventario (decisión nov 2026, PMV.md §10): desde la pantalla de inventario, el item cae como `DroppedItem` en la posición del robot y caduca con la misma regla (BALANCE.md §7.2). Al seleccionar una pila, un selector de cantidad (− / + y deslizador, por defecto la pila entera) decide cuántas unidades se tiran; el resto sigue en su ranura (decisión nov 2026, spec 008)
 - [ ] Recuperación de items:
   - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
-  - [ ] Interactuar con el objeto caído para recuperar: coge directamente todo lo que quepa, sin pantalla
+  - [ ] Interactuar con el objeto caído para recuperar: coge directamente todo lo que quepa, sin pantalla. **Cambiado (nov 2026, spec 015)**: el objeto caído es un contenedor que se abre en la pantalla de contenedor (spec 013), con "Coger todo", elegir qué pilas coger y dejar cosas para hacer sitio; lo que quede dentro al caducar desaparece
 - [ ] Test: al morir, jugador reaparece en base sin piezas y con la batería al 100%, items dropeados en zona
 
 **Entregable**: mecánica de muerte funcional con drop y recuperación de items.
@@ -429,11 +429,13 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
   - [ ] Métodos: `equip(stack) -> ActionResult`, `unequip(slot) -> ActionResult`; señal `equipment_changed`
 - [ ] `StatsCalculator.compute(base, modifiers)` (puro, `SET` → `ADD` → `MULTIPLY`) y `StatsComponent`, que
   recalcula con `equipment_changed` y emite `stats_changed`
-- [ ] UI de equipamiento (popup):
+- [ ] Equipo inicial de un mundo nuevo: Core básico y Piernas básicas, y un brazo (BALANCE.md §4.2; decisión nov 2026, spec 015)
+- [ ] UI de equipamiento: un panel dentro de la pantalla de inventario, no un popup aparte (decisión nov 2026, spec 015):
   - [ ] Mostrar 3 ranuras (Brazo, Pierna, Core)
   - [ ] Mostrar pieza equipada en cada ranura (icono + nombre)
-  - [ ] Botón "Cambiar" (abre inventario de piezas)
+  - [ ] "Equipar" al seleccionar una pieza del inventario (intercambia si la ranura está ocupada) y "Quitar" al seleccionar una ranura
   - [ ] Mostrar stats totales (daño, velocidad, consumo batería)
+- [ ] Barra de batería del HUD en naranja por debajo del umbral de batería baja (BALANCE.md §1.1; decisión nov 2026, spec 015)
 - [ ] Test: equipar y desequipar piezas altera stats
 
 **Entregable**: sistema de ranuras funcional con UI.
@@ -451,7 +453,7 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
       - [ ] Stats vuelven a valor base (sin pieza): `StatsComponent` recalcula
 - [ ] UI de durabilidad:
   - [ ] En UI de equipamiento: barra de durabilidad bajo cada pieza
-  - [ ] Color: verde (>50%), amarillo (25-50%), rojo (<25%)
+  - [ ] Color: verde (>50%), amarillo (hasta más de 25%), rojo (≤25%, como el tramo "muy dañada" de la reparación; BALANCE.md §4.1)
 - [ ] Test: piezas se degradan y rompen con el uso
 
 **Entregable**: sistema de degradación funcional con UI.

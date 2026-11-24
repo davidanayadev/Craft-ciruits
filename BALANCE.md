@@ -17,13 +17,13 @@
 | Parámetro | Valor | Notas |
 |---|---|---|
 | **Batería máxima base** | 100 puntos | Sin mejoras de core |
-| **Consumo pasivo (encendido)** | 0.1 puntos/segundo | 1 punto cada 10 segundos |
+| **Consumo pasivo (encendido)** | 0.1 puntos/segundo | 1 punto cada 10 segundos. Con un Core equipado; sin Core, 0.2/s (§4.2) |
 | **Consumo movimiento (andar)** | +0.05 puntos/segundo | Total: 0.15/s moviéndose. Valor de las Piernas básicas (ver §4.2) |
 | **Consumo movimiento (correr)** | +0.15 puntos/segundo | Total: 0.25/s corriendo. Solo con piernas equipadas: sin piernas no se puede correr (§4.2) |
 | **Consumo ataque (golpe básico)** | 1 punto/golpe | Un brazo y Brazos básicos (sin armas en PMV; §4.2). Se cobra por golpe lanzado, también si falla, y aunque vacíe la batería (decisión nov 2026, spec 007) |
 | **Recarga en base** | Instantánea al 100% | Al interactuar con una Estación de carga (ver §5.3). Sin recarga automática: la batería se consume también dentro de la base (decisión nov 2026) |
 | **Batería al reaparecer** | 100% | Tras morir, en la base (PMV.md §2.4) |
-| **Umbral de batería baja** | 20% de la batería máxima | Dispara el aviso "Batería baja" (decisión nov 2026). Con la máxima base, 20 puntos |
+| **Umbral de batería baja** | 20% de la batería máxima | Dispara el aviso "Batería baja" (decisión nov 2026). Con la máxima base, 20 puntos. Por debajo, la barra del HUD se pone naranja (decisión nov 2026, spec 015) |
 | **Baterías portátiles (item)** | +20 puntos | Pensadas para la zona de farmeo, pero se pueden usar en cualquier sitio, también en la base. Sin pasar de la máxima; con la batería llena no se gastan (decisión nov 2026, spec 012) |
 | **Tiempo máximo en zona (quieto)** | ~16 minutos | 100 / 0.1 = 1000s ≈ 16.6 min |
 | **Tiempo máximo en zona (moviéndose)** | ~6.6 minutos | 100 / 0.25 = 400s ≈ 6.6 min |
@@ -121,6 +121,7 @@
 | **Degradación por golpe recibido** | -5 puntos | Cada golpe recibido (zombies y robots) degrada solo la primera pieza equipada intacta, en orden: Brazos → Piernas → Core |
 | **Pieza rota** | 0 puntos | Se pierde, queda ranura vacía |
 | **Reparación (banco)** | Coste según el estado (§4.3.2) | Restaura a 100% |
+| **Color de la durabilidad** | Verde > 50 %, amarillo de 50 % a más de 25 %, rojo ≤ 25 % | Barra bajo cada pieza equipada. El rojo coincide con el tramo "muy dañada" de §4.3.2, así el color dice lo que cuesta reparar (decisión nov 2026, spec 015) |
 
 ### 4.2 Estadísticas de piezas básicas (PMV)
 
@@ -140,13 +141,20 @@
 
 > El consumo al andar sustituye al "consumo movimiento (andar)" de §1.1 según las piernas equipadas. Solo se aplica mientras el robot se mueve; quieto, solo cuenta el consumo pasivo (0.1/s).
 
+> **Sin piernas es un castigo buscado** (decisión nov 2026, spec 015): al morir se pierden las piernas y se reaparece a 0.5 m/s. Para no recuperar a ese paso hay que guardar unas piernas de repuesto en la base o arriesgarse a perder el equipo. No hay "piezas medio rotas" de red de seguridad (PMV.md §2.4).
+
 > **Por qué 4.8 m/s al correr** (decisión nov 2026, 1.6 × andar): andando (3.0) no se escapa del zombie rápido (3.5, §3.1); corriendo sí, a cambio de un 67 % más de consumo (0.25/s frente a 0.15/s). Correr por debajo de 3.5 m/s haría imposible huir de él.
 
 #### Core
 
-| Pieza | Batería máxima | Efecto especial |
-|---|---|---|
-| **Core básico** | 100 | Ninguno |
+| Pieza | Batería máxima | Consumo pasivo | Efecto especial |
+|---|---|---|---|
+| **Sin Core** | 100 (no se reduce) | 0.2/s (el doble) | Estado base del robot, no es una pieza. El robot drena batería: sin recorte de carga al quitarlo o romperlo, y se reaparece al 100 %. Los recuerdos instalados se apagan sin perderse (§6.3). Valor del drenaje: estimación, a ajustar en la prueba del juego (decisión nov 2026, spec 015) |
+| **Core básico** | 100 | 0.1/s (§1.1) | Ninguno. Sostiene los 3 huecos de recuerdos (§6.3) |
+
+> **Papel del Core** (decisión nov 2026, spec 015): cada ranura tiene un papel. Brazos = pelear, piernas = moverse, Core = aguantar y progresar. El Core marca la batería máxima y el consumo pasivo, sostiene los huecos de los recuerdos y es la última capa de desgaste (§4.1): brazos y piernas lo protegen. Como se conserva al morir con su desgaste, repararlo es mantenimiento entre muertes. Se puede quitar y cambiar a mano como cualquier pieza. Un Core con armadura o defensa (por ejemplo, un Core blindado que absorbe parte del golpe a cambio de menos batería máxima) sería una pieza avanzada de v1.1, fuera del PMV.
+
+> **Equipo inicial de un mundo nuevo** (decisión nov 2026, spec 015): Core básico y Piernas básicas equipados, nuevos (100 de durabilidad), y un brazo. Fabricar los Brazos básicos es el primer objetivo de crafteo.
 
 ### 4.3 Materiales para crear y reparar piezas
 
@@ -339,6 +347,7 @@ Las cajas y los enemigos se reponen **por visita**, nunca por tiempo: el reloj r
 | **Items soltados al morir** | No dependen del contador: siguen en la zona hasta que se recuperan o caducan (ACTION_PLAN Tarea 1.5) |
 | **Caducidad de los items soltados** | Por tiempo de juego, que sigue contando con la app cerrada. Medido con la hora del dispositivo desde la muerte (`ITimeService`), con el tiempo negativo tratado como 0. **Duración: 5 minutos** (valor inicial, decisión nov 2026; ajustable en playtesting, PMV.md §10) |
 | **Items tirados del inventario** | Misma regla que los soltados al morir: siguen en la zona hasta que se recogen o caducan, con la misma duración (decisión nov 2026) |
+| **Objeto caído como contenedor** | Todo objeto caído (muerte, material de zombie, objeto tirado) se abre en la pantalla de contenedor: se coge lo que se quiera y se pueden dejar cosas para hacer sitio. Tiene un solo reloj, el de su caída: coger o dejar no lo cambia, y al caducar desaparece todo lo que haya dentro, también lo que dejó el jugador (decisión nov 2026, spec 015) |
 | **Cajas abiertas** | Se guardan mientras dura la visita: cerrar y abrir la app devuelve la misma visita con las mismas cajas abiertas |
 | **Loot que no cabe en el inventario** | Se queda en la caja durante la visita; se recoge al volver a interactuar, sin nueva tirada. Se pierde al empezar la visita siguiente (decisión nov 2026) |
 | **Caja como contenedor** | Desde que se abre, la caja es un contenedor con la capacidad de un cofre (§5.4): se coge lo que se quiera y se deja lo que no, también antes de vaciarla. Lo depositado se pierde al empezar la visita siguiente: no es un almacén entre visitas (decisión nov 2026; spec 012: siempre contenedor, no solo vaciada) |
