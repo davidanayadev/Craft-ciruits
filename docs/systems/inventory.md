@@ -2,7 +2,7 @@
 
 > Ranuras de ítems por entidad (robot, cajas de loot, cofres), con reglas de apilado puras y las
 > pantallas que las muestran. Es la primera pieza de estado por jugador después de la batería.
-> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) · Última actualización: spec 013 (pantalla de contenedor, `count_used_slots`)
+> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md), [014](../../specs/014-chassis-level/spec.md) · Última actualización: spec 014 (ranuras por nivel)
 
 ## Piezas
 
@@ -22,8 +22,9 @@
 
 ## Cómo funciona
 
-1. `Robot._ready()` llama a `inventory.set_slot_count(chassis_levels.get_inventory_slots(FIRST_LEVEL))`. El
-   componente no conoce el chasis: solo sabe crecer (`set_slot_count` rechaza reducir).
+1. `Robot._on_level_changed` (en `_ready()` y en cada `level_changed`, spec 014) llama a
+   `inventory.set_slot_count(chassis_levels.get_inventory_slots(nivel))`; ver [chassis_level.md](chassis_level.md). El
+   componente no conoce el chasis: solo sabe crecer (`set_slot_count` rechaza reducir) y el mismo número no cambia nada.
 2. `add(item_id, quantity)` valida el id contra un `DataCatalog` (el de `DataRegistry` por defecto), guarda el
    `ItemData` del catálogo y llama a `InventoryRules.add`: primero rellena pilas del mismo ítem por debajo de
    `stack_max`, luego ranuras vacías, en orden.
@@ -151,7 +152,7 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
 - `get_slots()` devuelve copias; para cambiar el inventario hay que llamar a los métodos del componente.
 - `count()` de un id desconocido hace `push_error` y devuelve 0.
 - `set_slot_count` no reduce (error y `ERR_INVALID_REQUEST`).
-- No hay arrastrar, ordenar ni subida de nivel ([spec 005 §4](../../specs/005-inventory/spec.md)). Dividir y colocar por
+- No hay arrastrar ni ordenar ([spec 005 §4](../../specs/005-inventory/spec.md)). Dividir y colocar por
   ranura solo existe en `ContainerScreen`; `InventoryScreen` (Tab) sigue solo con tirar y usar. Lo que queda en una caja
   se descarta al repoblar la zona.
 - `durability` y `uid` se conservan en todos los caminos de una pila (spec 011). Quien cree una pieza (botín de la
@@ -160,13 +161,15 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
 - `remove_many(amounts)` (spec 009) cobra varios ítems a la vez, todo o nada y con un solo `inventory_changed`: ítem
   desconocido o cantidad no positiva es `ERR_INVALID_REQUEST`, falta de algo es `ERR_NOT_ENOUGH_ITEMS`. La regla pura
   está en `InventoryRules.can_remove_many`/`remove_many`; lo usa `BaseStructures.place` ([base.md](base.md)).
-- `ChassisLevelData.xp_required` existe pero nadie lo lee todavía (ACTION_PLAN 2.7).
+- Las ranuras del robot crecen con el nivel de chasis (spec 014); al cargar, `Experience` debe ir antes que
+  `InventoryComponent` en `robot.tscn` o se pierden pilas de las ranuras de más ([chassis_level.md](chassis_level.md)).
+  El `stack_max` de los materiales lo fija BALANCE §2 y toda receta cabe en una pila (R-014-22).
 - Los controles de las pantallas tienen `focus_mode = NONE` para que Tab siga llegando a `open_storage`.
 
 ## Cómo extenderlo
 
 - Nuevo ítem: `.tres` de `ItemData` con su icono; ver [data_catalog.md](data_catalog.md).
-- Subida de nivel de chasis: llamar a `inventory.set_slot_count(chassis_levels.get_inventory_slots(nivel))`.
+- Ranuras por nivel de chasis: editar `chassis_levels.tres`; el cableado ya existe ([chassis_level.md](chassis_level.md)).
 - Otro contenedor: un `InventoryComponent` y abrir `ContainerScreen` con su contexto ([ui.md](ui.md)).
 
 ## Tests
@@ -176,7 +179,7 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
 | `tests/unit/test_inventory_rules.gd` | Apilado, orden de relleno, `count`, `remove` de atrás hacia delante; `split` entero, parcial e inválido; `move_to_slot` y `transfer` (colocar, sumar, intercambio entero, parcial rechazado, piezas, inválidas); piezas que no se fusionan, `add_stack` y `split` con durabilidad y `uid`, `is_valid_stack`, `index_of_uid` |
 | `tests/unit/test_inventory_component.gd` | Validación, señales una vez por operación, `take_from`, `take_amount_from`, `clear`, copias, `overflowed`, `move_to_slot` y `transfer_to` (una señal por inventario, rechazos sin cambio); piezas (rechazo, conservación, carga inválida), `craft` y `repair` |
 | `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador |
-| `tests/unit/test_chassis_level_data.gd` | Tabla y `validate()` |
+| `tests/unit/test_chassis_level_data.gd` | Tabla y `validate()` (spec 014: primer umbral 0, ranuras no decrecientes) |
 | `tests/unit/test_item_stack.gd` | `durability`, `uid` y `copy()` |
 | `tests/integration/test_save_contract.gd`, `test_save_load.gd` | Formato de ranuras, ranuras malas, una sola señal |
 | `tests/unit/test_inventory_screen.gd`, `test_container_screen.gd` | Celdas, repintado por señal, selección, selector, botones "Tirar" y "Usar"; contenedor: seleccionar, colocar, transferir, coger todo, no se cierra al vaciarse |

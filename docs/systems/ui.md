@@ -6,7 +6,7 @@
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [003](../../specs/003-battery/spec.md),
 > [005](../../specs/005-inventory/spec.md), [007](../../specs/007-melee-combat/spec.md),
 > [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) ·
-> Última actualización: spec 013
+> Última actualización: spec 014 (debug HUD: nivel y "Level up"; [chassis_level.md](chassis_level.md))
 
 ## Piezas
 
@@ -21,7 +21,7 @@
 | `BenchScreen`, `PlacementScreen` | Pantallas | [crafting.md](crafting.md), [base.md](base.md) | Banco con pestañas Construir, Crear y Reparar (sustituye a `BuildScreen`) y modo colocar/editar |
 | `AttackButton` | `Button` | `game/scenes/ui/attack_button.gd` | Botón grande de mantener, abajo a la derecha, visible en PC y móvil; emite `held_changed` |
 | `DamageFlash` | `TextureRect` | `game/scenes/ui/damage_flash.gd` | Borde rojo radial que se desvanece; `flash(duration_s)` |
-| `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, semilla del Mundo y botón "New world" (`new_world_requested`), solo en builds de depuración |
+| `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, nivel de chasis ("Level: n", `level_changed`), botón "Level up" (spec 014, suma la XP que falta al siguiente umbral con `add_xp`), semilla del Mundo y botón "New world" (`new_world_requested`), solo en builds de depuración |
 | `NoticeScreen` | `UIScreen` | `game/scenes/ui/notice_screen.gd`, `.tscn` | Aviso a pantalla completa que ni Escape ni atrás cierran; lo abre `SaveFlow` con `MSG_SAVE_NEWER_VERSION` ([save.md](save.md)) |
 | `TransferScreen` | `Control` | `game/scenes/ui/transfer_screen.gd` | "Transferencia de Consciencia" entre la muerte y la reaparición (spec 008) |
 | `QuantitySelector` | `HBoxContainer` | `game/scenes/ui/quantity_selector.gd` | − / + y deslizador de 1 a la cantidad de una pila; emite `value_changed`; `set_editable(bool)` lo desactiva sin ocultarlo (spec 013) |
@@ -181,7 +181,7 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
   pantalla entera aunque la colocación esté en `MOVE`.
 - Un `UIScreen` que necesite limpiar algo (vista previa, estado de otros nodos) lo hace en `on_closed()`, no en
   `close_requested`.
-- `DebugHud` no se traduce a propósito (solo depuración). Es el único sitio donde se ve la XP.
+- `DebugHud` no se traduce a propósito (solo depuración). Es el único sitio donde se ven la XP y el nivel (hasta ACTION_PLAN 4.1).
 - Un dedo que estaba pulsado al morir no llega a soltar (la transferencia traga la suelta): por eso `main.gd`
   cancela el joystick y el botón de atacar. Se comprueba a mano en el móvil.
 - Atrás en Android y Tab dependen del motor y se verifican a mano en el móvil.

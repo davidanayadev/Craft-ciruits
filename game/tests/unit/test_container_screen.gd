@@ -14,6 +14,8 @@ extends GutTest
 ## leaves (R-013-17), "Take all" is disabled when empty (R-013-18), refusals
 ## and done moves show in the card and the destination slots (R-013-19), with
 ## no platform checks (R-013-22).
+## Spec 014: player slots that grow while open get their cells and header
+## (R-014-13), and the last chassis level fits the 1920x1080 screen (R-014-14).
 ## Tests moved from test_loot_screen.gd keep their names (plan 012 §5.4).
 ## Headless cannot click Controls (ADR 0002): pressed is emitted by hand.
 
@@ -67,6 +69,7 @@ const PLATFORM_CHECKS: PackedStringArray = [
 	"OS.has_feature", "OS.get_name", "InputEventScreenTouch", "InputEventKey"
 ]
 const CONTAINER_SLOTS := 4
+const CHASSIS_LEVELS_PATH := "res://resources/progression/chassis_levels.tres"
 const SCRAP_SLOT := 0
 const CABLES_SLOT := 1
 const IRON_SLOT := 2
@@ -738,3 +741,61 @@ func test_r_012_46_panel_stops_the_mouse() -> void:
 	var panels: Array[Node] = _screen.find_children("*", "PanelContainer", true, false)
 	var outer: Array[Node] = panels.filter(func(node: Node) -> bool: return not _panel().is_ancestor_of(node))
 	assert_eq(outer.size(), 1, "one outer panel")
+
+
+# --- Spec 014: chassis level --------------------------------------------------
+
+
+## A Control of the design size of project.godot at the origin: headless GUT
+## has a 64x64 window whose visible rect is not the design size (plan 014 §5.1).
+func _design_host() -> Control:
+	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
+	var height: int = ProjectSettings.get_setting("display/window/size/viewport_height")
+	var host: Control = Control.new()
+	host.position = Vector2.ZERO
+	host.size = Vector2(width, height)
+	add_child_autofree(host)
+	return host
+
+
+func _last_level_slots() -> int:
+	var levels: ChassisLevelData = load(CHASSIS_LEVELS_PATH) as ChassisLevelData
+	return levels.get_inventory_slots(levels.get_level_count())
+
+
+## Every cell inside the screen, apart from the others and stopping the mouse.
+func _assert_cells_fit(cells: Array[InventorySlotView], screen_rect: Rect2, label: String) -> void:
+	for index: int in cells.size():
+		var rect: Rect2 = cells[index].get_global_rect()
+		assert_true(rect.size.x > 0.0 and rect.size.y > 0.0, "%s cell %d is laid out (%s)" % [label, index, rect])
+		assert_true(screen_rect.encloses(rect), "%s cell %d %s inside %s" % [label, index, rect, screen_rect])
+		assert_eq(cells[index].mouse_filter, Control.MOUSE_FILTER_STOP, "%s cell %d takes taps and clicks" % [label, index])
+		for other: int in range(index + 1, cells.size()):
+			assert_false(rect.intersects(cells[other].get_global_rect()), "%s cells %d and %d apart" % [label, index, other])
+
+
+func test_r_014_13_new_slots_and_occupancy_while_open() -> void:
+	_open(5)
+	_take_all.pressed.emit()
+	var slots: int = _last_level_slots()
+	_player.set_slot_count(slots)
+	assert_eq(_cells(_player_grid).size(), slots, "a cell for every slot, without reopening")
+	assert_eq(_label("PlayerHeader").text, _header(HEADER_INVENTORY_KEY, _player), "the header shows the new total")
+	assert_eq(_label("PlayerHeader").text, tr(HEADER_INVENTORY_KEY) % [3, slots], "used over the new total")
+
+
+func test_r_014_14_last_level_slots_fit_screen() -> void:
+	var host: Control = _design_host()
+	_player = _new_inventory(_last_level_slots())
+	for kind: ContainerScreen.Kind in [ContainerScreen.Kind.LOOT_BOX, ContainerScreen.Kind.CHEST]:
+		_screen = SCREEN_SCENE.instantiate() as ContainerScreen
+		host.add_child(_screen)
+		_find_controls()
+		_screen.setup(_context(kind))
+		await wait_process_frames(2)
+		var screen_rect: Rect2 = Rect2(Vector2.ZERO, host.size)
+		assert_eq(_cells(_player_grid).size(), _last_level_slots(), "one cell per slot of the last level")
+		assert_true(screen_rect.encloses(_panel().get_global_rect()), "the panel fits (kind %d)" % kind)
+		_assert_cells_fit(_cells(_player_grid), screen_rect, "inventory (kind %d)" % kind)
+		_assert_cells_fit(_cells(_source_grid), screen_rect, "container (kind %d)" % kind)
+		_screen.free()

@@ -163,10 +163,15 @@ Main (Node)                          main.gd: arranque y cableado
 | `chest_closed` | `structure_uid: String`, `player_uid: String` | `StructureUseFlow` (spec 012), al cerrar la pantalla de un cofre cuyo contenido cambió | Guardado (spec 012) |
 
 **Señales de estado y de hecho** (spec 010, D15). Las **de estado** dicen cuál es un valor ahora y repetirlas no
-tiene efectos (`battery_changed`, `inventory_changed`, `xp_changed`, `health_changed`); por convención se llaman
-`*_changed`. Las **de hecho** dicen que algo pasó y sus oyentes reaccionan (todo `EventBus`, `zone_visit_counted`,
+tiene efectos (`battery_changed`, `inventory_changed`, `xp_changed`, `level_changed`, `health_changed`); por
+convención se llaman `*_changed`. Las **de hecho** dicen que algo pasó y sus oyentes reaccionan (todo `EventBus`, `zone_visit_counted`,
 `battery_low`, `battery_depleted`, `overflowed`, `level_up`…). Cargar una partida emite solo señales de estado
 (§10.2). Una señal nueva elige su clase y su nombre con esta regla.
+
+El nivel de chasis (spec 014) emite `level_changed(level)` (estado) y `level_up(new_level)` (hecho, nunca al
+cargar) desde `robot.experience`, el mismo componente que `xp_changed`: ahí se enganchan la notificación (Tarea
+4.1), el sonido (Tarea 4.3) y los recuerdos (spec 017). No van al `EventBus`; la spec que necesite el evento lo
+añade a la tabla con `player_uid`.
 
 Reglas: el bus **no guarda estado**; toda señal está tipada; todo evento que afecte a un jugador lleva su
 `player_uid` (cooperativo); un evento nuevo se añade a esta tabla en el plan del spec que lo crea.
@@ -366,8 +371,11 @@ sobrescriben (ONLINE.md). `SaveManager` recibe la implementación al arrancar; n
   (`"basic_arms"`), posiciones como `(zone_id, local)`. La semilla del mundo va como texto decimal (un número JSON
   es un `float` y perdería precisión) y los `float` se escriben con precisión completa (spec 010).
 - `from_save_data()` emite las señales **de estado** de su dueño y **nunca** las de hecho (§7): cargar no es que
-  algo haya pasado. Por ejemplo, al cargar el nivel de chasis (spec 014) se emiten `xp_changed` y `stats_changed`,
+  algo haya pasado. Por ejemplo, al cargar el nivel de chasis (spec 014) se emiten `xp_changed` y `level_changed`,
   pero no `level_up`.
+- `SaveManager` aplica las partes en el orden del árbol del grupo `persistent`; un dueño cuyo estado se deriva de
+  otro va después de él en la escena (spec 014: en `robot.tscn`, `Experience` va antes que `InventoryComponent`,
+  para que el inventario tenga las ranuras del nivel cargado al leer las suyas).
 - El archivo lleva `schema_version`. Cada cambio de formato añade una función `migrate_vN_to_vN1(data)`; cargar
   aplica la cadena hasta la versión actual (Tarea 2.3).
 - Añadir un campo **opcional** cuyo valor por defecto reproduce lo que se cargaba antes **no** sube

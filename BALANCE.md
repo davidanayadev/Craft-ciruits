@@ -42,7 +42,7 @@
 
 | Parámetro | Valor | Notas |
 |---|---|---|
-| **Slots personaje** | 5 | A nivel 1 de chasis; crecen con el nivel (§6.1) |
+| **Slots personaje** | 5 | A nivel 1 de chasis; crecen con el nivel hasta 8 (§6.1) |
 | **Slots por cofre** | 4 | Fijo en PMV |
 | **Cofres máximos en base** | 5 | Límite duro en PMV (20 en v1.1) |
 | **Slots totales (base)** | 5 + (5 × 4) = 25 | Personaje + cofres |
@@ -53,10 +53,12 @@
 
 | Material | Drop fuente | Uso principal | Stack máximo |
 |---|---|---|---|
-| **Chatarra** | Cajas, robot hostil | Crafteo básico (piezas) | 99 |
-| **Cables** | Cajas, robot hostil | Reparación, crafteo | 50 |
-| **Hierro** | Cajas, robot hostil | Reparación de piezas, estructura | 50 |
+| **Chatarra** | Cajas, robot hostil | Crafteo básico (piezas) | 20 (antes 99) |
+| **Cables** | Cajas, robot hostil | Reparación, crafteo | 10 (antes 50) |
+| **Hierro** | Cajas, robot hostil | Reparación de piezas, estructura | 10 (antes 50) |
 | **Baterías (item)** | Cajas raras, generador eólico | Recargar batería (+20 puntos) | 5 (decisión nov 2026, spec 012) |
+
+> **Stack máximo de los materiales** (decisión nov 2026): 20 / 10 / 10 en vez de 99 / 50 / 50, para que el inventario (5 a 8 slots, §6.1) obligue a elegir qué loot vuelve a la base. Una visita a la zona verde da unas 20-30 chatarra, 6-8 cables y 3-5 hierro (estimación con §2.1, §3 y §7.1): 1-2 stacks de chatarra y uno de cables y de hierro, así que los materiales de una visita ocupan 4-5 slots. Toda receta cabe en un stack (la más cara, el Core básico: 6 chatarra, 3 cables, 2 hierro, §4.3.1; la reparación más cara: 3 hierro y 2 cables, §4.3.2). Valores iniciales, a revisar en la prueba en el juego (ACTION_PLAN Tarea 5.2).
 
 > **XP (núcleos de datos)**: no es un item. Se otorga directamente al matar un enemigo (ver §6.2), no ocupa slot y no se pierde al morir. "Núcleos" es solo el nombre de la unidad de XP.
 
@@ -252,15 +254,26 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 
 ### 6.1 Niveles de chasis
 
-| Nivel | XP requerida | Beneficio |
-|---|---|---|
-| **1** | 0 | Base: 5 slots inventario |
-| **2** | 50 núcleos | +2 slots inventario (7 total) |
-| **3** | 150 núcleos | +3 slots inventario (10 total) |
-| **4** | 300 núcleos | +5 slots inventario (15 total) |
-| **5** | 500 núcleos | +5 slots inventario (20 total) |
+| Nivel | XP requerida | Slots inventario | Recompensa (§6.3) |
+|---|---|---|---|
+| **1** | 0 | 5 | Recuerdo: Célula eficiente |
+| **2** | 50 núcleos | 5 | 1er hueco del Core |
+| **3** | 150 núcleos | 5 | Recuerdo: Servos ágiles |
+| **4** | 300 núcleos | 5 | Recuerdo: Puño reforzado |
+| **5** | 500 núcleos | 6 (+1) | Recuerdo: Golpe económico |
+| **6** | 750 núcleos | 7 (+1) | 2º hueco del Core |
+| **7** | 1000 núcleos | 8 (+1) | Recuerdo: Batería ampliada |
+| **8** | 1300 núcleos | 8 | Recuerdo: Zancada eficiente |
+| **9** | 1650 núcleos | 8 | Recuerdo: Chasis reforzado |
+| **10** | 2000 núcleos | 8 | 3er hueco del Core |
 
-> XP **acumulada** (umbral total, no XP adicional por nivel; decisión nov 2026). Estos valores van a un `.tres` de `ChassisLevelData` y los aplica ACTION_PLAN.md Tarea 2.7.
+> XP **acumulada** (umbral total, no XP adicional por nivel; decisión nov 2026). Estos valores van a un `.tres` de `ChassisLevelData` y los aplica ACTION_PLAN.md Tarea 2.7 (umbrales y slots) y la Tarea 3.4 (recuerdos y huecos).
+>
+> **Niveles 6-10** (decisión nov 2026): umbrales **provisionales**. Objetivo: nivel 10 entre el día 30 y el 45 (§8.2). Se revisan con `balance-auditor` y en una prueba en el juego, junto con las fuentes nuevas de §6.2, antes de cerrarlos.
+>
+> **Slots** (decisión nov 2026, sustituye a 5/7/10/15/20): **+1 en los niveles 5, 6 y 7**, de 5 a 8. Cada subida da un solo slot, para que subir ayude sin que quepa todo: el inventario tiene que obligar a elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con 20 slots el inventario igualaba a todos los cofres de la base juntos (5 × 4, §5.4).
+>
+> Qué cabe (estimación): con el stack máximo de §2 (20 / 10 / 10), los materiales de una visita ocupan 4-5 slots. Con 5 slots (niveles 1-4), traer todo el loot de una visita llena el inventario: no queda sitio para baterías portátiles ni piezas de repuesto, y hay que elegir. Con 8 (nivel 7), caben los materiales de una visita y 3-4 slots para baterías, repuestos y piezas soltadas por el robot hostil.
 
 ### 6.2 Fuentes de XP (núcleos de datos)
 
@@ -269,8 +282,29 @@ Valores iniciales; ajustar en el móvil. Si el área edificable se queda corta, 
 | Matar zombie lento | 2 |
 | Matar zombie rápido | 3 |
 | Matar robot hostil básico | 10 |
+| Craftear una pieza en el banco | Por definir |
+| Reparar una pieza en el banco | Por definir |
+| Vaciar un sitio de cajas (todas sus cajas vacías en la visita) | Por definir |
 
-> **Nota**: Para el sistema de progresión extendido (10 niveles con habilidades desbloqueables), ver SPECS.md §6 (v1.1+).
+> Fuentes nuevas decididas en nov 2026 para que el nivel 10 no dependa solo de matar. Valores por definir con la curva de §6.1.
+
+### 6.3 Recuerdos y huecos del Core
+
+Mejoras pasivas fijas por nivel en el PMV (PMV.md §6.3). Cada recuerdo son uno o dos modificadores de estadísticas; solo funciona instalado en un hueco. El Core básico admite **3 huecos** (abiertos en los niveles 2, 6 y 10). Dos recuerdos tienen contrapartida, como las piezas, para que los huecos marquen un estilo de juego y no se elijan siempre los mismos (decisión nov 2026). Valores iniciales: se revisan con `balance-auditor` y en una prueba en el juego.
+
+| Recuerdo | Nivel | Efecto | Notas |
+|---|---|---|---|
+| **Célula eficiente** | 1 | -20% consumo pasivo | 0.1/s → 0.08/s |
+| **Servos ágiles** | 3 | +10% velocidad andando y corriendo; **+10% consumo al moverse** | Te mueves más rápido, pero gastas más batería. Andando, 3.3 m/s: sigue sin escapar del zombie rápido (3.5 m/s, §3.1). Con Piernas básicas, el consumo al andar pasa de +0.05/s a +0.055/s |
+| **Puño reforzado** | 4 | +50% daño; **+20% batería por golpe** | Combate fuerte, pero cada golpe cuesta más: con un brazo o con Brazos básicos, de 1 a 1.2 por golpe. Brazos básicos 15: matan al zombie rápido de 1 golpe. Un brazo 7.5: mata al lento en 3 golpes en vez de 4. Con +20% de daño no cambiaba ningún número de golpes |
+| **Golpe económico** | 5 | -50% batería por golpe | 1 → 0.5 por golpe |
+| **Batería ampliada** | 7 | +15 batería máxima | Se suma al Core y al generador eólico |
+| **Zancada eficiente** | 8 | -30% consumo al andar y correr | Sobre el consumo de las piernas (§4.2) |
+| **Chasis reforzado** | 9 | -1 durabilidad perdida por golpe | 5 → 4 (§4.1) |
+
+> Recuerdos que tocan la misma estadística se combinan con el orden de `StatsCalculator` (`SET` → `ADD` → `MULTIPLY`, specs/architecture.md §9.4): Puño reforzado con Golpe económico (batería por golpe) y Servos ágiles con Zancada eficiente (consumo al moverse). El resultado exacto lo fija el plan de la spec 017.
+
+> Las habilidades activas de v1.1 vienen de las piezas, no del nivel: ver SPECS.md §6.
 
 ---
 
@@ -340,7 +374,8 @@ Entrar y salir en bucle no debe salir gratis: cada visita tiene que costar bater
 | **Día 2-3** | Consigue brazos básicos y piernas básicas. Empieza a explorar con más confianza. |
 | **Día 4-7** | Tiene piezas básicas. Aprende a reparar. Generador eólico genera baterías. |
 | **Día 7-14** | Nivel de chasis 2-3. Tiene combinación de piezas. Optimiza rutas de farmeo. |
-| **Día 14-30** | Nivel 4-5. Tiene piezas reparadas. Explora zona verde con estrategia. Espera v1.1 (zona roja). |
+| **Día 14-30** | Nivel 4-5. Tiene piezas reparadas. Explora zona verde con estrategia. |
+| **Día 30-45** | Nivel 10 (objetivo, decisión nov 2026): 3 huecos del Core, los 7 recuerdos aprendidos y 8 slots. Espera v1.1 (zona roja). |
 
 ---
 

@@ -7,5 +7,5 @@
 script = ExtResource("1")
 id = &"cables"
 name_key = &"ITEM_CABLES"
-stack_max = 50
+stack_max = 10
 icon = ExtResource("2")

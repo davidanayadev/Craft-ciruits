@@ -117,7 +117,7 @@ Jugar por internet tiene que atravesar routers (NAT) y necesita un servicio de a
 | **Modalidad** | **Parejas**: 2 jugadores en misma partida. Cada uno controla su robot. |
 | **Invitación** | Jugador genera código de sala. El otro se une por ese código. |
 | **Mascota/NPC** | Posibilidad de manejar una mascota robot (controlada por IA o por segundo jugador). |
-| **Habilidades en co-op** | Las habilidades desbloqueables (Overclock, Nadar, Correr mucho) funcionan igual en co-op. Cada jugador usa sus propias habilidades desbloqueadas. Ver **SPECS.md §6** para el sistema general de habilidades/progresión. |
+| **Habilidades en co-op** | Las habilidades activas (las dan las piezas equipadas: Overclock, Impulso, Pulso EMP) y los recuerdos funcionan igual en co-op. Cada jugador usa las de sus piezas y sus propios recuerdos. Ver **SPECS.md §6** y PMV.md §6 para el sistema general de habilidades/progresión. |
 | **Progresión en co-op** | La XP ganada en co-op cuenta para la progresión individual de cada jugador (mismos niveles que single-player). No hay "progresión de pareja" separada. |
 | **Consumo de energía** | Habilidades consumen batería extra (balancear para que no sean spameables). |
 
@@ -145,7 +145,7 @@ Jugar por internet tiene que atravesar routers (NAT) y necesita un servicio de a
 | Feature | Descripción | Implementación |
 |---|---|---|
 | **Co-op en parejas** | 2 jugadores forman pareja fija. Juegan juntos en zonas de farmeo, comparten loot (cada uno ve su propio loot). Sistema de invitación entre jugadores. | Godot `MultiplayerPeer` + `RPC`. Host = jugador que crea la sala. Pareja se une por código de invitación. |
-| **Habilidades en co-op** | Las habilidades desbloqueables (Overclock, Nadar, Correr mucho) funcionan igual en co-op. Cada jugador usa sus propias habilidades desbloqueadas individualmente. Ver SPECS.md §6 para detalles del sistema general. | Sistema de habilidades con cooldown. Cada jugador tiene su propio estado de habilidades. |
+| **Habilidades en co-op** | Las habilidades activas (las dan las piezas equipadas) y los recuerdos funcionan igual en co-op. Cada jugador usa las de sus piezas y sus propios recuerdos. Ver SPECS.md §6 y PMV.md §6 para detalles del sistema general. | Sistema de habilidades con cooldown. Cada jugador tiene su propio estado de habilidades. |
 | **Progresión en co-op** | La XP ganada en co-op cuenta para la progresión individual de cada jugador (mismos niveles que single-player). No hay "progresión de pareja" separada. | Sistema de XP individual. XP de misiones cooperativas se reparte entre jugadores. |
 | **Mascota/NPC** | Posibilidad de manejar mascota robot (controlada por IA o segundo jugador). Sigue al jugador, ataca, recoge loot. | NPC con IA básica o control remoto. Puede equipar piezas básicas. |
 | **Co-op en zonas de farmeo** | 2-4 jugadores en la misma zona. Matan zombies/robots juntos, comparten loot (cada uno ve su propio loot, no se pisan). | Godot `MultiplayerPeer` + `RPC`. Host = jugador que crea la sala. Otros se unen por código de sala. |

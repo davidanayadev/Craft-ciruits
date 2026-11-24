@@ -42,7 +42,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 | — Generador eólico | Uno por base (decisión nov 2026, spec 012). Aumenta capacidad de batería (+20 máx). **Genera baterías portátiles con el tiempo** (1 batería cada 4h, máx 3 almacenadas). En v1.1 se añadirán bancos avanzados que requieren baterías portátiles (horno, ensamblador, reciclador). Ver SPECS.md §3. |
 | — Estación de carga | **Crafteable** (receta barata, BALANCE.md §5.3), todas las que quieras, solo dentro de la base. La base empieza sin ninguna. Al interactuar: batería al 100% (instantáneo) + guardado. Al entrar en la base hay autoguardado, pero no recarga (decisión nov 2026: tensión desde el minuto 0). |
 | — Cofres | 5 slots inventario personaje. Hasta 5 cofres, 4 slots cada uno. |
-| **XP / Progresión** | El personaje gana XP al matar enemigos, mejorando slots de inventario (ver §6). |
+| **XP / Progresión** | El personaje gana XP al matar enemigos, craftear y reparar piezas y vaciar sitios de cajas. 10 niveles de chasis: el inventario crece poco (de 5 a 8 slots), y cada nivel enseña un recuerdo (mejora pasiva) o abre un hueco del Core para instalarlo (ver §6). |
 | **Piezas intercambiables** | **3 piezas básicas** (brazos, piernas, core). Cada una con ventaja/desventaja clara. |
 | **Persistencia** | Guardado local en dispositivo (JSON/encriptado), separado en **Perfil** (global) y **Mundo** (por partida; en el PMV solo hay uno). Ver §4.5. |
 | **Controles táctiles** | Joystick virtual flotante (aparece donde tocas en la mitad izquierda de la pantalla), Botón atacar grande (derecha), Minimapa (arriba derecha), HUD batería + estado piezas (arriba izquierda), Botón consumibles (junto a atacar), Botón interactuar (bancos/objetos), Botón almacenamiento (abajo). |
@@ -54,7 +54,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 |---|---|---|---|
 | Brazos básicos | Brazo | Daño 10, velocidad 1.0 golpe/s | Sin habilidades especiales |
 | Piernas básicas | Piernas | Velocidad 3.0 m/s andando, 4.8 m/s corriendo | Sin habilidades especiales |
-| Core básico | Core | Batería máxima 100 | Sin habilidades especiales |
+| Core básico | Core | Batería máxima 100. Sostiene los 3 huecos de recuerdos (§6.3) | Sin habilidades especiales |
 
 **Nota**: piezas avanzadas (minería, cuchillas, orugas, propulsores, overclockeado) en v1.1.
 
@@ -65,7 +65,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 - Más de 1 tipo de robot hostil (solo básico)
 - Más de 3 piezas básicas (brazos, piernas, core básicos)
 - Armas y banco de armas (v1.1). En el PMV el daño lo dan los brazos equipados.
-- Habilidad Overclock (ver SPECS.md §6.2, en v1.1)
+- Habilidades activas (Overclock, Impulso, Pulso EMP): v1.1, las dan las piezas avanzadas (SPECS.md §6). Los recuerdos (mejoras pasivas) sí están en el PMV, fijos por nivel (§6.3); el sorteo aleatorio o condicional llega en v1.1
 - Mundos por semilla con varias zonas y creación de partidas (v1.1, SPECS.md §26). En el PMV hay un solo mundo y una sola zona, aunque el código ya usa los ganchos de §4.5
 - Modo Hardcore, salón de la fama y Respaldo de consciencia (v1.1, SPECS.md §27)
 - Gasolina y vehículos (v1.2, SPECS.md §19 y §7). Viajes ilimitados en el PMV
@@ -251,7 +251,7 @@ Desarrollador solo, tiempo completo (40h/semana), con experiencia previa en Godo
 
 **Nota**: PMV simplificado vs original: 17 semanas vs 25 semanas. Ahorro: 8 semanas.
 
-**Nota (nov 2026)**: los ganchos de §4.5, la tarea de subida de nivel (ACTION_PLAN Tarea 2.7) y el spike de navmesh (Tarea 0.5) suman ~34h (de 392h a 426h). La colocación libre en la base (Tarea 2.8) añade ~20h más: 446h. Caben en las 17 semanas, que ya tenían margen sobre las horas estimadas (estimación).
+**Nota (nov 2026)**: los ganchos de §4.5, la tarea de subida de nivel (ACTION_PLAN Tarea 2.7) y el spike de navmesh (Tarea 0.5) suman ~34h (de 392h a 426h). La colocación libre en la base (Tarea 2.8) añade ~20h más: 446h. Los recuerdos y huecos del Core (Tarea 3.4) añaden ~20h más: 466h. Caben en las 17 semanas, que ya tenían margen sobre las horas estimadas (estimación).
 
 ### 5.3 Factores de riesgo en el timeline
 
@@ -262,31 +262,51 @@ Desarrollador solo, tiempo completo (40h/semana), con experiencia previa en Godo
 
 ---
 
-## 6. Progresión (XP / Inventario)
+## 6. Progresión (XP / Inventario / Recuerdos)
+
+> **Decisión nov 2026**: el PMV llega al **nivel 10**. Las ranuras de inventario dejan de ser la recompensa principal: cada nivel enseña un **recuerdo** o abre un **hueco del Core**. El inventario crece poco (de 5 a 8), para que ayude sin que quepa todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Razonamiento en `docs/ideas/progresion-habilidades.md`.
 
 ### 6.1 Niveles de chasis
 
-| Nivel | XP requerida | Beneficio |
+Umbrales de XP acumulada, ranuras y recompensas en BALANCE.md §6.1.
+
+| Nivel | Ranuras de inventario | Recompensa |
 |---|---|---|
-| **1** | 0 | Base: 5 slots inventario |
-| **2** | 50 núcleos | +2 slots inventario (7 total) |
-| **3** | 150 núcleos | +3 slots inventario (10 total) |
-| **4** | 300 núcleos | +5 slots inventario (15 total) |
-| **5** | 500 núcleos | +5 slots inventario (20 total) |
+| **1** | 5 | Recuerdo: Célula eficiente |
+| **2** | 5 | 1er hueco del Core |
+| **3** | 5 | Recuerdo: Servos ágiles |
+| **4** | 5 | Recuerdo: Puño reforzado |
+| **5** | 6 | Recuerdo: Golpe económico |
+| **6** | 7 | 2º hueco del Core |
+| **7** | 8 | Recuerdo: Batería ampliada |
+| **8** | 8 | Recuerdo: Zancada eficiente |
+| **9** | 8 | Recuerdo: Chasis reforzado |
+| **10** | 8 | 3er hueco del Core |
+
+Regla de slots: +1 en los niveles 5, 6 y 7.
 
 ### 6.2 Fuentes de XP (núcleos de datos)
 
-| Fuente | XP |
-|---|---|
-| Matar zombie lento | 2 |
-| Matar zombie rápido | 3 |
-| Matar robot hostil básico | 10 |
+Matar enemigos, craftear una pieza, reparar una pieza y vaciar un sitio de cajas. Valores en BALANCE.md §6.2.
 
-La XP se otorga directamente al matar; los "núcleos de datos" no son un item (ver BALANCE.md §2).
+La XP se otorga directamente; los "núcleos de datos" no son un item (ver BALANCE.md §2).
 
-La subida de nivel (umbral de XP → nuevo nivel → más slots de inventario) la implementa ACTION_PLAN.md Tarea 2.7, con los umbrales y slots en un `.tres` según BALANCE.md §6.
+La subida de nivel (umbral de XP → nuevo nivel → más slots de inventario) la implementa ACTION_PLAN.md Tarea 2.7, con los umbrales y slots en un `.tres` según BALANCE.md §6. Los recuerdos, los huecos y las fuentes nuevas de XP los implementa la Tarea 3.4.
 
-> **Nota**: Para el sistema de progresión extendido (10 niveles con habilidades desbloqueables), ver SPECS.md §6 (v1.1+).
+### 6.3 Recuerdos y huecos del Core
+
+Los recuerdos son fragmentos de memoria del humano cuya consciencia lleva el robot (SPECS.md §21). Cada uno es una mejora pasiva; valores en BALANCE.md §6.3.
+
+- **Contrapartida**: como las piezas (§2.2), un recuerdo puede tener ventaja y desventaja (Puño reforzado: más daño, pero cada golpe cuesta más batería; Servos ágiles: más velocidad, pero más consumo al moverse). Así los 3 huecos marcan un estilo de juego y no se eligen siempre los mismos.
+
+- **Fijos en el PMV**: cada nivel enseña siempre el mismo recuerdo, para probar la dinámica. En v1.1 el sistema pasa a aleatorio o condicional (SPECS.md §6.3).
+- **Permanentes**: un recuerdo aprendido no se pierde, tampoco al morir, como la XP. Se guardan por id, no por nivel, para que el cambio de v1.1 no rompa las partidas.
+- **Huecos**: los abren los niveles 2, 6 y 10, y los sostiene el Core. El Core básico admite los 3. Solo funcionan los recuerdos instalados en un hueco.
+- **Instalar y cambiar**: en el banco de la base, nunca en la zona.
+- **Core roto**: los recuerdos instalados se desactivan hasta equipar otro Core; no se pierden.
+- El nivel 1 enseña un recuerdo y el nivel 2 abre el hueco para instalarlo, así el sistema se aprende con la primera subida.
+
+> **Nota**: las habilidades activas de v1.1 (vienen de las piezas) y el sorteo de recuerdos están en SPECS.md §6.
 
 ---
 
@@ -359,7 +379,7 @@ Si valoras tu tiempo como freelance GDScript dev ($30-80/h, referencia mercado 2
 | Fase | Contenido |
 |---|---|
 | **PMV (v1.0)** | Alcance de §2.1 + ganchos de §4.5. Se publica como **demo gratis sin compras**. |
-| **v1.1 — Mundos y versión completa** | Mundos por semilla y creación de partidas (SPECS §26), 2ª zona (roja) como tipo de zona, modo Hardcore + salón de la fama + Respaldo de consciencia (SPECS §27), **desbloqueo de pago** (SPECS §23), cosméticos básicos como recompensa del salón de la fama. Contenido ya previsto: 2 zombies nuevos (eléctrico, ácido), 1 robot eléctrico, 5 piezas avanzadas (SPECS §15), bancos avanzados (SPECS §3), banco de armas, overclock, tutorial completo, cofres expandidos (20), sigilo y agachado (SPECS §30), salto (SPECS §31), base libre en el mundo con muros, banco de reparaciones crafteable a mano y punto de aparición en tu estación de carga (SPECS §29, §32). |
+| **v1.1 — Mundos y versión completa** | Mundos por semilla y creación de partidas (SPECS §26), 2ª zona (roja) como tipo de zona, modo Hardcore + salón de la fama + Respaldo de consciencia (SPECS §27), **desbloqueo de pago** (SPECS §23), cosméticos básicos como recompensa del salón de la fama. Contenido ya previsto: 2 zombies nuevos (eléctrico, ácido), 1 robot eléctrico, 5 piezas avanzadas (SPECS §15), bancos avanzados (SPECS §3), banco de armas, habilidades activas de las piezas (overclock, impulso, pulso EMP), recuerdos aleatorios o condicionales (SPECS §6), tutorial completo, cofres expandidos (20), sigilo y agachado (SPECS §30), salto (SPECS §31), base libre en el mundo con muros, banco de reparaciones crafteable a mano y punto de aparición en tu estación de carga (SPECS §29, §32). |
 | **v1.2 — Movilidad y facciones** | Gasolina crafteable (SPECS §19), vehículos eléctricos y de gasolina para viajar por el mapa global (SPECS §7), crafteo "uno mismo" y árbol ampliado (SPECS §29), facciones: humanos hostiles/amistosos, colmena inteligente, IA telepática (SPECS §28). |
 | **v1.3** | Eventos temporales, misiones diarias, sistema de invitaciones (refer rewards), Google Play Games (logros, leaderboards de la tienda), tienda de cosméticos. |
 | **v1.5** | Co-op asíncrono (ONLINE Fase 1: leaderboards globales, fantasmas, mercado, clanes, semillas compartidas), página web (política, FAQ), analíticas (ver TOOLING.md). Suscripción online si hay coste de servidor. |
@@ -409,7 +429,19 @@ Si valoras tu tiempo como freelance GDScript dev ($30-80/h, referencia mercado 2
 Anotadas para no implementar nada sobre una suposición. Preguntar antes de implementar lo que dependa de ellas.
 
 Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea 2.7).
-- [x] **XP de §6.1**: ✅ Decidido (nov 2026): XP **acumulada** (50, 150, 300, 500 en total), no XP adicional por nivel.
+- [x] **XP de §6.1**: ✅ Decidido (nov 2026): XP **acumulada** (50, 150, 300, 500 en total), no XP adicional por nivel. Ampliado al nivel 10 con 750, 1000, 1300, 1650 y 2000 (ver "Progresión y recuerdos").
+
+**Progresión y recuerdos** (decididas el 23 nov 2026, salvo la última; razonamiento en `docs/ideas/progresion-habilidades.md`)
+- [x] **Niveles del PMV**: ✅ hasta el **10** (antes 5).
+- [x] **Máximo de pila de los materiales**: ✅ chatarra 20, cables 10, hierro 10 (antes 99 / 50 / 50); baterías portátiles sin cambio (5). Llevar 99 de chatarra era exagerado para el PMV: con estos valores los materiales de una visita ocupan 4-5 slots y el inventario obliga a elegir (BALANCE.md §2). Toda receta cabe en un stack. Valores iniciales, a revisar en la prueba en el juego.
+- [x] **Recompensa del nivel**: ✅ 7 niveles enseñan un recuerdo y 3 (2, 6 y 10) abren un hueco del Core (§6.3). Las ranuras no motivaban: con los ítems del PMV, 7 ya bastaban para llevar uno de cada.
+- [x] **Ranuras de inventario**: ✅ de 5 a 8, +1 en los niveles 5, 6 y 7 (sustituye a 5/7/10/15/20). Subir ayuda, pero no cabe todo: hay que elegir qué loot vuelve a la base y cuántas piezas de repuesto se llevan. Con el máximo de pila nuevo, los materiales de una visita ocupan 4-5 slots y compiten con las piezas y las baterías portátiles (BALANCE.md §6.1).
+- [x] **Dinámica de los recuerdos**: ✅ **fija** en el PMV (más fácil de probar y equilibrar); en v1.1 pasa a aleatoria con semilla o condicional al estilo de juego (SPECS.md §6.3).
+- [x] **Core**: ✅ el básico admite los 3 huecos; si se rompe, los recuerdos se desactivan pero no se pierden.
+- [x] **Recuerdos con contrapartida**: ✅ dos de los siete, para que los huecos marquen un estilo de juego: Puño reforzado (+50% daño, +20% batería por golpe) y Servos ágiles (+10% velocidad, +10% consumo al moverse). Los otros cinco no cambian. Valores iniciales, a revisar con `balance-auditor` y en una prueba en el juego (BALANCE.md §6.3).
+- [x] **Fuentes de XP nuevas**: ✅ craftear una pieza, reparar una pieza y vaciar un sitio de cajas, además de matar. Objetivo: nivel 10 entre el día 30 y el 45 (BALANCE.md §8.2).
+- [x] **Orden de trabajo**: ✅ spec 014 (amplía la tabla de niveles hasta el 10, ranuras de 5 a 8 y máximo de pila de los materiales) → spec 015 (piezas y estadísticas) → spec 017 (recuerdos y huecos del Core, ACTION_PLAN Tarea 3.4). La 016 sigue siendo el robot hostil (Tarea 3.3).
+- [ ] **Valores de XP de las fuentes nuevas y curva 6-10**: por definir en BALANCE.md §6.2; revisar con `balance-auditor` y en una prueba en el juego antes de cerrarlos.
 
 **Estación de carga crafteable** (todas decididas en nov 2026)
 - [x] **Morir dentro de la base**: ✅ mismas reglas que en zona (los items caen donde mueres, aquí fáciles de recuperar) y reapareces al 100% (§2.4).
@@ -508,8 +540,10 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [ ] **Crafteo "uno mismo"**: coste (tiempo o batería) y qué recetas permite.
 - [ ] **Humanos**: ¿reputación por asentamiento o relación fijada por la semilla?
 - [ ] **Lore**: nombre del programa de transferencia de consciencia y origen de la infección.
-- [ ] **Overclock (v1.1)**: SPECS §6.2 dice que dura hasta desactivarlo o batería < 10%; §6.3 nivel 7 dice "15s en vez de 10s".
-- [ ] **Niveles 6-10 (v1.1)**: SPECS §6.3 no da umbrales de XP y el nivel 8 no tiene recompensa.
+- [x] **Overclock (v1.1)**: ✅ Decidido (nov 2026): duración fija de 10 s, se apaga antes con batería < 10% o al cancelarlo, espera de 30 s desde que se apaga. Lo da el Core Overclockeado; ya no hay mejora por nivel (SPECS §6.2).
+- [x] **Niveles 6-10**: ✅ Decidido (nov 2026): entran en el PMV con umbrales y recompensas (ver "Progresión y recuerdos").
+- [x] **Habilidades activas (v1.1)**: ✅ Decidido (nov 2026): vienen de las piezas, no del nivel. El botón muestra la habilidad de la pieza equipada. Nadar pasa a una versión futura (SPECS §6.2).
+- [ ] **Pulso EMP**: qué brazos lo dan (SPECS §6.2).
 - [ ] **Multiplataforma**: el desbloqueo es por tienda hasta que haya cuentas; unificar Android e iOS requiere servidor.
 
 ---

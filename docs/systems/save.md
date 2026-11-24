@@ -3,7 +3,7 @@
 > `SaveManager` guarda y carga el estado en dos niveles: un Perfil que sobrevive a los mundos y un Mundo por partida.
 > Cada dueño de estado serializa solo lo suyo; el guardado no conoce ningún campo. `IStore` es el contrato de la tienda
 > (en el PMV, siempre la demo).
-> Specs: [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) · Última actualización: spec 013 (excepción de `schema_version`)
+> Specs: [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md), [014](../../specs/014-chassis-level/spec.md) · Última actualización: spec 014 (orden de carga; sin cambio de `schema_version`)
 
 ## Piezas
 
@@ -29,6 +29,8 @@
 `to_save_data()` y `from_save_data(data)` (por nombre, no hay interfaz). Hoy: `BatteryComponent`, `InventoryComponent`,
 `ExperienceComponent`, `LocationComponent` (bajo el robot); `DroppedItemSpawner`, `BaseStructures`, `ZoneMemory`
 (bajo `World`) y `GameManager` (contadores de visita). Los cofres y generadores (spec 012) **no** están en el grupo: `BaseStructures` guarda su estado dentro de su parte, con las claves opcionales `chests` y `generators` por `uid`. Cada uno documenta su formato en su página. Las ranuras del inventario y las pilas de un objeto caído llevan `durability` y `uid` por pila (spec 011).
+
+**Orden de carga.** `_apply_world` aplica las partes en el orden del árbol del grupo `persistent`, no en el de alta. Un dueño cuyo estado se deriva de otro va después en la escena: en `robot.tscn`, `Experience` antes que `InventoryComponent`, para que el inventario tenga ya las ranuras del nivel cargado (spec 014, [chassis_level.md](chassis_level.md), [architecture §10.2](../../specs/architecture.md)).
 
 **Ámbito.** Si el dueño cuelga de una entidad del grupo `Robot.PLAYER_GROUP`, su parte va en `players[player_uid]`;
 si no, en `world`. Dos dueños con la misma clave en un ámbito: `push_error` y el segundo no se guarda.

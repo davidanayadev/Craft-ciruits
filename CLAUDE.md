@@ -12,14 +12,15 @@ between zones, free placement and charging station, ACTION_PLAN Tareas 2.1, 2.8,
 levels, Profile and World, and `IStore`, ACTION_PLAN Tarea 2.3) is done. Spec 011 (crafting pieces and repair at the
 bench, ACTION_PLAN Tarea 2.4) is done. Spec 012 (wind generator, portable batteries and chests, ACTION_PLAN
 Tareas 2.5, 2.6) is done. Spec 013 (loot boxes on sites that change per visit and the reworked container screen, a
-revision of ACTION_PLAN Tareas 1.1 and 2.6) is done. `game/` has its
+revision of ACTION_PLAN Tareas 1.1 and 2.6) is done. Spec 014 (chassis level, ACTION_PLAN Tarea 2.7) is done.
+`game/` has its
 settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
 (`game/scenes/main.tscn`: a persistent `Main` that starts in the base, the green farm zone generated from the world
 seed and the visit, isometric camera rig, `Robot` moved
 by keyboard or a floating touch joystick, a `BatteryComponent` that drains by gait, loot boxes opened with the HUD
 "Interact" button or E and a battery `Hud`). The robot owns
-an `InventoryComponent` (5 slots from `ChassisLevelData`, stacking rules in `InventoryRules`). The zone's box markers are grouped in sites (`%BoxMarkers`, one
+an `InventoryComponent` (its slots grow with the chassis level, stacking rules in `InventoryRules`). The zone's box markers are grouped in sites (`%BoxMarkers`, one
 `Node3D` per site), and `ZonePopulation.pick_box_markers` picks how many boxes and which markers from world seed +
 `zone_id` + visit, with at most `box_max_per_site` per site. A box keeps its roll
 in its own `InventoryComponent` and opens the `ContainerScreen`, where stacks move between the box and the
@@ -33,8 +34,12 @@ placeholder made of primitives. The robot fights with one arm (`AttackStatsData`
 `CombatSystem`): its `MeleeAttackComponent` swings on the HUD attack button, Space or left click (read through
 `PlayerInput.poll_attack`, never from the action state, so HUD clicks are not attacks), each swing costs battery
 and its impact is one shape query that only sees `HurtboxComponent`s. A zombie killed by a player emits
-`EventBus.enemy_killed` and the killer's `ExperienceComponent` adds the XP of its `EnemyData` (shown in the debug
-HUD only). `CombatFeedback` wires the white hit flash, camera shake, pooled impact sparks and the red screen edge.
+`EventBus.enemy_killed` and the killer's `ExperienceComponent` adds the XP of its `EnemyData`. The chassis level
+(spec 014) is derived from the total XP with the pure `ChassisLevelSystem` and the 10-level table in
+`chassis_levels.tres` (`ChassisLevelData`); it lives in the `ExperienceComponent`, which emits `level_changed` (state)
+and `level_up` (fact, never on load), never goes down, and is never saved: only the XP is. `Robot` sets the inventory
+slots from the level (5 to 8), and `Experience` sits before `InventoryComponent` in `robot.tscn` so the level is
+applied before the saved slots load. XP and level show in the debug HUD only, which has a "Level up" button. `CombatFeedback` wires the white hit flash, camera shake, pooled impact sparks and the red screen edge.
 Death is real (spec 008): at 0 battery `DeathController` applies the world's `RulesetData` (only `normal.tres`),
 the inventory falls where the robot died as a pooled `DroppedItem`, the zone's visit counter (in `GameManager`)
 goes up and the zone is repopulated (new zombies, boxes closed with the contents of the new visit), the
@@ -76,8 +81,8 @@ a fixed action card; a tap only selects, the move button names its destination, 
 with Cancel or back, "Take all", and the receiving slots light up; moves through `InventoryRules.move_to_slot` /
 `transfer`) or collects from a generator. Bench, inventory
 and container screens close with a tap outside their panel (`UIScreen.closes_on_outside_tap`). The `EventBus`,
-`GameManager`, `DataRegistry` and `SaveManager` autoloads exist. There are no equipped pieces, degradation or chassis
-levels yet. The next spec is 014 (chassis level).
+`GameManager`, `DataRegistry` and `SaveManager` autoloads exist. There are no equipped pieces or degradation yet.
+The next spec is 015 (pieces, slots and degradation).
 
 ## Commands
 
@@ -257,4 +262,5 @@ implementing anything that depends on one of them. None blocks the MVP. The ones
 
 - **Runtime navmesh on mobile.** Whether zones can be generated procedurally in v1.1, and whether
   player-built walls (v1.1, SPECS.md §32) can update enemy navigation, depends on the Tarea 0.5 spike.
-- **Overclock duration and levels 6–10 (v1.1).** See SPECS.md §6.2–§6.3.
+- **XP values for crafting, repairing and emptying a box site, and the level 6–10 curve.** Pending in
+  BALANCE.md §6.2; review with `balance-auditor` and an in-game test before closing them.

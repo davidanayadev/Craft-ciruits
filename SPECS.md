@@ -109,48 +109,51 @@
 
 ---
 
-## 6. Sistema de progresión extendido y habilidades (v1.1+)
+## 6. Habilidades activas y recuerdos (v1.1)
 
-> **Nota**: Este sistema es la extensión del sistema básico de 5 niveles del PMV. Aplica tanto a single-player como a co-op. No es exclusivo del modo online.
-> **Referencia**: Para el sistema básico de 5 niveles (PMV), ver PMV.md §6 y BALANCE.md §6.
+> **Decisión nov 2026**: los niveles de chasis (1-10) y los **recuerdos** (mejoras pasivas, fijas por nivel) están en el PMV: ver PMV.md §6 y BALANCE.md §6. Esta sección cubre lo que llega en v1.1: las **habilidades activas**, que vienen de las piezas, y el **sorteo de recuerdos**. Aplica igual a single-player y a co-op. Razonamiento en `docs/ideas/progresion-habilidades.md`.
 
-### 6.1 Habilidades desbloqueables
+### 6.1 Habilidades activas
 
 | Aspecto | Detalle |
 |---|---|
-| **Botón** | Abajo-izquierda (accesible en todo momento) |
-| **Concepto** | Habilidades especiales con cooldown que se desbloquean al subir de nivel |
-| **Consumo** | Todas las habilidades consumen batería extra |
-| **Monetización** | Las habilidades se desbloquean jugando (subiendo de nivel). Las "skills" que se venden son **solo cosméticas** (variantes visuales y sonoras de una habilidad), nunca más poder. Ver §23 |
+| **Origen** | Las da una **pieza equipada**, no el nivel. Equipar otra pieza cambia la habilidad |
+| **Botón** | Abajo-izquierda (accesible en todo momento). Muestra la habilidad de la pieza equipada |
+| **Consumo** | Todas las habilidades consumen batería extra y tienen tiempo de espera |
+| **Monetización** | Las habilidades se consiguen jugando (con las piezas). Las "skills" que se venden son **solo cosméticas** (variantes visuales y sonoras de una habilidad), nunca más poder. Ver §23 |
+
+**Por decidir**: qué pasa si dos piezas equipadas dan habilidad (por ejemplo, Core Overclockeado y Propulsores Iónicos a la vez): un botón por habilidad o elegir cuál ocupa el botón.
 
 ### 6.2 Lista de habilidades
 
-| Habilidad | Efecto | Duración | Cooldown | Nivel de desbloqueo |
+| Habilidad | Pieza que la da | Efecto | Duración | Cooldown |
 |---|---|---|---|---|
-| **Overclock temporal** | +100% velocidad, +100% daño, x3 consumo batería | Hasta que jugador desactive o batería < 10% | 30 segundos después de desactivar | Nivel 2 |
-| **Correr mucho** | +200% velocidad de movimiento | 5 segundos | 30 segundos | Nivel 4 |
-| **Nadar** | Permite cruzar zonas de agua (atajos en mapa) | Permanente mientras se usa | 45 segundos | Nivel 6 |
+| **Overclock temporal** | Core Overclockeado (§15) | +100% velocidad, +100% daño, x3 consumo batería | 10 s fijos | 30 s desde que se apaga |
+| **Impulso** | Propulsores Iónicos (§15) | Esquiva corta (~3 m, estimación) | Instantánea | ~6 s (estimación) |
+| **Pulso EMP** | Unos brazos (por definir) | Aturde a los enemigos cercanos (~3 m, ~2 s, estimación) | Instantánea | Por definir |
 
-**Detalles adicionales de Overclock**:
-- Degradación: -2 puntos/segundo a piezas equipadas mientras está activo
-- Mejora con Core Overclockeado (ver §15.2): duración extendida, menor cooldown
+**Detalles de Overclock** (decisión nov 2026, resuelve la contradicción entre "hasta que el jugador lo desactive" y "dura 10 s"):
+- Duración fija de 10 s. Se apaga antes si la batería baja del 10% (protege de morir por el x3: la batería es la vida) o si el jugador lo cancela.
+- El cooldown de 30 s empieza al apagarse, también si se apagó antes de tiempo.
+- Degradación: -2 puntos/segundo a piezas equipadas mientras está activo.
+- Por qué duración fija y no interruptor: en el móvil un interruptor con x3 de consumo invita a olvidarlo encendido y morir sin entender por qué.
 
-### 6.3 Progresión por nivel
+**Versión futura (después de v1.1)**: **Nadar** (cruzar zonas de agua, atajos en el mapa). Necesita zonas con agua, que no existen.
 
-Los niveles 1-5 conservan las recompensas de slots del PMV (PMV.md §6, BALANCE.md §6); las habilidades y mejoras de v1.1+ se suman encima.
+**Descartado**: "Correr mucho" (+200% de velocidad), que solapaba con correr y con los Propulsores Iónicos; lo sustituye el Impulso.
 
-| Nivel | Slots inventario (PMV) | Desbloqueo / Mejora (v1.1+) |
-|---|---|---|
-| **Nivel 1** | 5 | Habilidades básicas |
-| **Nivel 2** | 7 (+2) | Desbloquear: Overclock temporal |
-| **Nivel 3** | 10 (+3) | — |
-| **Nivel 4** | 15 (+5) | Desbloquear: Correr mucho |
-| **Nivel 5** | 20 (+5) | Desbloquear: Optimización al abrir cofres (x2 velocidad) |
-| **Nivel 6** | 20 | Desbloquear: Nadar |
-| **Nivel 7** | 20 | Mejorar: Overclock dura 15s (en vez de 10s) |
-| **Nivel 8** | 20 | Por definir |
-| **Nivel 9** | 20 | Desbloquear: Gasto energía reducido (-10% consumo pasivo) |
-| **Nivel 10** | 20 | Desbloquear: Capacidad almacenamiento (cofres +2 slots cada uno) |
+Los valores pasan a BALANCE.md cuando la feature entre en desarrollo.
+
+### 6.3 Recuerdos en v1.1: aleatorios o condicionales
+
+En el PMV cada nivel enseña siempre el mismo recuerdo (PMV.md §6.3). En v1.1 el sistema gana variedad con una de estas dinámicas (por decidir):
+
+| Dinámica | Cómo funciona | Pro | Contra |
+|---|---|---|---|
+| **Aleatoria con semilla** | Al subir, se ofrecen 3 recuerdos sorteados con semilla del mundo + jugador + nivel; se elige 1 | Cada mundo da combinaciones distintas y recargar no cambia la oferta; encaja con los mundos por semilla (§26) | Una mala oferta frustra, y ninguna opción debe ser claramente mejor que las demás |
+| **Condicional** | El sorteo se inclina hacia lo que hace el jugador (más combate, más recuerdos de combate) | La progresión se adapta a la forma de jugar | Hay que medir y guardar estadísticas, el jugador no entiende por qué le sale lo que le sale y tiende a encasillarse |
+
+Candidatos con lógica propia (no solo un modificador): Modo ahorro, Recuperación cinética, Último aliento, Contraataque, Descarga estática, Golpe por la espalda (§30), Blindaje adaptativo, Desguace, Ojo de chatarrero, Manos rápidas, Estación optimizada, Overvolt. Lista y efectos en `docs/ideas/progresion-habilidades.md` §5.2.
 
 ### 6.4 Filosofía de diseño
 
@@ -159,7 +162,7 @@ Los niveles 1-5 conservan las recompensas de slots del PMV (PMV.md §6, BALANCE.
 - Progresión satisfactoria y visible
 - Funciona igual en single-player y co-op
 
-**Estado**: v1.1+ (después del PMV básico).
+**Estado**: niveles 1-10 y recuerdos fijos en el PMV; habilidades activas y sorteo de recuerdos en v1.1; Nadar en una versión futura.
 
 ---
 
@@ -305,9 +308,9 @@ Los niveles 1-5 conservan las recompensas de slots del PMV (PMV.md §6, BALANCE.
 | Brazos de Minería | Brazo | Rompe cajas 2x rápido | Ataque a zombies muy lento |
 | Cuchillas de Plasma | Brazo | Mata zombie de 1 golpe | Cada golpe = 5% batería |
 | Orugas de Tanque | Piernas | Inmune a ralentización zombie | -30% velocidad |
-| Propulsores Iónicos | Piernas | 2x velocidad de movimiento | -20% batería pasiva |
+| Propulsores Iónicos | Piernas | 2x velocidad de movimiento; da la habilidad Impulso (§6.2) | -20% batería pasiva |
 | Core Estándar | Core | Batería base equilibrada | Sin habilidades especiales |
-| Core Overclockeado | Core | +capacidad batería, overclock mejorado | Degradación más rápida |
+| Core Overclockeado | Core | +capacidad batería; da la habilidad Overclock (§6.2) | Degradación más rápida |
 
 ### 15.2 Estadísticas detalladas
 
@@ -332,7 +335,7 @@ Los niveles 1-5 conservan las recompensas de slots del PMV (PMV.md §6, BALANCE.
 | **Core Estándar** | 100 | Equilibrado |
 | **Core Overclockeado** | 120 (+20%) | Overclock: +100% velocidad, +100% daño, x3 consumo batería |
 
-> **Nota**: El Core Overclockeado mejora la habilidad Overclock (ver §6.2), extendiendo su duración y reduciendo el cooldown.
+> **Nota**: El Core Overclockeado **da** la habilidad Overclock (ver §6.2): sin él no hay Overclock (decisión nov 2026, las habilidades activas vienen de las piezas).
 
 ### 15.3 Materiales para crear piezas avanzadas
 

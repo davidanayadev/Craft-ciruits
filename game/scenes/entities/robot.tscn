@@ -76,6 +76,10 @@ unique_name_in_owner = true
 script = ExtResource("7_interactor")
 config = ExtResource("4_controls")
 
+[node name="Experience" type="Node" parent="." groups=["persistent"]]
+unique_name_in_owner = true
+script = ExtResource("13_experience")
+
 [node name="InventoryComponent" type="Node" parent="." groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("8_inventory")
@@ -87,10 +91,6 @@ attack = ExtResource("11_one_arm")
 config = ExtResource("12_combat")
 hitbox_height_m = 2.0
 hitbox_center_y_m = 1.0
-
-[node name="Experience" type="Node" parent="." groups=["persistent"]]
-unique_name_in_owner = true
-script = ExtResource("13_experience")
 
 [node name="Location" type="Node" parent="." groups=["persistent"]]
 unique_name_in_owner = true

@@ -5,6 +5,9 @@ extends GutTest
 ## paying like a player (tool for R-009-22).
 ## Spec 010: it shows the world seed and a "New world" button (R-010-65), and
 ## "Fill base" saves once after placing, not once per structure (plan D17).
+## Spec 014: it shows the chassis level next to the XP and follows
+## level_changed (R-014-19); "Level up" adds the XP missing for the next
+## threshold of the table, and nothing at the last level (R-014-20).
 
 const DEBUG_HUD_SCENE := preload("res://scenes/ui/debug_hud.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -128,3 +131,56 @@ func test_r_010_17_fill_base_releases_the_hold() -> void:
 	SaveManager.request_save(SaveManager.REASON_CLOSE)
 	await wait_process_frames(2)
 	assert_eq(store.write_count, writes_after_fill + 1, "saves work again after Fill base")
+
+
+# --- Spec 014: chassis level --------------------------------------------------
+
+
+func _level_label() -> Label:
+	return _debug_hud.get_node("%LevelLabel") as Label
+
+
+func _level_up_button() -> Button:
+	return _debug_hud.get_node("%LevelUpButton") as Button
+
+
+func test_r_014_19_shows_level_and_follows() -> void:
+	_debug_hud.bind(_robot)
+	assert_eq(_level_label().text, "Level: %d" % ChassisLevelData.FIRST_LEVEL, "the level it was bound to")
+	var level: int = ChassisLevelData.FIRST_LEVEL + 1
+	_robot.experience.add_xp(_robot.chassis_levels.get_xp_required(level))
+	assert_eq(_level_label().text, "Level: %d" % level, "it follows level_changed")
+
+
+func test_r_014_19_level_next_to_xp() -> void:
+	assert_gte(_level_label().offset_top, _xp_label.offset_bottom, "the level sits under the XP")
+	assert_eq(_level_label().offset_left, _xp_label.offset_left, "aligned with it")
+	assert_eq(_level_up_button().auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "debug text, not translated")
+
+
+func test_r_014_20_button_reaches_next_threshold() -> void:
+	_robot.experience.add_xp(1)
+	_debug_hud.bind(_robot)
+	_level_up_button().pressed.emit()
+	var next: int = ChassisLevelData.FIRST_LEVEL + 1
+	assert_eq(_robot.experience.get_total(), _robot.chassis_levels.get_xp_required(next), "exactly the next threshold")
+	assert_eq(_robot.experience.get_level(), next, "one level up")
+	_level_up_button().pressed.emit()
+	assert_eq(_robot.experience.get_level(), next + 1, "and one more on each press")
+
+
+func test_r_014_20_button_does_nothing_at_last_level() -> void:
+	var last: int = _robot.chassis_levels.get_level_count()
+	_robot.experience.add_xp(_robot.chassis_levels.get_xp_required(last))
+	_debug_hud.bind(_robot)
+	watch_signals(_robot.experience)
+	_debug_hud.level_up_player()
+	assert_eq(_robot.experience.get_level(), last, "no level beyond the last")
+	assert_signal_not_emitted(_robot.experience, "xp_changed", "and no XP added")
+	assert_push_error_count(0)
+
+
+func test_r_014_20_button_without_player_does_nothing() -> void:
+	_level_up_button().pressed.emit()
+	assert_eq(_robot.experience.get_total(), 0, "unbound, nobody gets XP")
+	assert_push_error_count(0)

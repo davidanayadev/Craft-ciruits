@@ -10,6 +10,8 @@ extends GutTest
 ## itself (R-008-42).
 ## Spec 012: a "Use" button for a selected consumable (R-012-25), disabled for
 ## a material or without selection, that asks the robot to use that slot.
+## Spec 014: slots that grow while open get their cells (R-014-13), and the
+## slots of the last chassis level fit the 1920x1080 screen (R-014-14).
 
 const SCREEN_SCENE := preload("res://scenes/ui/inventory_screen.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -17,6 +19,7 @@ const TITLE_KEY := &"INVENTORY_TITLE"
 const THROW_KEY := &"INVENTORY_THROW"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const SLOT_COUNT := 5
+const CHASSIS_LEVELS_PATH := "res://resources/progression/chassis_levels.tres"
 
 var _inventory: InventoryComponent
 var _screen: InventoryScreen
@@ -447,3 +450,64 @@ func test_r_012_46_panel_stops_the_mouse() -> void:
 	assert_eq(_panel().mouse_filter, Control.MOUSE_FILTER_STOP, "the panel stops the mouse")
 	assert_eq((_screen.get_node("Center") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "centring lets it through")
 	assert_eq((_screen.get_node("Backdrop") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "the backdrop too")
+
+
+# --- Spec 014: chassis level --------------------------------------------------
+
+
+## A Control of the design size of project.godot at the origin: headless GUT
+## has a 64x64 window whose visible rect is not the design size (plan 014 §5.1).
+func _design_host() -> Control:
+	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
+	var height: int = ProjectSettings.get_setting("display/window/size/viewport_height")
+	var host: Control = Control.new()
+	host.position = Vector2.ZERO
+	host.size = Vector2(width, height)
+	add_child_autofree(host)
+	return host
+
+
+func _last_level_slots() -> int:
+	var levels: ChassisLevelData = load(CHASSIS_LEVELS_PATH) as ChassisLevelData
+	return levels.get_inventory_slots(levels.get_level_count())
+
+
+## Every cell inside the screen, apart from the others and stopping the mouse.
+func _assert_cells_fit(cells: Array[InventorySlotView], screen_rect: Rect2, label: String) -> void:
+	for index: int in cells.size():
+		var rect: Rect2 = cells[index].get_global_rect()
+		assert_true(rect.size.x > 0.0 and rect.size.y > 0.0, "%s cell %d is laid out (%s)" % [label, index, rect])
+		assert_true(screen_rect.encloses(rect), "%s cell %d %s inside %s" % [label, index, rect, screen_rect])
+		assert_eq(cells[index].mouse_filter, Control.MOUSE_FILTER_STOP, "%s cell %d takes taps and clicks" % [label, index])
+		for other: int in range(index + 1, cells.size()):
+			assert_false(rect.intersects(cells[other].get_global_rect()), "%s cells %d and %d apart" % [label, index, other])
+
+
+func test_r_014_13_new_slots_shown_while_open() -> void:
+	_inventory.add(&"scrap", 7)
+	_setup()
+	var slots: int = _last_level_slots()
+	_inventory.set_slot_count(slots)
+	var cells: Array[InventorySlotView] = _cells()
+	assert_eq(cells.size(), slots, "a cell for every slot, without reopening")
+	if cells.size() == slots:
+		assert_eq(_quantity(cells[0]), "7", "the stack stays in its cell")
+		assert_null(_icon(cells[slots - 1]), "the new cells are empty")
+
+
+func test_r_014_14_last_level_slots_fit_screen() -> void:
+	var host: Control = _design_host()
+	var screen: InventoryScreen = SCREEN_SCENE.instantiate() as InventoryScreen
+	host.add_child(screen)
+	_inventory.set_slot_count(_last_level_slots())
+	screen.setup({InventoryScreen.CONTEXT_INVENTORY: _inventory})
+	await wait_process_frames(2)
+	var grid: InventoryGrid = screen.get_node("%Grid") as InventoryGrid
+	var cells: Array[InventorySlotView] = []
+	for child: Node in grid.get_children():
+		if child is InventorySlotView and not child.is_queued_for_deletion():
+			cells.append(child as InventorySlotView)
+	assert_eq(cells.size(), _last_level_slots(), "one cell per slot of the last level")
+	var screen_rect: Rect2 = Rect2(Vector2.ZERO, host.size)
+	assert_true(screen_rect.encloses((screen.get_node("Center/Panel") as Control).get_global_rect()), "the panel fits")
+	_assert_cells_fit(cells, screen_rect, "inventory")

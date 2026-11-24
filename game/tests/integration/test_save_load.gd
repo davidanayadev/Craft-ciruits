@@ -18,6 +18,10 @@ extends GutTest
 ## generators count while the app is closed (R-012-16), chests keep their
 ## contents (R-012-36) and the World holds both (R-012-39); the clock is a
 ## FakeTimeService.
+## Spec 014: only the total XP is saved and the level is recomputed on load
+## (R-014-15); Experience loads before the inventory, so stacks beyond the
+## level-1 slots survive (R-014-16); loading never emits level_up (R-014-17);
+## a new World starts at level 1 (R-014-18).
 ## Manual: nothing here (the real files and the window are M1..M4 of plan 010
 ## §5.3).
 
@@ -978,3 +982,95 @@ func test_r_012_39_world_holds_chests_and_generators() -> void:
 	var saved_generator: Dictionary = generators.get(generator_uid, {})
 	assert_eq(SaveFields.to_int(saved_generator.get("stored"), -1), 0, "starts empty")
 	assert_eq(SaveFields.to_int(saved_generator.get("since_unix"), -1), CLOCK_START, "counting from its building")
+
+
+# --- Spec 014: chassis level --------------------------------------------------
+
+
+func _chassis() -> ChassisLevelData:
+	return load(CHASSIS_LEVELS_PATH) as ChassisLevelData
+
+
+## The current World with the robot's total XP set to the threshold of level.
+func _document_at_level(level: int) -> Dictionary:
+	var document: Dictionary = _read_world()
+	_set_player_part(
+		document, String(ExperienceComponent.SAVE_KEY), {"total": _chassis().get_xp_required(level)}
+	)
+	return document
+
+
+func test_r_014_15_level_recomputed_on_load() -> void:
+	var level: int = _chassis().get_level_count()
+	_write_world(_document_at_level(level))
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	assert_eq(robot.experience.get_level(), level, "the level comes from the saved XP")
+	assert_eq(robot.inventory.get_slot_count(), _chassis().get_inventory_slots(level), "and so do the slots")
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	var part: Dictionary = _player_parts(_read_world()).get(String(ExperienceComponent.SAVE_KEY), {})
+	assert_eq(part.keys(), ["total"], "the experience saves its total only")
+	var version: int = SaveFields.to_int(_read_world()[SaveDocuments.KEY_SCHEMA_VERSION], 0)
+	assert_eq(version, SaveMigrations.WORLD_VERSION, "with no new schema version")
+
+
+func test_r_014_16_saved_stacks_beyond_level_one_load() -> void:
+	var level: int = _chassis().get_level_count()
+	var slot_count: int = _chassis().get_inventory_slots(level)
+	assert_gt(slot_count, _chassis().get_inventory_slots(ChassisLevelData.FIRST_LEVEL), "more than level 1")
+	var document: Dictionary = _document_at_level(level)
+	var slots: Array = []
+	for index: int in slot_count:
+		slots.append(_slot_entry("scrap", index + 1, NO_DURABILITY, ""))
+	_set_player_part(document, "inventory", {"slots": slots})
+	_write_world(document)
+	var main: Node = await _open_main()
+	var loaded: Array[ItemStack] = _robot_of(main).inventory.get_slots()
+	assert_eq(loaded.size(), slot_count, "every slot of the level")
+	for index: int in mini(loaded.size(), slot_count):
+		var stack: ItemStack = loaded[index]
+		assert_not_null(stack, "slot %d was loaded" % index)
+		if stack != null:
+			assert_eq(stack.quantity, index + 1, "slot %d keeps its stack" % index)
+	assert_push_error_count(0)
+
+
+func test_r_014_16_experience_loads_before_inventory() -> void:
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	var persistent: Array[Node] = get_tree().get_nodes_in_group(&"persistent")
+	var experience_index: int = persistent.find(robot.experience)
+	var inventory_index: int = persistent.find(robot.inventory)
+	assert_gt(experience_index, -1, "Experience is persistent")
+	assert_gt(inventory_index, -1, "InventoryComponent is persistent")
+	assert_lt(experience_index, inventory_index, "SaveManager applies Experience first")
+
+
+func test_r_014_17_load_never_emits_level_up() -> void:
+	var level: int = _chassis().get_level_count()
+	_write_world(_document_at_level(level))
+	var main: Node = _instance_main()
+	var experience: ExperienceComponent = _child(_child(main, "Robot"), "Experience") as ExperienceComponent
+	watch_signals(experience)
+	add_child_autofree(main)
+	await _await_travel(main)
+	assert_eq(experience.get_level(), level, "the saved level")
+	assert_signal_emitted(experience, "xp_changed")
+	assert_signal_emitted_with_parameters(experience, "level_changed", [level])
+	assert_signal_not_emitted(experience, "level_up", "loading is not a level-up")
+	watch_signals(experience)
+	assert_true(SaveManager.load_game().ok, "loads again on the running scene")
+	assert_signal_not_emitted(experience, "level_up", "not on a second load either")
+
+
+func test_r_014_18_new_world_level_one() -> void:
+	_store = SaveTestSupport.reset()
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	assert_eq(robot.experience.get_total(), 0, "no XP")
+	assert_eq(robot.experience.get_level(), ChassisLevelData.FIRST_LEVEL, "level 1")
+	assert_eq(
+		robot.inventory.get_slot_count(),
+		_chassis().get_inventory_slots(ChassisLevelData.FIRST_LEVEL),
+		"with the slots of level 1"
+	)

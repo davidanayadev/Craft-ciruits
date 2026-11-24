@@ -10,6 +10,9 @@ extends CanvasLayer
 ## it measures placing and not one save per structure (spec 010, plan D17).
 ## It also shows the world seed and a "New world" button (spec 010, R-010-65);
 ## SaveFlow does the deleting.
+## Spec 014: it shows the chassis level next to the XP (R-014-19), and "Level
+## up" adds the XP the player lacks for the next threshold of its table, through
+## the real add_xp path (R-014-20), to check the high levels by hand.
 
 ## "New world" was pressed.
 signal new_world_requested
@@ -19,6 +22,8 @@ const HOLD_FILL_BASE := &"fill_base"
 
 @onready var _fps_label: Label = %FpsLabel
 @onready var _xp_label: Label = %XpLabel
+@onready var _level_label: Label = %LevelLabel
+@onready var _level_up_button: Button = %LevelUpButton
 @onready var _refresh: Timer = %Refresh
 @onready var _fill_base_button: Button = %FillBaseButton
 @onready var _seed_label: Label = %SeedLabel
@@ -33,14 +38,26 @@ func _ready() -> void:
 	if not visible:
 		_refresh.stop()
 	_fill_base_button.pressed.connect(fill_base)
+	_level_up_button.pressed.connect(level_up_player)
 	_new_world_button.pressed.connect(_on_new_world_button_pressed)
 
 
-## Shows the XP of the given player and follows its changes.
+## Shows the XP and the chassis level of the given player and follows their changes.
 func bind(player: Robot) -> void:
 	_player = player
 	player.experience.xp_changed.connect(_on_xp_changed)
+	player.experience.level_changed.connect(_on_level_changed)
 	_on_xp_changed(player.experience.get_total())
+	_on_level_changed(player.experience.get_level())
+
+
+## Adds the XP the bound player lacks for the next level (R-014-20); nothing at
+## the last level (add_xp(0) changes nothing) or unbound.
+func level_up_player() -> void:
+	if _player == null:
+		return
+	var total: int = _player.experience.get_total()
+	_player.experience.add_xp(ChassisLevelSystem.xp_to_next_level(total, _player.chassis_levels))
 
 
 func show_world_seed(world_seed: int) -> void:
@@ -95,3 +112,7 @@ func _on_new_world_button_pressed() -> void:
 
 func _on_xp_changed(total: int) -> void:
 	_xp_label.text = "XP: %d" % total
+
+
+func _on_level_changed(level: int) -> void:
+	_level_label.text = "Level: %d" % level

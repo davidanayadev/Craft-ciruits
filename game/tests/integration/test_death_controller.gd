@@ -11,6 +11,7 @@ extends GutTest
 ## not (R-009-52). ZONE_ID is the green zone, so the catalog knows it.
 ## Spec 011: a piece keeps its durability and uid when it falls and is recovered (R-011-09).
 ## Spec 012: the respawn charge uses the maximum with the generator bonus (R-012-13).
+## Spec 014: with normal.tres the robot keeps its chassis level and slots (R-014-12).
 ## The robot's physics is switched off: its battery only moves when the test says.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -113,6 +114,7 @@ func test_r_008_03_reaction_follows_ruleset() -> void:
 	_robot.experience.add_xp(XP_AMOUNT)
 	var scrap_before: int = _robot.inventory.count(SCRAP)
 	_kill_by_consume()
+	assert_push_error("Experience")
 	assert_eq(_robot.inventory.count(SCRAP), scrap_before, "the inventory stays")
 	assert_eq(_robot.inventory.count(IRON), IRON_AMOUNT, "every item")
 	assert_eq(_spawner.get_items().size(), 0, "nothing falls")
@@ -206,6 +208,22 @@ func test_r_008_28_xp_and_slots_unchanged() -> void:
 	_controller.respawn(_robot, RESPAWN_POSITION)
 	assert_eq(_robot.experience.get_total(), XP_AMOUNT, "also after the respawn")
 	assert_eq(_robot.inventory.get_slot_count(), slots, "and its slots")
+
+
+func test_r_014_12_death_keeps_level_and_slots() -> void:
+	var levels: ChassisLevelData = _robot.chassis_levels
+	var last_level: int = levels.get_level_count()
+	_robot.experience.add_xp(levels.get_xp_required(last_level))
+	var slots: int = levels.get_inventory_slots(last_level)
+	assert_gt(slots, levels.get_inventory_slots(ChassisLevelData.FIRST_LEVEL), "more slots than level 1")
+	assert_eq(_robot.inventory.get_slot_count(), slots, "the robot has the slots of the last level")
+	_fill_inventory()
+	_kill_by_consume()
+	_controller.respawn(_robot, RESPAWN_POSITION)
+	assert_eq(_robot.experience.get_level(), last_level, "the level stays after the respawn")
+	assert_eq(_robot.inventory.get_slot_count(), slots, "and so do its slots")
+	assert_true(_robot.inventory.is_empty(), "the inventory fell where the robot died")
+	assert_eq(_spawner.get_items().size(), 1, "as one dropped item")
 
 
 func test_r_008_31_respawn_restores_battery_and_emits_once() -> void:

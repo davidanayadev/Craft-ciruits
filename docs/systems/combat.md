@@ -3,7 +3,7 @@
 > El robot golpea con un brazo en la dirección que mira, cada golpe cuesta batería, los zombies mueren y el robot
 > suma XP. Incluye el feedback del golpe (destello, sacudida, chispas, borde rojo).
 > Specs: [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) (solo
-> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada) · Última actualización: spec 010
+> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada), [014](../../specs/014-chassis-level/spec.md) (nivel en `ExperienceComponent`) · Última actualización: spec 014
 
 ## Piezas
 
@@ -13,7 +13,7 @@
 | `MeleeAttackComponent` | Componente (`Node3D`, hijo del robot) | `game/scripts/components/melee_attack_component.gd` | Estado del golpe y hitbox; `tick()`, `apply_impact()`, `cancel_swing()` |
 | `HurtboxComponent` | Componente (`Area3D`) | `game/scripts/components/hurtbox_component.gd` | Lo que detecta el hitbox; recuerda al último atacante |
 | `HitFlashComponent` | Componente | `game/scripts/components/hit_flash_component.gd` | Destello blanco (`material_overlay`) de una entidad golpeada |
-| `ExperienceComponent` | Componente | `game/scripts/components/experience_component.gd` | XP total del jugador; `reward_kill()` |
+| `ExperienceComponent` | Componente | `game/scripts/components/experience_component.gd` | XP total del jugador; `reward_kill()`. Desde la spec 014 también el nivel de chasis ([chassis_level.md](chassis_level.md)) |
 | `EventBus.enemy_killed` | Señal de autoload | `game/scripts/autoload/event_bus.gd` | Una muerte provocada por un jugador, una vez por vida |
 | `Uid` | Utilidad | `game/scripts/util/uid.gd` | `Uid.generate()`: 128 bits en hexadecimal, el `player_uid` del robot |
 | `CombatFeedback` | Nodo de `main.tscn` | `game/scenes/feedback/combat_feedback.gd` | Único sitio que convierte señales de combate en feedback |
@@ -99,9 +99,9 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 ## Trampas y límites
 
 - El impacto ve la posición del hurtbox del zombie un paso de física atrás (≤ 6 cm a su velocidad): aceptado.
-- No hay armas, degradación por golpe, retroceso, hit stop, SFX, HUD de XP ni nivel de chasis (specs 014, 015 y
-  ACTION_PLAN 4.x). La XP solo se acumula.
-- `player_uid` es aleatorio hasta que `Robot.set_player_uid` le da el `player_uuid` del Perfil (también al ataque, `melee.attacker_uid`). `ExperienceComponent` es dueño de guardado (`experience`: el total) y cargar emite `xp_changed` pero nunca repite una subida de nivel ([save.md](save.md)).
+- No hay armas, degradación por golpe, retroceso, hit stop, SFX ni HUD de XP (spec 015 y ACTION_PLAN 4.x). Desde la
+  spec 014 la XP sube el nivel de chasis ([chassis_level.md](chassis_level.md)); `ExperienceComponent` ya no solo acumula.
+- `player_uid` es aleatorio hasta que `Robot.set_player_uid` le da el `player_uuid` del Perfil (también al ataque, `melee.attacker_uid`). `ExperienceComponent` es dueño de guardado (`experience`: el total) y cargar emite `xp_changed` y `level_changed` pero nunca `level_up` ([save.md](save.md), [chassis_level.md](chassis_level.md)).
 - `enemy_killed` sale dentro de un paso de física: un oyente que toque el árbol debe usar `call_deferred`.
 - `reward_kill` con un id fuera del catálogo da un solo `push_error` y no suma.
 - Con `force_touch_debug` el clic izquierdo mueve y también golpea (spec 007 plan §7).
