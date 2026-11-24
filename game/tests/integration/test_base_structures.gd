@@ -152,10 +152,13 @@ func test_r_009_41_place_refused_without_base() -> void:
 
 func test_r_009_42_place_until_full() -> void:
 	var free_cells: int = _grid.area_size_cells.x * _grid.area_size_cells.y - _grid.reserved_cells.size()
-	_give_scrap(_cost() * free_cells)
 	var placed: int = 0
 	for y: int in _grid.area_size_cells.y:
 		for x: int in _grid.area_size_cells.x:
+			# Paid one station at a time: the scrap of every cell does not fit
+			# the inventory (stack_max of BALANCE §2, spec 014).
+			if _robot.inventory.count(&"scrap") < _cost():
+				_give_scrap(_cost())
 			if _place(Vector2i(x, y)).ok:
 				placed += 1
 	assert_eq(placed, free_cells, "a station on every free cell: no limit but space")

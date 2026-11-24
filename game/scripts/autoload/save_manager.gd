@@ -386,7 +386,10 @@ static func _copy_name(copy: ISaveStore.Copy) -> String:
 
 
 ## Header to GameManager, then every part to its owner; a missing key leaves
-## that owner in its new-game state (R-010-10).
+## that owner in its new-game state (R-010-10). Parts are applied in the tree
+## order of the persistent group: an owner whose state derives from another goes
+## after it in the scene (the robot's Experience before its InventoryComponent,
+## spec 014, R-014-16).
 func _apply_world(document: Dictionary) -> void:
 	var header: SaveDocuments.WorldHeader = SaveDocuments.read_header(document)
 	GameManager.begin_world(

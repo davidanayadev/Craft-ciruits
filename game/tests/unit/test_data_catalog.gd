@@ -8,6 +8,7 @@ extends GutTest
 ## Enemies are listed and returned by id the same way (spec 006, R-006-04).
 ## Spec 009: zones indexed by zone_id with one BASE zone (R-009-01), structures
 ## (R-009-24) and recipes whose references exist (R-009-61).
+## Spec 014: every recipe and repair tier fits in one stack of each material (R-014-22).
 ## The expected values mirror BALANCE.md §2 and §2.1; update both together.
 
 const ITEMS_DIR := "res://resources/items"
@@ -25,9 +26,9 @@ const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const SNAKE_CASE_PATTERN := "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
 ## id → [name_key, stack_max] (BALANCE §2).
 const EXPECTED_ITEMS: Dictionary[StringName, Array] = {
-	&"scrap": [&"ITEM_SCRAP", 99],
-	&"cables": [&"ITEM_CABLES", 50],
-	&"iron": [&"ITEM_IRON", 50],
+	&"scrap": [&"ITEM_SCRAP", 20],
+	&"cables": [&"ITEM_CABLES", 10],
+	&"iron": [&"ITEM_IRON", 10],
 	&"portable_battery": [&"ITEM_PORTABLE_BATTERY", 5],
 }
 const EXPECTED_ENEMY_IDS: Array[StringName] = [&"zombie_slow", &"zombie_fast"]
@@ -641,3 +642,33 @@ func test_r_011_06_repair_tiers_ascending_up_to_100() -> void:
 		assert_gt(tier.up_to_percent, previous, "tiers ascend")
 		previous = tier.up_to_percent
 	assert_eq(previous, CraftingSystem.PERCENT, "the last tier covers up to 100%")
+
+
+func _assert_fits_one_stack(owner: String, ingredients: Array[RecipeIngredientData]) -> void:
+	var totals: Dictionary[ItemData, int] = {}
+	for ingredient: RecipeIngredientData in ingredients:
+		if ingredient == null or ingredient.item == null:
+			fail_test("%s has an empty ingredient" % owner)
+			continue
+		totals[ingredient.item] = totals.get(ingredient.item, 0) + ingredient.quantity
+	for item: ItemData in totals:
+		var quantity: int = totals[item]
+		assert_lte(
+			quantity, item.stack_max, "%s: %d %s fit one stack of %d" % [owner, quantity, item.id, item.stack_max]
+		)
+
+
+func test_r_014_22_every_cost_fits_one_stack() -> void:
+	var catalog: DataCatalog = _load_catalog()
+	if catalog == null or catalog.repair_costs == null:
+		fail_test("the catalog has no repair costs")
+		return
+	assert_gt(catalog.get_recipes().size(), 0, "the catalog has recipes")
+	for recipe: RecipeData in catalog.get_recipes():
+		_assert_fits_one_stack("recipe %s" % recipe.id, recipe.ingredients)
+	for i: int in catalog.repair_costs.tiers.size():
+		var tier: RepairTierData = catalog.repair_costs.tiers[i]
+		if tier == null:
+			fail_test("repair tier %d is empty" % i)
+			continue
+		_assert_fits_one_stack("repair tier %d" % i, tier.ingredients)

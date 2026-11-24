@@ -4,7 +4,11 @@ extends CharacterBody3D
 ## and moves with real physics. Presentation and wiring only (P3).
 ## It also feeds its gait to its BatteryComponent every physics frame (spec 003)
 ## and interacts with the target of its InteractorComponent (spec 004).
-## It owns its inventory, sized by its chassis level (spec 005).
+## It owns its inventory, sized by its chassis level (spec 005): it gives the
+## level table to its ExperienceComponent and grows the inventory on every
+## level_changed (spec 014). Experience goes before InventoryComponent in
+## robot.tscn: saved parts load in tree order, so on load the inventory already
+## has the slots of the loaded level when it reads its own (R-014-16).
 ## Enemies find it through PLAYER_GROUP and hit it with receive_hit() (spec 006).
 ## It swings its MeleeAttackComponent, pays each swing with battery and earns
 ## the XP of the enemies it kills (spec 007).
@@ -31,7 +35,7 @@ const ANIMATION_ATTACK := &"attack"
 
 @export var movement_stats: MovementStatsData
 @export var control_config: ControlConfigData
-## Inventory slots per chassis level. Only level 1 until ACTION_PLAN 2.7 adds levelling up.
+## XP thresholds and inventory slots per chassis level (spec 014); assigned once, here.
 @export var chassis_levels: ChassisLevelData
 ## Yaw source for camera-relative movement; null falls back to world axes.
 @export var camera_rig: Node3D
@@ -59,7 +63,9 @@ func _ready() -> void:
 	if chassis_levels == null:
 		push_error("Robot '%s': chassis_levels must be assigned." % name)
 		return
-	inventory.set_slot_count(chassis_levels.get_inventory_slots(ChassisLevelData.FIRST_LEVEL))
+	experience.set_level_table(chassis_levels)
+	experience.level_changed.connect(_on_level_changed)
+	_on_level_changed(experience.get_level())
 
 
 func _physics_process(delta: float) -> void:
@@ -214,6 +220,11 @@ func _on_swing_started(battery_cost: float) -> void:
 	battery.consume(battery_cost)
 	_animation_player.stop()
 	_animation_player.play(ANIMATION_ATTACK)
+
+
+## The inventory takes the slots of the level; the same count changes nothing (R-014-08).
+func _on_level_changed(level: int) -> void:
+	inventory.set_slot_count(chassis_levels.get_inventory_slots(level))
 
 
 ## Only this robot's kills count: with several players each one earns its own.
