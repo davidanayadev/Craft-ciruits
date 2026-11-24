@@ -378,14 +378,14 @@ Decisión nov 2026: la base empieza sin estación; se craftean (todas las que qu
 
 ### Tarea 2.7: Subida de nivel de chasis (5h)
 Depende de la Tarea 1.2 (inventario) y la Tarea 2.3 (guardado). Antes no existía ninguna tarea que aplicara la subida: la XP se acumulaba sin efecto.
-- [ ] Crear recurso `ChassisLevelData.gd` y un `.tres` con los umbrales de XP y los slots por nivel de BALANCE.md §6.1 (niveles 1-10: 0/50/150/300/500/750/1000/1300/1650/2000 XP; 5/5/5/5/6/7/8/8/8/8 slots; decisión nov 2026). Sin literales en el código
-- [ ] Lógica pura (`scripts/systems/`): calcular el nivel a partir de la XP total
-- [ ] Al ganar XP: si se supera el siguiente umbral, subir de nivel (también varios niveles de golpe) y emitir la señal `level_up(new_level)`
-- [ ] Al subir: ampliar los slots del `InventoryComponent` del jugador
+- [x] Crear recurso `ChassisLevelData.gd` y un `.tres` con los umbrales de XP y los slots por nivel de BALANCE.md §6.1 (niveles 1-10: 0/50/150/300/500/750/1000/1300/1650/2000 XP; 5/5/5/5/6/7/8/8/8/8 slots; decisión nov 2026). Sin literales en el código
+- [x] Lógica pura (`scripts/systems/`): calcular el nivel a partir de la XP total
+- [x] Al ganar XP: si se supera el siguiente umbral, subir de nivel (también varios niveles de golpe) y emitir la señal `level_up(new_level)`
+- [x] Al subir: ampliar los slots del `InventoryComponent` del jugador
 - [ ] Conectar `level_up` a la notificación "Nivel up" (Tarea 4.1) y al SFX de nivel (Tarea 4.3)
-- [ ] El nivel y la XP se guardan con la Tarea 2.3; al cargar, recalcular los slots desde el nivel
-- [ ] Test: con 499 XP nivel 4 y 5 slots; con 500 XP nivel 5 y 6 slots; con 1000 XP nivel 7 y 8 slots; con 2000 XP nivel 10 y 8 slots; ganar XP de sobra no pasa del nivel 10
-- [ ] Bajar el `stack_max` de chatarra, cables y hierro a 20 / 10 / 10 en sus `.tres` (BALANCE.md §2, decisión nov 2026) y actualizar el test del catálogo que los guarda
+- [x] Solo la XP se guarda con la Tarea 2.3; al cargar, recalcular el nivel desde la XP y los slots desde el nivel, antes de que el inventario lea sus slots (decisión nov 2026, spec 014: el nivel es un valor derivado, R-010-24)
+- [x] Test: con 499 XP nivel 4 y 5 slots; con 500 XP nivel 5 y 6 slots; con 1000 XP nivel 7 y 8 slots; con 2000 XP nivel 10 y 8 slots; ganar XP de sobra no pasa del nivel 10
+- [x] Bajar el `stack_max` de chatarra, cables y hierro a 20 / 10 / 10 en sus `.tres` (BALANCE.md §2, decisión nov 2026) y actualizar el test del catálogo que los guarda
 - [ ] Fuera de esta tarea: recuerdos, huecos del Core y fuentes nuevas de XP (Tarea 3.4)
 
 **Entregable**: la XP sube de nivel el chasis (hasta el 10) y amplía el inventario (de 5 a 8 slots).
