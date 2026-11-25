@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/inventory_screen.gd" id="1_screen"]
 [ext_resource type="PackedScene" path="res://scenes/ui/inventory_grid.tscn" id="2_grid"]
 [ext_resource type="PackedScene" path="res://scenes/ui/quantity_selector.tscn" id="3_selector"]
+[ext_resource type="PackedScene" path="res://scenes/ui/equipment_panel.tscn" id="4_equipment"]
 
 [node name="InventoryScreen" type="Control"]
 layout_mode = 3
@@ -55,11 +56,41 @@ theme_override_font_sizes/font_size = 40
 text = "INVENTORY_TITLE"
 horizontal_alignment = 1
 
-[node name="Grid" parent="Center/Panel/Margin/Content" instance=ExtResource("2_grid")]
+[node name="Body" type="HBoxContainer" parent="Center/Panel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="Left" type="VBoxContainer" parent="Center/Panel/Margin/Content/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="Grid" parent="Center/Panel/Margin/Content/Body/Left" instance=ExtResource("2_grid")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 interactive = true
+
+[node name="SelectedDetail" type="Label" parent="Center/Panel/Margin/Content/Body/Left"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+
+[node name="Notice" type="Label" parent="Center/Panel/Margin/Content/Body/Left"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.55, 0.45, 1)
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="EquipmentPanel" parent="Center/Panel/Margin/Content/Body" instance=ExtResource("4_equipment")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
 
 [node name="ThrowControls" type="HBoxContainer" parent="Center/Panel/Margin/Content"]
 unique_name_in_owner = true
@@ -92,3 +123,13 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 36
 disabled = true
 text = "INVENTORY_USE"
+
+[node name="EquipButton" type="Button" parent="Center/Panel/Margin/Content/ThrowControls"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 88)
+layout_mode = 2
+size_flags_horizontal = 8
+focus_mode = 0
+theme_override_font_sizes/font_size = 36
+disabled = true
+text = "EQUIPMENT_EQUIP"

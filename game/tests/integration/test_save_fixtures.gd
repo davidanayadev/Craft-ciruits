@@ -138,7 +138,6 @@ func test_r_010_54_profile_v1_loads() -> void:
 	assert_eq(store.write_count, 0, "a valid Profile is not rewritten on load")
 
 
-const BATTERY_CONFIG_PATH := "res://resources/battery/robot_battery.tres"
 
 
 func test_r_012_43_world_v1_loads_unchanged() -> void:
@@ -152,8 +151,7 @@ func test_r_012_43_world_v1_loads_unchanged() -> void:
 		await wait_for_signal(loader.travel_finished, TRAVEL_TIMEOUT_S)
 	var robot: Robot = main.get_node("%Robot") as Robot
 	var structures: BaseStructures = main.get_node("%BaseStructures") as BaseStructures
-	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
-	assert_eq(robot.battery.get_maximum(), config.maximum, "the maximum is the configured one")
+	assert_eq(robot.battery.get_maximum(), robot.stats.get_stat(StatIds.MAX_BATTERY), "the maximum is the stat of the equipped Core")
 	assert_eq(structures.get_max_battery_bonus(), 0.0, "no generator, no bonus")
 	assert_almost_eq(robot.battery.get_current(), 63.5, BATTERY_TOLERANCE, "the saved charge")
 	assert_eq(structures.structure_at(STATION_CELL), STATION_UID, "the station is on its cell")

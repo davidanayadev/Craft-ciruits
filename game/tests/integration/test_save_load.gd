@@ -288,7 +288,7 @@ func _compare_snapshots(before: Dictionary, after: Dictionary) -> void:
 
 func test_r_010_09_load_emits_no_fact_signal() -> void:
 	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
-	var low: float = config.maximum * config.low_threshold_ratio * 0.5
+	var low: float = _starting_max_battery() * config.low_threshold_ratio * 0.5
 	_write_world(_fixture_document(low))
 	var main: Node = _instance_main()
 	var robot: Robot = _child(main, "Robot") as Robot
@@ -323,7 +323,7 @@ func test_r_010_09_load_emits_no_fact_signal() -> void:
 func test_r_010_09_load_game_on_running_scene_emits_no_fact_signal() -> void:
 	var main: Node = await _open_main()
 	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
-	var low: float = config.maximum * config.low_threshold_ratio * 0.5
+	var low: float = _starting_max_battery() * config.low_threshold_ratio * 0.5
 	_write_world(_fixture_document(low))
 	var robot: Robot = _robot_of(main)
 	watch_signals(EventBus)
@@ -508,9 +508,8 @@ func test_r_010_24_derived_values_not_saved() -> void:
 	_write_world(document)
 	var again: Node = await _open_main()
 	var robot: Robot = _robot_of(again)
-	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
 	var chassis: ChassisLevelData = load(CHASSIS_LEVELS_PATH) as ChassisLevelData
-	assert_eq(robot.battery.get_maximum(), config.maximum, "maximum from robot_battery.tres")
+	assert_eq(robot.battery.get_maximum(), robot.stats.get_stat(StatIds.MAX_BATTERY), "maximum from the stats")
 	assert_almost_eq(_arrival_battery, 55.0, BATTERY_TOLERANCE, "the saved charge")
 	assert_eq(
 		robot.inventory.get_slot_count(),
@@ -900,6 +899,14 @@ func _build_at(main: Node, recipe_path: String, cell: Vector2i) -> String:
 	return _structures_of(main).structure_at(cell)
 
 
+## The maximum battery of a new robot: the stat with its starting equipment
+## (the basic Core, spec 015).
+func _starting_max_battery() -> float:
+	var base: RobotBaseStatsData = load("res://resources/robot/robot_base_stats.tres") as RobotBaseStatsData
+	var core: PieceData = load("res://resources/pieces/basic_core.tres") as PieceData
+	return StatsCalculator.compute(base.to_stats(), core.modifiers)[StatIds.MAX_BATTERY]
+
+
 func _generator_data() -> WindGeneratorData:
 	var recipe: RecipeData = load(GENERATOR_RECIPE_PATH) as RecipeData
 	return recipe.result_structure as WindGeneratorData
@@ -910,21 +917,21 @@ func test_r_012_14_charge_above_base_maximum_survives_reload() -> void:
 	clock.now = CLOCK_START
 	var a: Node = await _open_main_with_clock(clock)
 	var robot: Robot = _robot_of(a)
-	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
+	var maximum: float = _starting_max_battery()
 	var generator: WindGeneratorData = _generator_data()
 	var _uid: String = _build_at(a, GENERATOR_RECIPE_PATH, GENERATOR_CELL)
-	assert_eq(robot.battery.get_maximum(), config.maximum + generator.max_battery_bonus, "the bonus is applied")
+	assert_eq(robot.battery.get_maximum(), maximum + generator.max_battery_bonus, "the bonus is applied")
 	robot.battery.add(generator.max_battery_bonus / 2.0)
 	var charge: float = robot.battery.get_current()
-	assert_gt(charge, config.maximum, "the charge is above the base maximum")
-	assert_lte(charge, config.maximum + generator.max_battery_bonus, "and within the new one")
+	assert_gt(charge, maximum, "the charge is above the base maximum")
+	assert_lte(charge, maximum + generator.max_battery_bonus, "and within the new one")
 	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
 	await _close_main(a)
 	var b: Node = await _open_main_with_clock(clock)
 	var again: Robot = _robot_of(b)
-	assert_eq(again.battery.get_maximum(), config.maximum + generator.max_battery_bonus, "the bonus is back")
+	assert_eq(again.battery.get_maximum(), maximum + generator.max_battery_bonus, "the bonus is back")
 	assert_almost_eq(again.battery.get_current(), charge, BATTERY_TOLERANCE, "the charge above 100 is kept")
-	assert_gt(again.battery.get_current(), config.maximum, "still above the base maximum")
+	assert_gt(again.battery.get_current(), maximum, "still above the base maximum")
 
 
 func test_r_012_16_counts_while_app_closed() -> void:
@@ -1074,3 +1081,146 @@ func test_r_014_18_new_world_level_one() -> void:
 		_chassis().get_inventory_slots(ChassisLevelData.FIRST_LEVEL),
 		"with the slots of level 1"
 	)
+
+
+# --- Spec 015: equipment ------------------------------------------------------
+
+
+## An equipment part entry for a new piece of item_id at durability.
+func _piece_entry(item_id: String, durability: int) -> Dictionary:
+	return {"item_id": item_id, "durability": durability, "uid": Uid.generate()}
+
+
+func _equipment_part(arms: Variant, legs: Variant, core: Variant) -> Dictionary:
+	return {"slots": {"arms": arms, "legs": legs, "core": core}}
+
+
+func test_r_015_37_equipment_saved_and_reloaded() -> void:
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	robot.receive_hit(0.0, null)
+	var legs: ItemStack = robot.equipment.get_piece(PieceData.SlotType.LEGS)
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	var parts: Dictionary = _player_parts(_read_world())
+	assert_true(parts.has("equipment"), "the equipment part is saved")
+	assert_false(_has_key_deep(parts.get("equipment"), "stats"), "no stats in it")
+	await _close_main(main)
+	var again: Node = await _open_main()
+	var loaded: ItemStack = _robot_of(again).equipment.get_piece(PieceData.SlotType.LEGS)
+	assert_not_null(loaded, "the legs are back")
+	if loaded != null:
+		assert_eq(loaded.uid, legs.uid, "same uid")
+		assert_eq(loaded.durability, legs.durability, "same durability")
+
+
+func test_r_015_38_equipment_loads_before_battery() -> void:
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	var persistent: Array[Node] = get_tree().get_nodes_in_group(&"persistent")
+	var equipment_index: int = persistent.find(robot.equipment)
+	var battery_index: int = persistent.find(robot.battery)
+	assert_gt(equipment_index, -1, "Equipment is persistent")
+	assert_gt(battery_index, -1, "BatteryComponent is persistent")
+	assert_lt(equipment_index, battery_index, "SaveManager applies the equipment first")
+	for child: Node in robot.get_children():
+		if child.is_in_group(&"persistent"):
+			assert_eq(child, robot.equipment, "Equipment is the first persistent node of the robot")
+			break
+
+
+func test_r_015_38_saved_charge_up_to_core_maximum_kept() -> void:
+	var document: Dictionary = _read_world()
+	_set_player_part(document, "equipment", _equipment_part(null, null, _piece_entry("basic_core", 80)))
+	_set_player_part(document, "battery", {"current": 99.5})
+	_write_world(document)
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	assert_null(robot.equipment.get_piece(PieceData.SlotType.LEGS), "the saved equipment, not the starting one")
+	assert_eq(robot.equipment.get_piece(PieceData.SlotType.CORE).durability, 80, "the saved Core")
+	assert_almost_eq(_arrival_battery, 99.5, BATTERY_TOLERANCE, "the saved charge is not lowered")
+	assert_push_error_count(0)
+
+
+func test_r_015_39_load_emits_equipment_and_stats() -> void:
+	var document: Dictionary = _read_world()
+	_set_player_part(
+		document, "equipment", _equipment_part(_piece_entry("basic_arms", 3), null, _piece_entry("basic_core", 1))
+	)
+	_write_world(document)
+	var main: Node = _instance_main()
+	var robot: Robot = _child(main, "Robot") as Robot
+	var equipment: EquipmentComponent = _child(robot, "Equipment") as EquipmentComponent
+	var stats: StatsComponent = _child(robot, "Stats") as StatsComponent
+	watch_signals(equipment)
+	watch_signals(stats)
+	add_child_autofree(main)
+	await _await_travel(main)
+	assert_signal_emitted(equipment, "equipment_changed", "state on load")
+	assert_signal_emitted(stats, "stats_changed", "the stats follow")
+	assert_signal_not_emitted(equipment, "piece_broken", "loading breaks nothing")
+	assert_eq(robot.stats.get_stat(StatIds.ATTACK_DAMAGE), 10.0, "the loaded arms count (BALANCE §4.2)")
+	clear_signal_watcher()
+	watch_signals(equipment)
+	watch_signals(stats)
+	assert_true(SaveManager.load_game().ok, "loads again on the running scene")
+	assert_signal_emit_count(equipment, "equipment_changed", 1, "once")
+	assert_signal_emit_count(stats, "stats_changed", 1, "once")
+	assert_signal_not_emitted(equipment, "piece_broken", "not on a second load either")
+
+
+func test_r_015_40_rest_of_world_loads() -> void:
+	var document: Dictionary = _read_world()
+	_set_player_part(
+		document, "equipment", _equipment_part(null, _piece_entry("no_such_piece", 50), _piece_entry("basic_arms", 50))
+	)
+	_set_player_part(document, "inventory", {"slots": [_slot_entry("scrap", 7, NO_DURABILITY, "")]})
+	_set_player_part(document, "battery", {"current": 60.0})
+	_write_world(document)
+	var main: Node = await _open_main()
+	assert_push_error_count(2, "each bad slot is reported")
+	var robot: Robot = _robot_of(main)
+	assert_null(robot.equipment.get_piece(PieceData.SlotType.LEGS), "an unknown id loads empty")
+	assert_null(robot.equipment.get_piece(PieceData.SlotType.CORE), "arms in the Core slot load empty")
+	assert_eq(robot.inventory.count(&"scrap"), 7, "the inventory loads")
+	assert_almost_eq(_arrival_battery, 60.0, BATTERY_TOLERANCE, "the battery loads")
+
+
+func test_r_015_41_new_world_starting_equipment() -> void:
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	var core: ItemStack = robot.equipment.get_piece(PieceData.SlotType.CORE)
+	var legs: ItemStack = robot.equipment.get_piece(PieceData.SlotType.LEGS)
+	assert_null(robot.equipment.get_piece(PieceData.SlotType.ARMS), "one arm (BALANCE §4.2)")
+	assert_not_null(core, "a basic Core")
+	assert_not_null(legs, "basic legs")
+	if core == null or legs == null:
+		return
+	assert_eq(core.item.id, &"basic_core", "the basic Core")
+	assert_eq(legs.item.id, &"basic_legs", "the basic legs")
+	assert_eq(core.durability, (core.item as PieceData).durability_max, "new Core")
+	assert_eq(legs.durability, (legs.item as PieceData).durability_max, "new legs")
+	assert_false(core.uid.is_empty() or legs.uid.is_empty(), "with uids")
+	assert_ne(core.uid, legs.uid, "different uids")
+
+
+func test_r_015_42_world_without_equipment_part() -> void:
+	var document: Dictionary = _fixture_document(63.5)
+	assert_false(_player_parts(document).has("equipment"), "the fixture is from before spec 015")
+	_write_world(document)
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	assert_not_null(robot.equipment.get_piece(PieceData.SlotType.CORE), "the starting Core")
+	assert_not_null(robot.equipment.get_piece(PieceData.SlotType.LEGS), "the starting legs")
+	assert_eq(SaveMigrations.WORLD_VERSION, 1, "no new schema_version")
+	assert_push_error_count(0)
+
+
+func test_r_015_42_empty_slots_load_empty() -> void:
+	var document: Dictionary = _read_world()
+	_set_player_part(document, "equipment", _equipment_part(null, null, null))
+	_write_world(document)
+	var main: Node = await _open_main()
+	var robot: Robot = _robot_of(main)
+	for slot: int in PieceData.SlotType.size():
+		assert_null(robot.equipment.get_piece(slot as PieceData.SlotType), "slot %d loads empty" % slot)
+	assert_push_error_count(0)

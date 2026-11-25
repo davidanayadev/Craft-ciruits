@@ -1,8 +1,8 @@
 class_name AttackStatsData
 extends Resource
-## Melee numbers of the robot's arms (BALANCE.md §4.2). Spec 015 will derive
-## these from StatsComponent modifiers; until then the robot points at one
-## .tres instance (one arm).
+## Melee numbers of the robot's arms (BALANCE.md §4.2): a value object that
+## StatsComponent builds from the stats of its equipped arms, or of one arm
+## (spec 015, plan D4). Never a .tres: each number lives in the base stats or a piece.
 
 ## HP taken from each enemy the swing hits.
 @export var damage: int = 0

@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/entities/robot.tscn" id="3_robot"]
@@ -26,6 +26,7 @@
 [ext_resource type="Script" path="res://scenes/zones/zone_memory.gd" id="25_zone_memory"]
 [ext_resource type="Script" path="res://scenes/save/save_flow.gd" id="26_save_flow"]
 [ext_resource type="Script" path="res://scenes/base/structure_use_flow.gd" id="27_structure_use_flow"]
+[ext_resource type="Script" path="res://scenes/entities/dropped_item_flow.gd" id="28_dropped_item_flow"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -112,6 +113,12 @@ unique_name_in_owner = true
 script = ExtResource("27_structure_use_flow")
 ui_manager = NodePath("../UI/UIManager")
 base_structures = NodePath("../World/BaseStructures")
+
+[node name="DroppedItemFlow" type="Node" parent="." node_paths=PackedStringArray("ui_manager", "dropped_items")]
+unique_name_in_owner = true
+script = ExtResource("28_dropped_item_flow")
+ui_manager = NodePath("../UI/UIManager")
+dropped_items = NodePath("../World/DroppedItems")
 
 [node name="CameraRig" parent="." instance=ExtResource("4_camera")]
 unique_name_in_owner = true

@@ -335,3 +335,54 @@ func test_r_011_20_repair_refusal_keys() -> void:
 	assert_eq(CraftingSystem.ERR_PIECE_INTACT, &"ERR_PIECE_INTACT")
 	assert_eq(CraftingSystem.ERR_PIECE_BROKEN, &"ERR_PIECE_BROKEN")
 	assert_eq(CraftingSystem.ERR_PIECE_NOT_FOUND, &"ERR_PIECE_NOT_FOUND")
+
+
+# --- check_repair_stack (spec 015, plan D16) --------------------------------------
+
+
+func _repair_piece(durability: int) -> ItemStack:
+	var piece: ItemStack = CraftingSystem.create_result(load("res://resources/pieces/basic_arms.tres") as PieceData)
+	piece.durability = durability
+	return piece
+
+
+func test_r_015_30_check_repair_stack_rules() -> void:
+	var costs: RepairCostData = load("res://resources/config/repair_costs.tres") as RepairCostData
+	var iron: ItemData = load("res://resources/items/iron.tres") as ItemData
+	var cables: ItemData = load("res://resources/items/cables.tres") as ItemData
+	var payer: Array[ItemStack] = [ItemStack.new(iron, 2), ItemStack.new(cables, 1), null]
+	var poor: Array[ItemStack] = [null, null, null]
+	assert_true(CraftingSystem.check_repair_stack(_repair_piece(50), payer, costs).ok, "damaged and paid")
+	assert_eq(
+		CraftingSystem.check_repair_stack(_repair_piece(100), payer, costs).error_key,
+		CraftingSystem.ERR_PIECE_INTACT, "intact"
+	)
+	assert_eq(
+		CraftingSystem.check_repair_stack(_repair_piece(0), payer, costs).error_key,
+		CraftingSystem.ERR_PIECE_BROKEN, "broken"
+	)
+	assert_eq(
+		CraftingSystem.check_repair_stack(_repair_piece(50), poor, costs).error_key,
+		CraftingSystem.ERR_NOT_ENOUGH_MATERIALS, "the payer cannot pay"
+	)
+	assert_eq(
+		CraftingSystem.check_repair_stack(ItemStack.new(iron, 1), payer, costs).error_key,
+		CraftingSystem.ERR_PIECE_NOT_FOUND, "not a piece"
+	)
+	assert_eq(
+		CraftingSystem.check_repair_stack(null, payer, costs).error_key,
+		CraftingSystem.ERR_PIECE_NOT_FOUND, "no stack"
+	)
+
+
+func test_r_015_30_check_repair_stack_does_not_need_the_piece_in_the_payer() -> void:
+	var costs: RepairCostData = load("res://resources/config/repair_costs.tres") as RepairCostData
+	var iron: ItemData = load("res://resources/items/iron.tres") as ItemData
+	var cables: ItemData = load("res://resources/items/cables.tres") as ItemData
+	var payer: Array[ItemStack] = [ItemStack.new(iron, 2), ItemStack.new(cables, 1)]
+	var piece: ItemStack = _repair_piece(50)
+	assert_true(CraftingSystem.check_repair_stack(piece, payer, costs).ok, "an equipped piece is paid by the inventory")
+	assert_eq(
+		CraftingSystem.check_repair(payer, piece.uid, costs).error_key,
+		CraftingSystem.ERR_PIECE_NOT_FOUND, "check_repair still looks for the uid in the slots"
+	)

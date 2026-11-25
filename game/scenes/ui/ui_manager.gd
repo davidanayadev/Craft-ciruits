@@ -48,6 +48,12 @@ func open(screen_id: StringName, context: Dictionary = {}) -> UIScreen:
 	return screen
 
 
+## Closes that screen wherever it is in the stack, as Escape would on top
+## (spec 015, plan D13). Not open → nothing.
+func close(screen: UIScreen) -> void:
+	_close(screen)
+
+
 ## Nothing open → no-op.
 func close_top() -> void:
 	if not _screens.is_empty():

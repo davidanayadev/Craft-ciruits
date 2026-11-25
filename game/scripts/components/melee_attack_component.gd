@@ -14,8 +14,6 @@ signal swing_started(battery_cost: float)
 ## The impact damaged this target. Emitted once per target and swing.
 signal hit_dealt(target: HurtboxComponent)
 
-## One arm until spec 015 derives it from StatsComponent (R-007-02).
-@export var attack: AttackStatsData
 @export var config: CombatConfigData
 ## Collision geometry that covers the owner's body, not gameplay values: the
 ## reach and the width come from config.
@@ -24,6 +22,13 @@ signal hit_dealt(target: HurtboxComponent)
 
 ## Who the kills count for; set by the owner.
 var attacker_uid: String = ""
+## The values of the next swing; its owner sets them with set_attack() (spec
+## 015: the stats of the equipped arms, or one arm). No swing without a valid one.
+var attack: AttackStatsData = null
+
+## The values of the swing under way: its impact lands with them even if the
+## arms change before it (R-015-17).
+var _swing_attack: AttackStatsData = null
 
 ## INF: the first swing starts at once.
 var _seconds_since_swing: float = INF
@@ -32,8 +37,8 @@ var _shape: BoxShape3D = null
 
 
 func _ready() -> void:
-	if not CombatSystem.is_valid_attack(attack) or config == null:
-		push_error("MeleeAttackComponent '%s': needs a valid attack and a config." % name)
+	if config == null:
+		push_error("MeleeAttackComponent '%s': needs a config." % name)
 		return
 	# Built in code so no two instances share the shape.
 	_shape = BoxShape3D.new()
@@ -60,7 +65,17 @@ func tick(delta: float, wants_to_swing: bool, battery_depleted: bool, input_bloc
 	):
 		_seconds_since_swing = 0.0
 		_impact_pending = true
+		_swing_attack = attack
 		swing_started.emit(attack.battery_cost)
+
+
+## The attack from the next swing on (spec 015, R-015-16): a pending impact
+## keeps the values its swing started with (R-015-17); the rhythm follows the
+## new one at once.
+func set_attack(new_attack: AttackStatsData) -> void:
+	attack = new_attack
+	if not _impact_pending:
+		_swing_attack = new_attack
 
 
 ## Drops a pending impact: a dead owner does not hit (spec 008). The swing
@@ -72,7 +87,9 @@ func cancel_swing() -> void:
 ## Deals the damage of the attack once to each distinct living target
 ## (R-007-11). Public so the rule is testable without physics.
 func apply_impact(targets: Array[HurtboxComponent]) -> void:
-	var damage: int = CombatSystem.damage_per_hit(attack)
+	if not CombatSystem.is_valid_attack(_swing_attack):
+		return
+	var damage: int = CombatSystem.damage_per_hit(_swing_attack)
 	var hit: Array[HurtboxComponent] = []
 	for target: HurtboxComponent in targets:
 		if target == null or hit.has(target) or not target.is_alive():

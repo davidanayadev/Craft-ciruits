@@ -530,3 +530,53 @@ func test_r_012_46_panel_stops_the_mouse() -> void:
 	assert_eq(_panel().mouse_filter, Control.MOUSE_FILTER_STOP, "the panel stops the mouse")
 	assert_eq((_screen.get_node("Center") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "centring lets it through")
 	assert_eq((_screen.get_node("Backdrop") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE, "the backdrop too")
+
+
+# --- Equipped pieces (spec 015, R-015-29) -----------------------------------------
+
+
+func _wear_equipped_legs(hits: int) -> ItemStack:
+	for i: int in hits:
+		_robot.receive_hit(0.0, null)
+	return _robot.equipment.get_piece(PieceData.SlotType.LEGS)
+
+
+func test_r_015_29_repair_lists_equipped_marked() -> void:
+	var legs: ItemStack = _wear_equipped_legs(10)
+	var spare: ItemStack = _give_piece(&"basic_arms", 50)
+	_robot.inventory.add(&"iron", 2)
+	_robot.inventory.add(&"cables", 1)
+	_setup()
+	var entries: Array[BenchEntry] = _entries_of("RepairSection")
+	assert_eq(entries.size(), 2, "the equipped legs and the damaged arms in the inventory")
+	if entries.size() != 2:
+		return
+	assert_eq(String(entries[0].name), legs.uid, "the equipped piece comes first")
+	var piece: PieceData = legs.item as PieceData
+	var expected: String = "%s · %s" % [tr(&"BENCH_EQUIPPED"), tr(&"BENCH_DURABILITY") % [legs.durability, piece.durability_max]]
+	assert_eq(_label(entries[0], "Detail").text, expected, "marked as equipped, with its durability")
+	assert_false(_button(entries[0]).disabled, "the inventory can pay")
+	assert_eq(String(entries[1].name), spare.uid, "then the inventory's")
+	_button(entries[0]).pressed.emit()
+	assert_eq(
+		_robot.equipment.get_piece(PieceData.SlotType.LEGS).durability, piece.durability_max,
+		"the equipped legs were repaired in place"
+	)
+	# The rebuilt rows are freed on the next frame.
+	await wait_process_frames(1)
+
+
+func test_r_015_29_refreshes_on_wear() -> void:
+	_setup()
+	assert_eq(_entries_of("RepairSection").size(), 0, "nothing damaged yet")
+	var legs: ItemStack = _wear_equipped_legs(1)
+	assert_not_null(_repair_entry(legs.uid), "a hit while open lists the worn legs")
+	var _taken: Array[ItemStack] = _robot.equipment.take_slots([PieceData.SlotType.LEGS])
+	assert_null(_repair_entry(legs.uid), "and an equipment change removes them")
+	# The rebuilt rows are freed on the next frame.
+	await wait_process_frames(1)
+
+
+func test_r_015_29_equipped_key_translated() -> void:
+	for locale: String in SUPPORTED_LOCALES:
+		assert_true(_has_text(locale, &"BENCH_EQUIPPED"), "'%s' has BENCH_EQUIPPED" % locale)

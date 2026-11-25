@@ -145,7 +145,6 @@ func test_r_009_54_full_loop() -> void:
 
 # --- Spec 012 -----------------------------------------------------------------
 
-const BATTERY_CONFIG_PATH := "res://resources/battery/robot_battery.tres"
 const GENERATOR_RECIPE_PATH := "res://resources/recipes/wind_generator.tres"
 const CHEST_RECIPE_PATH := "res://resources/recipes/storage_chest.tres"
 const GENERATOR_CELL := Vector2i(1, 2)
@@ -174,14 +173,14 @@ func _die_and_respawn() -> void:
 
 
 func test_r_012_12_building_generator_raises_robot_maximum() -> void:
-	var config: BatteryConfigData = load(BATTERY_CONFIG_PATH) as BatteryConfigData
+	var maximum: float = _robot.stats.get_stat(StatIds.MAX_BATTERY)
 	var data: WindGeneratorData = (load(GENERATOR_RECIPE_PATH) as RecipeData).result_structure as WindGeneratorData
-	assert_eq(_robot.battery.get_maximum(), config.maximum, "the base maximum before building")
+	assert_eq(_robot.battery.get_maximum(), maximum, "the base maximum before building")
 	_robot.battery.consume(CONSUMED)
 	var charge: float = _robot.battery.get_current()
 	watch_signals(_robot.battery)
 	var _uid: String = _build(GENERATOR_RECIPE_PATH, GENERATOR_CELL)
-	assert_eq(_robot.battery.get_maximum(), config.maximum + data.max_battery_bonus, "the bonus is added")
+	assert_eq(_robot.battery.get_maximum(), maximum + data.max_battery_bonus, "the bonus is added")
 	assert_almost_eq(_robot.battery.get_current(), charge, 0.01, "the charge stays as it was")
 	assert_signal_emit_count(_robot.battery, "battery_changed", 1, "announced once")
 	var _station_uid: String = _build("res://resources/recipes/charging_station.tres", FIRST_CELL)
@@ -194,7 +193,7 @@ func test_r_012_12_building_generator_raises_robot_maximum() -> void:
 	if station == null:
 		return
 	(station.get_node("%Interactable") as InteractableComponent).interact(_robot)
-	assert_eq(_robot.battery.get_current(), config.maximum + data.max_battery_bonus, "recharged to the new maximum")
+	assert_eq(_robot.battery.get_current(), maximum + data.max_battery_bonus, "recharged to the new maximum")
 
 
 func test_r_012_36_chest_survives_travel_and_death() -> void:

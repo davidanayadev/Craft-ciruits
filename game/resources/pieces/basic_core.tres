@@ -1,7 +1,18 @@
-[gd_resource type="Resource" script_class="PieceData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="PieceData" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/piece_data.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/textures/icons/items/basic_core.svg" id="2"]
+[ext_resource type="Script" path="res://scripts/data/stat_modifier.gd" id="3"]
+
+[sub_resource type="Resource" id="set_max_battery"]
+script = ExtResource("3")
+stat = &"max_battery"
+value = 100.0
+
+[sub_resource type="Resource" id="set_passive_drain"]
+script = ExtResource("3")
+stat = &"passive_drain"
+value = 0.1
 
 [resource]
 script = ExtResource("1")
@@ -10,3 +21,5 @@ name_key = &"ITEM_BASIC_CORE"
 stack_max = 1
 icon = ExtResource("2")
 durability_max = 100
+slot_type = 2
+modifiers = Array[ExtResource("3")]([SubResource("set_max_battery"), SubResource("set_passive_drain")])

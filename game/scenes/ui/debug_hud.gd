@@ -13,6 +13,8 @@ extends CanvasLayer
 ## Spec 014: it shows the chassis level next to the XP (R-014-19), and "Level
 ## up" adds the XP the player lacks for the next threshold of its table, through
 ## the real add_xp path (R-014-20), to check the high levels by hand.
+## Everything sits in one list behind a button in the top-right corner, closed
+## at start: on a phone the open overlay covered the screens (spec 015 test).
 
 ## "New world" was pressed.
 signal new_world_requested
@@ -28,6 +30,8 @@ const HOLD_FILL_BASE := &"fill_base"
 @onready var _fill_base_button: Button = %FillBaseButton
 @onready var _seed_label: Label = %SeedLabel
 @onready var _new_world_button: Button = %NewWorldButton
+@onready var _menu_toggle: Button = %MenuToggle
+@onready var _menu: Control = %Menu
 
 var _player: Robot = null
 var _structures: BaseStructures = null
@@ -40,6 +44,7 @@ func _ready() -> void:
 	_fill_base_button.pressed.connect(fill_base)
 	_level_up_button.pressed.connect(level_up_player)
 	_new_world_button.pressed.connect(_on_new_world_button_pressed)
+	_menu_toggle.toggled.connect(_on_menu_toggled)
 
 
 ## Shows the XP and the chassis level of the given player and follows their changes.
@@ -104,6 +109,10 @@ func _first_structure_recipe() -> RecipeData:
 
 func _on_refresh_timeout() -> void:
 	_fps_label.text = "FPS: %d" % Engine.get_frames_per_second()
+
+
+func _on_menu_toggled(open: bool) -> void:
+	_menu.visible = open
 
 
 func _on_new_world_button_pressed() -> void:

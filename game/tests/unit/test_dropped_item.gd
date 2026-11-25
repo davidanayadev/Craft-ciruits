@@ -1,15 +1,16 @@
 extends GutTest
 ## DroppedItem (spec 008): it holds stacks with uid, zone, local position and
 ## drop time (R-008-10), moving stacks in and out never creates or loses items
-## (R-008-11), it is interactable with the PROMPT_PICK_UP prompt in Spanish and
-## English (R-008-12), interacting takes everything in slot order (R-008-13),
-## it announces once that it was emptied (R-008-14), a partial pick-up keeps
-## the rest and the time (R-008-15), its data is JSON only (R-008-17) and a
-## reset leaves nothing of the previous use (R-008-18). Spec 011: its data
-## carries the durability and uid of each stack (R-011-10).
+## (R-008-11), its data is JSON only (R-008-17) and a reset leaves nothing of
+## the previous use (R-008-18). Spec 011: its data carries the durability and
+## uid of each stack (R-011-10). Spec 015: it is a container, interacting only
+## announces opened and never takes (R-015-45), its prompt is PROMPT_OPEN in
+## Spanish and English (R-008-12 as adjusted by spec 015), a partial take keeps
+## the rest and the drop time (R-015-48) and its data carries the slot count
+## (R-015-55).
 
 const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
-const PROMPT_KEY := &"PROMPT_PICK_UP"
+const PROMPT_OPEN := &"PROMPT_OPEN"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const UID := "abc123"
 const ZONE := Vector2i(2, -3)
@@ -112,16 +113,18 @@ func test_r_008_11_drop_and_pick_up_keep_totals() -> void:
 	assert_true(source.is_empty(), "the source gave everything")
 	assert_eq(_totals(item.get_contents()), before, "the item holds exactly what was dropped")
 	var picker: Node3D = _new_interactor(5)
-	_interactable(item).interact(picker)
+	var picker_slots: Array[int] = []
+	picker_slots.assign(range(item.get_contents().get_slot_count()))
+	assert_true(_inventory_of(picker).take_from(item.get_contents(), picker_slots).ok, "the picker takes it")
 	assert_eq(_totals(_inventory_of(picker)), before, "the picker gets exactly the same")
 	assert_true(item.get_contents().is_empty(), "nothing left on the ground")
 
 
-func test_r_008_12_interactable_with_pick_up_prompt() -> void:
+func test_r_008_12_prompt_is_open() -> void:
 	var item: DroppedItem = _new_item()
 	var interactable: InteractableComponent = _interactable(item)
 	assert_not_null(interactable, "it has an interactable")
-	assert_eq(interactable.prompt_key, PROMPT_KEY, "the prompt is a translation key")
+	assert_eq(interactable.prompt_key, PROMPT_OPEN, "the prompt is PROMPT_OPEN")
 	assert_true(interactable.enabled, "enabled after setup")
 
 
@@ -130,70 +133,81 @@ func test_r_008_12_prompt_translated_es_en() -> void:
 		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
 		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
 		if translations.size() == 1:
-			var text: String = translations[0].get_message(PROMPT_KEY)
-			assert_ne(text, "", "'%s' has a text for %s" % [locale, PROMPT_KEY])
+			var text: String = translations[0].get_message(PROMPT_OPEN)
+			assert_ne(text, "", "'%s' has a text for %s" % [locale, PROMPT_OPEN])
 
 
-func test_r_008_13_interact_takes_all_in_slot_order() -> void:
+func test_r_015_45_interact_opens_never_takes() -> void:
 	var item: DroppedItem = _new_item()
 	_fill_three(item)
-	var picker: Node3D = _new_interactor(5)
-	_interactable(item).interact(picker)
-	var expected_ids: Array[StringName] = [&"scrap", &"iron", &"cables"]
-	assert_eq(_slot_ids(_inventory_of(picker)), expected_ids, "taken in the item's slot order")
+	var opener: Node3D = _new_interactor(5)
+	watch_signals(item)
+	_interactable(item).interact(opener)
+	assert_signal_emit_count(item, "opened", 1, "opened once per interaction")
+	var parameters: Array = get_signal_parameters(item, "opened")
+	var emitter: DroppedItem = parameters[0]
+	var who: Node3D = parameters[1]
+	assert_same(emitter, item, "it passes itself")
+	assert_same(who, opener, "and the opener")
 	var expected: Dictionary[StringName, int] = {&"scrap": 3, &"iron": 2, &"cables": 1}
-	assert_eq(_totals(_inventory_of(picker)), expected, "all of it")
-	assert_true(item.get_contents().is_empty(), "the item is empty")
+	assert_eq(_totals(item.get_contents()), expected, "the contents are unchanged")
+	assert_true(_inventory_of(opener).is_empty(), "the opener got nothing")
+	assert_true(_interactable(item).enabled, "still interactable")
+	_interactable(item).interact(opener)
+	assert_signal_emit_count(item, "opened", 2, "every interaction announces it")
 
 
-func test_r_008_13_interactor_without_inventory_reports_error() -> void:
+func test_r_015_45_empty_item_still_opens() -> void:
+	var item: DroppedItem = _new_item()
+	watch_signals(item)
+	_interactable(item).interact(_new_interactor(5))
+	assert_signal_emit_count(item, "opened", 1, "an empty item is opened too")
+	assert_true(_interactable(item).enabled, "and stays interactable")
+
+
+func test_r_015_45_opener_without_inventory_still_opens() -> void:
 	var item: DroppedItem = _new_item()
 	_fill_three(item)
 	watch_signals(item)
 	var bare: Node3D = Node3D.new()
 	add_child_autofree(bare)
 	_interactable(item).interact(bare)
-	assert_push_error("has no InventoryComponent")
+	assert_signal_emit_count(item, "opened", 1, "it only announces")
 	var expected: Dictionary[StringName, int] = {&"scrap": 3, &"iron": 2, &"cables": 1}
 	assert_eq(_totals(item.get_contents()), expected, "nothing changes")
-	assert_signal_not_emitted(item, "emptied")
-	assert_true(_interactable(item).enabled, "still interactable")
 
 
-func test_r_008_14_emptied_once() -> void:
-	var item: DroppedItem = _new_item()
-	watch_signals(item)
-	item.setup(UID, ZONE, LOCAL_POSITION, DROPPED_AT, SLOTS)
-	item.get_contents().add(&"scrap", 3)
-	assert_signal_not_emitted(item, "emptied", "setup and filling do not emit it")
-	var picker: Node3D = _new_interactor(5)
-	_interactable(item).interact(picker)
-	assert_signal_emit_count(item, "emptied", 1, "emitted when the last stack is picked")
-	var parameters: Array = get_signal_parameters(item, "emptied")
-	var emitter: DroppedItem = parameters[0]
-	assert_same(emitter, item, "it passes itself")
-	_interactable(item).interact(picker)
-	assert_signal_emit_count(item, "emptied", 1, "a second interact emits nothing more")
-	assert_false(_interactable(item).enabled, "emptied means disabled")
-
-
-func test_r_008_15_partial_pick_up_keeps_rest_and_time() -> void:
+func test_r_015_48_partial_take_keeps_rest_and_time() -> void:
 	var item: DroppedItem = _new_item()
 	item.get_contents().add(&"scrap", 3)
 	item.get_contents().add(&"iron", 2)
-	watch_signals(item)
 	var picker: Node3D = _new_interactor(1)
 	var inventory: InventoryComponent = _inventory_of(picker)
 	watch_signals(inventory)
-	_interactable(item).interact(picker)
+	var every_slot: Array[int] = []
+	every_slot.assign(range(item.get_contents().get_slot_count()))
+	inventory.take_from(item.get_contents(), every_slot)
 	var taken: Dictionary[StringName, int] = {&"scrap": 3}
 	assert_eq(_totals(inventory), taken, "what fits enters")
 	var rest: Dictionary[StringName, int] = {&"iron": 2}
 	assert_eq(_totals(item.get_contents()), rest, "the rest stays")
 	assert_eq(item.dropped_at_unix, DROPPED_AT, "the drop time does not change")
-	assert_signal_not_emitted(item, "emptied")
 	assert_true(_interactable(item).enabled, "still interactable")
 	assert_signal_emitted(inventory, "overflowed", "the player's inventory reports it")
+
+
+func test_r_015_55_to_data_has_slot_count() -> void:
+	var item: DroppedItem = _new_item(4)
+	item.get_contents().add(&"scrap", 3)
+	var data: Dictionary = item.to_data()
+	var slot_count: int = data["slot_count"]
+	assert_eq(slot_count, 4, "empty slots are counted")
+	var stacks: Array = data["stacks"]
+	assert_eq(stacks.size(), 1, "one stack")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(data))
+	var parsed_data: Dictionary = parsed
+	var parsed_count: float = parsed_data["slot_count"]
+	assert_eq(int(parsed_count), 4, "it survives JSON")
 
 
 func test_r_008_17_data_is_json_only() -> void:
@@ -202,7 +216,7 @@ func test_r_008_17_data_is_json_only() -> void:
 	var data: Dictionary = item.to_data()
 	var keys: Array = data.keys()
 	keys.sort()
-	var expected_keys: Array = ["dropped_at", "position", "stacks", "uid", "zone_id"]
+	var expected_keys: Array = ["dropped_at", "position", "slot_count", "stacks", "uid", "zone_id"]
 	assert_eq(keys, expected_keys, "the keys of the spec")
 	var uid: String = data["uid"]
 	assert_eq(uid, UID, "uid")

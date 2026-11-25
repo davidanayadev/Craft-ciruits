@@ -79,15 +79,26 @@ static func repair_cost(stack: ItemStack, costs: RepairCostData) -> Dictionary[S
 
 
 ## Whether the piece piece_uid of slots can be repaired now, in the order of
-## plan 011 D5: not found, intact (R-011-17), broken (R-011-18), not enough
-## materials (R-011-20). Bad repair data → ERR_INVALID_REQUEST (reported).
+## plan 011 D5: not found, then check_repair_stack().
 static func check_repair(
 	slots: Array[ItemStack], piece_uid: String, costs: RepairCostData
 ) -> ActionResult:
 	var index: int = InventoryRules.index_of_uid(slots, piece_uid)
 	if index < 0 or not slots[index].item is PieceData:
 		return ActionResult.failure(ERR_PIECE_NOT_FOUND)
-	var stack: ItemStack = slots[index]
+	return check_repair_stack(slots[index], slots, costs)
+
+
+## The rules of check_repair for a piece already found, wherever it is (the
+## inventory or the equipment, spec 015 plan D16), paid from payer_slots:
+## intact (R-011-17), broken (R-011-18), bad repair data → ERR_INVALID_REQUEST
+## (reported), not enough materials (R-011-20), in that order. Not a piece →
+## ERR_PIECE_NOT_FOUND.
+static func check_repair_stack(
+	stack: ItemStack, payer_slots: Array[ItemStack], costs: RepairCostData
+) -> ActionResult:
+	if stack == null or not stack.item is PieceData:
+		return ActionResult.failure(ERR_PIECE_NOT_FOUND)
 	if not is_damaged(stack):
 		return ActionResult.failure(ERR_PIECE_INTACT)
 	if stack.durability <= 0:
@@ -95,7 +106,7 @@ static func check_repair(
 	var cost: Dictionary[StringName, int] = repair_cost(stack, costs)
 	if cost.is_empty():
 		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
-	if not InventoryRules.can_remove_many(slots, cost):
+	if not InventoryRules.can_remove_many(payer_slots, cost):
 		return ActionResult.failure(ERR_NOT_ENOUGH_MATERIALS)
 	return ActionResult.success()
 

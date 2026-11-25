@@ -1,8 +1,7 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/robot.gd" id="1_robot"]
 [ext_resource type="Script" path="res://scripts/components/player_input.gd" id="2_input"]
-[ext_resource type="Resource" path="res://resources/movement/basic_legs.tres" id="3_legs"]
 [ext_resource type="Resource" path="res://resources/config/controls.tres" id="4_controls"]
 [ext_resource type="Script" path="res://scripts/components/battery_component.gd" id="5_battery"]
 [ext_resource type="Resource" path="res://resources/battery/robot_battery.tres" id="6_battery_config"]
@@ -11,7 +10,12 @@
 [ext_resource type="Resource" path="res://resources/progression/chassis_levels.tres" id="9_chassis"]
 [ext_resource type="Script" path="res://scripts/components/melee_attack_component.gd" id="10_melee"]
 [ext_resource type="Script" path="res://scripts/components/location_component.gd" id="14_location"]
-[ext_resource type="Resource" path="res://resources/combat/one_arm.tres" id="11_one_arm"]
+[ext_resource type="Script" path="res://scripts/components/equipment_component.gd" id="15_equipment"]
+[ext_resource type="Script" path="res://scripts/components/stats_component.gd" id="16_stats"]
+[ext_resource type="Resource" path="res://resources/robot/robot_base_stats.tres" id="17_base_stats"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_core.tres" id="18_basic_core"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_legs.tres" id="19_basic_legs"]
+[ext_resource type="Script" path="res://scripts/data/piece_data.gd" id="20_piece_data"]
 [ext_resource type="Resource" path="res://resources/config/combat.tres" id="12_combat"]
 [ext_resource type="Script" path="res://scripts/components/experience_component.gd" id="13_experience"]
 
@@ -44,7 +48,6 @@ _data = {
 
 [node name="Robot" type="CharacterBody3D" groups=["players"]]
 script = ExtResource("1_robot")
-movement_stats = ExtResource("3_legs")
 control_config = ExtResource("4_controls")
 chassis_levels = ExtResource("9_chassis")
 
@@ -65,11 +68,20 @@ mesh = SubResource("nose_mesh")
 unique_name_in_owner = true
 script = ExtResource("2_input")
 
+[node name="Equipment" type="Node" parent="." groups=["persistent"]]
+unique_name_in_owner = true
+script = ExtResource("15_equipment")
+starting_pieces = Array[ExtResource("20_piece_data")]([ExtResource("18_basic_core"), ExtResource("19_basic_legs")])
+
+[node name="Stats" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("16_stats")
+base_stats = ExtResource("17_base_stats")
+
 [node name="BatteryComponent" type="Node" parent="." groups=["persistent"]]
 unique_name_in_owner = true
 script = ExtResource("5_battery")
 config = ExtResource("6_battery_config")
-legs = ExtResource("3_legs")
 
 [node name="Interactor" type="Area3D" parent="."]
 unique_name_in_owner = true
@@ -87,7 +99,6 @@ script = ExtResource("8_inventory")
 [node name="MeleeAttack" type="Node3D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("10_melee")
-attack = ExtResource("11_one_arm")
 config = ExtResource("12_combat")
 hitbox_height_m = 2.0
 hitbox_center_y_m = 1.0

@@ -9,11 +9,23 @@ extends Node3D
 ## tests): it never creates one.
 ## It owns the dropped items in the save (spec 010): every zone's, in the
 ## format of DroppedItem.to_data(); the expired ones are gone on load.
+## A dropped item is a container (spec 015): it re-emits their opened as
+## item_opened, announces every item that leaves (item_removed) and releases an
+## emptied one only when asked, once its screen closed (release_if_empty).
+
+## Fact: a player interacted with one of its items (R-015-45).
+signal item_opened(item: DroppedItem, opener: Node3D)
+## Fact: item leaves (expiry, zone unloaded or released empty), before it is
+## reset and pooled (plan 015 D13).
+signal item_removed(item: DroppedItem)
 
 ## The device clock has whole seconds, so checking more often finds nothing new.
 const EXPIRY_CHECK_INTERVAL_S := 1.0
 ## Save contract (spec 010, architecture §10.2).
 const SAVE_KEY := &"dropped_items"
+## Sanity cap for a slot count read from disk, far above what the game creates:
+## not a gameplay value (plan 015 D15).
+const MAX_RESTORED_SLOTS := 64
 const _ITEMS_KEY := "items"
 
 @export var pool: ObjectPool
@@ -63,17 +75,29 @@ func get_zone_id() -> Vector2i:
 	return _zone_id
 
 
-## Moves every stack of source into one new dropped item. Empty source → null.
-func drop_inventory(source: InventoryComponent, world_position: Vector3) -> DroppedItem:
-	if source == null or source.is_empty():
+## Moves every stack of source and the given pieces (the equipment that
+## falls, spec 015) into one new dropped item with one slot per stack it
+## receives (R-015-47). Nothing to drop → null (R-015-51). The caller removes
+## the pieces from where they were only when an item was created (plan 015 D12).
+func drop_inventory(
+	source: InventoryComponent, world_position: Vector3, pieces: Array[ItemStack] = []
+) -> DroppedItem:
+	if source == null:
+		push_error("DroppedItemSpawner '%s': drop_inventory() got no source." % name)
 		return null
-	var item: DroppedItem = _spawn(world_position, source.get_slot_count())
+	var used: int = InventoryRules.count_used_slots(source.get_slots())
+	if used + pieces.size() == 0:
+		return null
+	var item: DroppedItem = _spawn(world_position, used + pieces.size())
 	if item == null:
 		return null
 	var slot_indices: Array[int] = []
 	for index: int in source.get_slot_count():
 		slot_indices.append(index)
-	item.get_contents().take_from(source, slot_indices)
+	if used > 0:
+		item.get_contents().take_from(source, slot_indices)
+	if not pieces.is_empty() and not item.get_contents().add_stacks(pieces).ok:
+		push_error("DroppedItemSpawner '%s': the pieces did not fit in their dropped item." % name)
 	return item
 
 
@@ -107,6 +131,15 @@ func drop_stacks(stacks: Array[ItemStack], world_position: Vector3) -> DroppedIt
 	if not item.get_contents().add_stacks(stacks).ok:
 		push_error("DroppedItemSpawner '%s': the stacks did not fit in their dropped item." % name)
 	return item
+
+
+## Releases item once it holds no stacks, if it is still the same use
+## (R-015-50). Deferred: the request can come in the middle of a physics step
+## or of the screen's own signal. A screen is the only caller, on close.
+func release_if_empty(item: DroppedItem) -> void:
+	if item == null:
+		return
+	_release_if_empty.call_deferred(item, item.uid)
 
 
 ## discard_expired() at the time of this spawner's own clock, the one the
@@ -248,10 +281,27 @@ func _restore(data: Dictionary) -> void:
 		_zone_root.to_global(local_position),
 		local_position,
 		SaveFields.to_int(dropped_at, 0),
-		stacks.size()
+		_restored_slot_count(data, stacks.size())
 	)
 	if item != null and not item.get_contents().add_stacks(stacks).ok:
 		push_error("DroppedItemSpawner '%s': a restored item lost stacks." % name)
+
+
+## The saved slot count when it is a whole number from stack_count to
+## MAX_RESTORED_SLOTS; one slot per stack when it is missing (a save from
+## before spec 015) or, reported, when it is not valid (R-015-55).
+func _restored_slot_count(data: Dictionary, stack_count: int) -> int:
+	if not data.has("slot_count"):
+		return stack_count
+	var saved: Variant = data.get("slot_count")
+	var count: int = SaveFields.to_int(saved, -1)
+	if count < stack_count or count > MAX_RESTORED_SLOTS:
+		push_error(
+			"DroppedItemSpawner '%s': saved slot count %s is not valid for %d stacks; one slot per stack."
+			% [name, saved, stack_count]
+		)
+		return stack_count
+	return count
 
 
 ## durability and uid are optional, -1 and "" by default: a file saved before
@@ -321,7 +371,7 @@ func _spawn_item(
 	item.position = to_local(world_position)
 	add_child(item)
 	item.setup(item_uid, _zone_id, local_position, dropped_at_unix, slot_count)
-	item.emptied.connect(_on_item_emptied)
+	item.opened.connect(_on_item_opened)
 	_items.append(item)
 	if _expiry_timer.is_stopped():
 		_expiry_timer.start()
@@ -330,23 +380,22 @@ func _spawn_item(
 
 func _release(item: DroppedItem) -> void:
 	_items.erase(item)
-	item.emptied.disconnect(_on_item_emptied)
+	item.opened.disconnect(_on_item_opened)
+	item_removed.emit(item)
 	item.reset()
 	pool.release(item)
 	if _items.is_empty():
 		_expiry_timer.stop()
 
 
-func _on_item_emptied(item: DroppedItem) -> void:
-	# Deferred: the pick-up can arrive in the middle of a physics step, and
-	# taking an area out of the tree there removes it from the space mid-step.
-	_return_emptied.call_deferred(item, item.uid)
+func _on_item_opened(item: DroppedItem, opener: Node3D) -> void:
+	item_opened.emit(item, opener)
 
 
-func _return_emptied(item: DroppedItem, emptied_uid: String) -> void:
-	# It may have expired between the pick-up and this call, and even be in use
-	# again as another drop: the uid tells them apart.
-	if _items.has(item) and item.uid == emptied_uid:
+func _release_if_empty(item: DroppedItem, item_uid: String) -> void:
+	# It may have expired before this call, and even be in use again as another
+	# drop: the uid tells them apart.
+	if _items.has(item) and item.uid == item_uid and item.get_contents().is_empty():
 		_release(item)
 
 

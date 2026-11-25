@@ -21,6 +21,8 @@ extends GutTest
 ## the green zone and waits for it (_travel_to_green_zone, plan 009 §7); a
 ## travel shows the loading screen with the world frozen (R-009-07), exits
 ## travel at no cost (R-009-11), and a death ends in the base (R-009-51..53).
+## Spec 015: the inventory panel, with the equipment, leaves the HUD storage
+## button free on a 1920×1080 landscape screen (R-015-35).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 ## Any fixed time: the tests move the fake clock from here.
@@ -492,6 +494,32 @@ func test_r_005_24_storage_toggles_inventory() -> void:
 	assert_false(_ui_manager().is_modal_open(), "and the action closes it")
 
 
+func test_r_015_35_inventory_panel_leaves_storage_button_free() -> void:
+	# The HUD draws over the screens so the button can close them: the panel,
+	# with the most slots of the chassis table and the equipment of spec 015,
+	# must leave it free and fit in a landscape screen of the design size (a
+	# wider phone only adds width). GUT's own window is square, so it is resized.
+	var window: Window = get_window()
+	var previous_size: Vector2i = window.size
+	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
+	var height: int = ProjectSettings.get_setting("display/window/size/viewport_height")
+	window.size = Vector2i(width, height)
+	var levels: ChassisLevelData = _robot().chassis_levels
+	_robot().inventory.set_slot_count(levels.get_inventory_slots(levels.get_level_count()))
+	_storage_button().pressed.emit()
+	await wait_process_frames(3)
+	var screens: Array[UIScreen] = _open_screens()
+	assert_eq(screens.size(), 1, "the inventory screen is open")
+	if screens.size() == 1:
+		var panel: Rect2 = (screens[0].get_node("Center/Panel") as Control).get_global_rect()
+		var viewport: Rect2 = _main.get_viewport().get_visible_rect()
+		assert_eq(viewport.size, Vector2(width, height), "measured on a landscape screen")
+		assert_true(viewport.encloses(panel), "the panel %s fits in %s" % [panel, viewport])
+		var button: Rect2 = _storage_button().get_global_rect()
+		assert_false(panel.intersects(button), "the panel %s leaves the button %s free" % [panel, button])
+	window.size = previous_size
+
+
 func test_r_005_24_storage_closes_container_screen() -> void:
 	await _go_to_first_box()
 	_robot().request_interact()
@@ -739,7 +767,9 @@ func test_r_008_09_other_zone_visit_does_nothing() -> void:
 	assert_eq(zone.get_enemies(), enemies, "the same enemies")
 
 
-func test_r_008_15_full_inventory_shows_notice() -> void:
+## R-008-15 is replaced by R-015-45/R-015-46: what does not fit stays in the
+## container, and "Take all" with a full inventory shows the HUD's full notice.
+func test_r_015_46_take_all_full_inventory_shows_notice() -> void:
 	_fill_robot_inventory()
 	var robot: Robot = _robot()
 	var fake: FakeTimeService = _use_fake_clock()
@@ -751,6 +781,11 @@ func test_r_008_15_full_inventory_shows_notice() -> void:
 	fake.now += 10
 	await wait_physics_frames(4)
 	robot.request_interact()
+	var screens: Array[UIScreen] = _open_screens()
+	assert_eq(screens.size(), 1, "the container screen opened")
+	if screens.size() != 1:
+		return
+	(screens[0].get_node("%TakeAllButton") as Button).pressed.emit()
 	var message: Label = _hud().get_node("%MessageLabel") as Label
 	assert_true(message.visible, "the HUD says the inventory is full")
 	assert_eq(message.text, String(InventoryComponent.MSG_INVENTORY_FULL), "with its key")
@@ -862,6 +897,18 @@ func test_r_008_35_loot_becomes_dropped_item_where_it_died() -> void:
 	assert_eq(_held(items[0].get_contents()), expected, "holding the loot")
 
 
+## Interacts, takes everything with the container screen of the dropped item
+## and closes it (spec 015, R-015-45, R-015-46).
+func _take_all_from_dropped_item(robot: Robot) -> void:
+	robot.request_interact()
+	var screens: Array[UIScreen] = _open_screens()
+	assert_eq(screens.size(), 1, "the container screen opened")
+	if screens.size() != 1:
+		return
+	(screens[0].get_node("%TakeAllButton") as Button).pressed.emit()
+	_ui_manager().close_top()
+
+
 func test_r_008_39_throw_whole_stack() -> void:
 	var robot: Robot = _robot()
 	robot.inventory.add(&"scrap", 5)
@@ -876,7 +923,7 @@ func test_r_008_39_throw_whole_stack() -> void:
 	var thrown: Dictionary[StringName, int] = {&"scrap": 5}
 	assert_eq(_held(items[0].get_contents()), thrown, "holding what was thrown")
 	await wait_physics_frames(4)
-	robot.request_interact()
+	_take_all_from_dropped_item(robot)
 	assert_eq(_held(robot.inventory), thrown, "picking it up restores the total")
 	await wait_process_frames(2)
 	assert_eq(_spawner().get_items().size(), 0, "and the dropped item is gone")
@@ -899,7 +946,7 @@ func test_r_008_39_throw_part_keeps_rest() -> void:
 	var thrown: Dictionary[StringName, int] = {&"scrap": 2}
 	assert_eq(_held(items[0].get_contents()), thrown, "holding the thrown 2")
 	await wait_physics_frames(4)
-	robot.request_interact()
+	_take_all_from_dropped_item(robot)
 	var total: Dictionary[StringName, int] = {&"scrap": 5}
 	assert_eq(_held(robot.inventory), total, "picking it up restores the total")
 
@@ -948,13 +995,23 @@ func test_r_008_44_die_respawn_and_recover() -> void:
 	if items.size() != 1:
 		return
 	assert_lt(items[0].global_position.distance_to(death_position), 0.01, "where it died")
-	assert_eq(_held(items[0].get_contents()), carried, "holding what it carried")
+	# The starting legs fell with the inventory (spec 015, R-015-25).
+	var with_legs: Dictionary[StringName, int] = carried.duplicate()
+	with_legs[&"basic_legs"] = 1
+	assert_eq(_held(items[0].get_contents()), with_legs, "holding what it carried and its legs")
 	robot.global_position = death_position
 	await wait_physics_frames(4)
 	robot.request_interact()
-	assert_eq(_held(robot.inventory), carried, "the same stacks are back")
+	# A dropped item opens the container screen (spec 015, R-015-45).
+	var screens: Array[UIScreen] = _open_screens()
+	assert_eq(screens.size(), 1, "the container screen opened")
+	if screens.size() != 1:
+		return
+	(screens[0].get_node("%TakeAllButton") as Button).pressed.emit()
+	assert_eq(_held(robot.inventory), with_legs, "the same stacks are back")
+	_ui_manager().close_top()
 	await wait_process_frames(2)
-	assert_eq(_spawner().get_items().size(), 0, "and the dropped item is gone")
+	assert_eq(_spawner().get_items().size(), 0, "and the emptied item is gone once its screen closed")
 
 
 # --- Spec 009: start in the base, travel, death with a base, building --------

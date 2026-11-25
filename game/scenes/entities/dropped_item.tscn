@@ -24,7 +24,7 @@ mesh = SubResource("bag_mesh")
 [node name="Interactable" type="Area3D" parent="."]
 unique_name_in_owner = true
 script = ExtResource("2_interactable")
-prompt_key = &"PROMPT_PICK_UP"
+prompt_key = &"PROMPT_OPEN"
 
 [node name="InteractableShape" type="CollisionShape3D" parent="Interactable"]
 shape = SubResource("interactable_shape")

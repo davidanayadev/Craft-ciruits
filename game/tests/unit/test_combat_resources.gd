@@ -4,12 +4,15 @@ extends GutTest
 ## BALANCE §11 "Combate" and never as script literals (R-007-04), no attack
 ## file can leave the robot without an attack (R-007-05) and one arm can kill
 ## both zombies (R-007-28).
+## Since spec 015 one arm is the robot's base stats and the basic arms are a
+## piece whose modifiers set its row (R-015-02); the attacks are read through
+## StatsComponent, as the robot gets them.
 ## The expected values mirror BALANCE.md §4.2 and §11; update both together.
 
-const COMBAT_DIR := "res://resources/combat"
 const ENEMIES_DIR := "res://resources/enemies"
-const ONE_ARM_PATH := "res://resources/combat/one_arm.tres"
-const BASIC_ARMS_PATH := "res://resources/combat/basic_arms.tres"
+const PIECES_DIR := "res://resources/pieces"
+const BASE_STATS_PATH := "res://resources/robot/robot_base_stats.tres"
+const BASIC_ARMS_PATH := "res://resources/pieces/basic_arms.tres"
 const COMBAT_CONFIG_PATH := "res://resources/config/combat.tres"
 const FEEDBACK_PATH := "res://resources/config/combat_feedback.tres"
 const ZOMBIE_AI_PATH := "res://resources/ai/zombie_ai.tres"
@@ -25,8 +28,25 @@ const COMBAT_FIELDS_PATTERN := (
 )
 
 
-func _load_attack(path: String) -> AttackStatsData:
-	return load(path) as AttackStatsData
+## The attack of the robot with the piece at arms_path equipped; one arm when empty.
+func _attack_with(arms_path: String) -> AttackStatsData:
+	var stats: StatsComponent = StatsComponent.new()
+	stats.base_stats = load(BASE_STATS_PATH) as RobotBaseStatsData
+	add_child_autofree(stats)
+	if not arms_path.is_empty():
+		var arms: PieceData = load(arms_path) as PieceData
+		stats.recompute(arms.modifiers)
+	return stats.get_attack()
+
+
+## One arm (empty path) and every arms piece of PIECES_DIR.
+func _arms_paths() -> PackedStringArray:
+	var paths: PackedStringArray = PackedStringArray([""])
+	for path: String in _resource_paths(PIECES_DIR):
+		var piece: PieceData = load(path) as PieceData
+		if piece != null and piece.slot_type == PieceData.SlotType.ARMS:
+			paths.append(path)
+	return paths
 
 
 ## Resource paths of a folder. Exported builds list "name.tres.remap".
@@ -50,20 +70,14 @@ func _collect_scripts(dir_path: String) -> PackedStringArray:
 
 
 func test_r_007_01_one_arm_matches_balance() -> void:
-	var attack: AttackStatsData = _load_attack(ONE_ARM_PATH)
-	assert_not_null(attack, "one_arm.tres exists and is an AttackStatsData")
-	if attack == null:
-		return
+	var attack: AttackStatsData = _attack_with("")
 	assert_eq(attack.damage, 5, "damage of one arm (BALANCE §4.2)")
 	assert_eq(attack.attacks_per_second, 1.0, "attacks per second (BALANCE §4.2)")
 	assert_eq(attack.battery_cost, 1.0, "battery per swing (BALANCE §4.2)")
 
 
 func test_r_007_01_basic_arms_match_balance() -> void:
-	var attack: AttackStatsData = _load_attack(BASIC_ARMS_PATH)
-	assert_not_null(attack, "basic_arms.tres exists and is an AttackStatsData")
-	if attack == null:
-		return
+	var attack: AttackStatsData = _attack_with(BASIC_ARMS_PATH)
 	assert_eq(attack.damage, 10, "damage of the basic arms (BALANCE §4.2)")
 	assert_eq(attack.attacks_per_second, 1.0, "attacks per second (BALANCE §4.2)")
 	assert_eq(attack.battery_cost, 1.0, "battery per swing (BALANCE §4.2)")
@@ -107,13 +121,10 @@ func test_r_007_04_impact_before_next_swing() -> void:
 		fail_test("combat.tres is missing")
 		return
 	assert_gt(config.impact_time_s, 0.0, "the impact comes after the swing starts")
-	for path: String in _resource_paths(COMBAT_DIR):
-		var attack: AttackStatsData = _load_attack(path)
-		if attack == null:
-			fail_test("%s is not an AttackStatsData" % path)
-			continue
+	for path: String in _arms_paths():
+		var attack: AttackStatsData = _attack_with(path)
 		assert_lt(
-			config.impact_time_s, CombatSystem.swing_interval(attack), "%s: impact inside its swing" % path
+			config.impact_time_s, CombatSystem.swing_interval(attack), "'%s': impact inside its swing" % path
 		)
 
 
@@ -157,21 +168,15 @@ func test_r_007_04_no_combat_literals_in_scripts() -> void:
 
 
 func test_r_007_05_every_attack_file_is_valid() -> void:
-	var paths: PackedStringArray = _resource_paths(COMBAT_DIR)
+	var paths: PackedStringArray = _arms_paths()
 	assert_gte(paths.size(), 2, "one arm and the basic arms")
 	for path: String in paths:
-		var attack: AttackStatsData = _load_attack(path)
-		assert_not_null(attack, "%s is an AttackStatsData" % path)
-		if attack == null:
-			continue
-		assert_true(CombatSystem.is_valid_attack(attack), "%s leaves the robot with an attack" % path)
+		var attack: AttackStatsData = _attack_with(path)
+		assert_true(CombatSystem.is_valid_attack(attack), "'%s' leaves the robot with an attack" % path)
 
 
 func test_r_007_28_one_arm_kills_both_zombies() -> void:
-	var attack: AttackStatsData = _load_attack(ONE_ARM_PATH)
-	if attack == null:
-		fail_test("one_arm.tres is missing")
-		return
+	var attack: AttackStatsData = _attack_with("")
 	var damage: int = CombatSystem.damage_per_hit(attack)
 	assert_gt(damage, 0, "one arm deals damage")
 	if damage <= 0:
