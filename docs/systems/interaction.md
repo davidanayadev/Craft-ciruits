@@ -1,7 +1,7 @@
 # Interacción
 
 > Un robot detecta el objeto interactuable más cercano a su alcance y lo activa con la tecla E o con el botón "Interactuar" del HUD.
-> Specs: [004](../../specs/004-green-zone/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md) · Última actualización: spec 009 (salida, banco y estación como interactuables)
+> Specs: [004](../../specs/004-green-zone/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [015](../../specs/015-pieces-slots-degradation/spec.md) · Última actualización: spec 015 (el objeto caído se abre, no se recoge)
 
 ## Piezas
 
@@ -34,9 +34,9 @@
 
 ### Objeto caído (spec 008)
 
-`DroppedItem` lleva `%Interactable` con `prompt_key = PROMPT_PICK_UP` ("Recoger" / "Pick up"), así que el HUD ofrece el
-botón sin cambios. Al interactuar, conecta `interacted` a su recogida: pasa todas las pilas al inventario del
-interactuante ([death.md](death.md)). Como viene de un pool, `setup()` lo activa y `reset()` lo desactiva
+`DroppedItem` lleva `%Interactable` con `prompt_key = PROMPT_OPEN` ("Abrir"; `PROMPT_PICK_UP` se borró en la spec 015),
+así que el HUD ofrece el botón sin cambios. Al interactuar, conecta `interacted` a `opened`: ya no coge nada, y `DroppedItemFlow` abre la pantalla de contenedor con el contenido y el
+inventario del interactuante ([death.md](death.md)). Como viene de un pool, `setup()` lo activa y `reset()` lo desactiva
 (`enabled = false`); el interactor puede apuntar un paso de física a un objeto ya devuelto, y al estar desactivado
 `interact_with_target` no hace nada. No tiene cuerpo de colisión: el robot lo atraviesa.
 
@@ -67,7 +67,7 @@ interactuante ([death.md](death.md)). Como viene de un pool, `setup()` lo activa
 - El objetivo se recalcula en `_physics_process`, no al instante: un objeto liberado deja de ser objetivo vía `get_target()`.
 - Un nuevo interactuable necesita su `CollisionShape3D` hijo; sin él el interactor no lo detecta.
 - El interactor no filtra por línea de visión ni por dirección: solo distancia.
-- Claves de aviso existentes: `PROMPT_OPEN`, `PROMPT_PICK_UP`, `PROMPT_TRAVEL` (`ExitPoint`), `PROMPT_USE` (`RepairBench`) y `PROMPT_RECHARGE` (`ChargingStation`).
+- Claves de aviso existentes: `PROMPT_OPEN` (cajas y objetos caídos), `PROMPT_TRAVEL` (`ExitPoint`), `PROMPT_USE` (`RepairBench`) y `PROMPT_RECHARGE` (`ChargingStation`).
 - Un `InteractableComponent` tiene `enabled`: `BaseStructures` lo apaga en las estructuras mientras se coloca o se mueve ([base.md](base.md)).
 - Con varios objetos caídos juntos (por ejemplo la muerte y un zombi), el interactor ofrece solo el más cercano.
 - Cada robot interactúa por separado; en co-op el `Hud` solo se enlaza al robot local.
@@ -85,4 +85,4 @@ Objeto nuevo interactuable: añadir un `InteractableComponent` con su forma de c
 | `tests/unit/test_interactor_component.gd` | Más cercano, `target_changed` con física real, radio desde datos (R-004-12, 15, 17) |
 | `tests/unit/test_hud.gd` | Botón con el `prompt_key` del objetivo, oculto sin objetivo, emite `interact_pressed` (R-004-13) |
 | `tests/integration/test_robot_interaction.gd` | E y botón abren la caja; batería agotada no interactúa (R-004-14, 16) |
-| `tests/unit/test_dropped_item.gd` | Prompt `PROMPT_PICK_UP` traducido ES/EN y recogida al interactuar (R-008-12, 13) |
+| `tests/unit/test_dropped_item.gd` | Prompt `PROMPT_OPEN` traducido ES/EN e interactuar abre sin coger (R-015-45) |

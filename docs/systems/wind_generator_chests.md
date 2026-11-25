@@ -100,7 +100,7 @@ y el reloj `ITimeService` de `GameManager.get_time_service()` ([death.md](death.
 - `StructureStates` lo crea `BaseStructures` en `_ready()`; no es un nodo de `main.tscn`.
 - El aviso del generador vacío lleva el texto ya traducido: no cambia si cambia el idioma con el aviso visible.
 - Cooperativo (v2.0): un robot que entra después debe conectarse a `max_battery_bonus_changed`; hoy solo `Main` lo hace con el local.
-- Sin desmontar estructuras, sin botón de consumibles en el HUD (ACTION_PLAN 4.1) y sin efecto del Core en la máxima (spec 015).
+- Sin desmontar estructuras, sin botón de consumibles en el HUD (ACTION_PLAN 4.1) y, desde la spec 015, la máxima es el stat del Core más la bonificación del generador (`BatteryComponent.set_base_maximum` + `set_maximum_bonus`, [battery.md](battery.md)).
 - Las aspas que giran y el toque en Android son pruebas manuales (M1, M3 del plan).
 
 ## Cómo extenderlo

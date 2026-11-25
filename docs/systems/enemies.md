@@ -84,7 +84,7 @@ marcadores en `%EnemyMarkers` (más que el máximo de enemigos). `drop_table = n
 | Distancia `INF` si no hay objetivo vivo | Batería a 0 equivale a ningún jugador sin otra regla | R-006-18, plan 006 §1 |
 | El zombie llama directo a `receive_hit`, sin `EventBus` | Relación atacante-objetivo entre dos entidades, no global | plan 006 §1 y §6, [architecture §7](../../specs/architecture.md) |
 | Objetivo por grupo `players` en cada paso | Sin referencias; sirve en co-op | plan 006 §1 |
-| `hit_received(damage, attacker)` | La degradación (spec 015) se conecta sin tocar la IA | R-006-17 |
+| `hit_received(damage, attacker)` | La degradación se conecta sin tocar la IA; desde la spec 015 el desgaste lo aplica `Robot.receive_hit` antes de restar batería ([equipment.md](equipment.md)) | R-006-17, R-015-54 |
 | Pool bajo `World`, con `prewarm` | Sobrevive a la zona, evita instanciar a mitad de juego | R-006-22, plan 006 §1, architecture §11 |
 | Dos streams de RNG separados | Cambiar la IA no mueve dónde aparecen | R-006-23..25, plan 006 §1 |
 | Navmesh horneado en el editor | Decidido en la pregunta 3 de la spec | [spec 006](../../specs/006-zombies/spec.md), R-006-20 |

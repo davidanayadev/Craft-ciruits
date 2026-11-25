@@ -5,34 +5,37 @@
 > dueña del estado.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [003](../../specs/003-battery/spec.md),
 > [005](../../specs/005-inventory/spec.md), [007](../../specs/007-melee-combat/spec.md),
-> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md) ·
-> Última actualización: spec 014 (debug HUD: nivel y "Level up"; [chassis_level.md](chassis_level.md))
+> [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md), [015](../../specs/015-pieces-slots-degradation/spec.md) ·
+> Última actualización: spec 015 (`UIManager.close`, `Kind.DROPPED`, panel de equipo, aviso "Pieza rota", barra naranja)
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
-| `UIManager` | Escena/`Control` (nodo bajo `UI`, **no** autoload) | `game/scenes/ui/ui_manager.gd` | Pila de pantallas por id; `pause`, atrás de Android y un toque fuera del panel van a la de arriba (`handle_back`) o la cierran; `is_open(id)`; `open()` devuelve la pantalla (spec 012) |
+| `UIManager` | Escena/`Control` (nodo bajo `UI`, **no** autoload) | `game/scenes/ui/ui_manager.gd` | Pila de pantallas por id; `pause`, atrás de Android y un toque fuera del panel van a la de arriba (`handle_back`) o la cierran; `is_open(id)`; `open()` devuelve la pantalla (spec 012); `close(pantalla)` cierra una pantalla esté donde esté de la pila (spec 015) |
 | `UIScreen` | Clase base | `game/scenes/ui/ui_screen.gd` | `setup(context)`, `close_requested`, `handle_back() -> bool`, `on_closed()` y, de la spec 012, `closed`, `back_requested` y `closes_on_outside_tap` |
 | `UIScreenCatalog` | Recurso | `game/scripts/data/ui_screen_catalog.gd` | Diccionario id → `PackedScene` |
 | `screens.tres` | `.tres` | `game/resources/ui/screens.tres` | Registra `inventory`, `container` (antes `loot`), `bench`, `placement` y `notice` |
-| `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería, botones Interact, almacenamiento, atacar y "Editar base" (solo con la base cargada), aviso corto (`show_notice(clave, args := [])`: inventario lleno, negativas de usar consumibles, aviso del generador, "Partida guardada") y borde rojo |
+| `Hud` | Escena | `game/scenes/ui/hud.gd` | Batería (naranja si `is_low()`), botones Interact, almacenamiento, atacar y "Editar base" (solo con la base cargada), aviso corto (`show_notice(clave, args := [])`: inventario lleno, negativas de usar consumibles, aviso del generador, "Partida guardada", "Pieza rota" con `piece_broken`) y borde rojo |
 | `LoadingScreen` | `Control` | `game/scenes/ui/loading_screen.gd` | Cubre el juego durante un viaje; fuera de `UIManager` ([travel.md](travel.md)) |
 | `BenchScreen`, `PlacementScreen` | Pantallas | [crafting.md](crafting.md), [base.md](base.md) | Banco con pestañas Construir, Crear y Reparar (sustituye a `BuildScreen`) y modo colocar/editar |
 | `AttackButton` | `Button` | `game/scenes/ui/attack_button.gd` | Botón grande de mantener, abajo a la derecha, visible en PC y móvil; emite `held_changed` |
 | `DamageFlash` | `TextureRect` | `game/scenes/ui/damage_flash.gd` | Borde rojo radial que se desvanece; `flash(duration_s)` |
-| `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, nivel de chasis ("Level: n", `level_changed`), botón "Level up" (spec 014, suma la XP que falta al siguiente umbral con `add_xp`), semilla del Mundo y botón "New world" (`new_world_requested`), solo en builds de depuración |
+| `DebugHud` | Escena (`CanvasLayer`) | `game/scenes/ui/debug_hud.gd` | FPS, XP, nivel de chasis ("Level: n", `level_changed`), botón "Level up" (spec 014, suma la XP que falta al siguiente umbral con `add_xp`), semilla del Mundo y botón "New world" (`new_world_requested`), todo en una lista tras el botón "•••" de la esquina superior derecha, cerrada al empezar; solo en builds de depuración |
 | `NoticeScreen` | `UIScreen` | `game/scenes/ui/notice_screen.gd`, `.tscn` | Aviso a pantalla completa que ni Escape ni atrás cierran; lo abre `SaveFlow` con `MSG_SAVE_NEWER_VERSION` ([save.md](save.md)) |
 | `TransferScreen` | `Control` | `game/scenes/ui/transfer_screen.gd` | "Transferencia de Consciencia" entre la muerte y la reaparición (spec 008) |
 | `QuantitySelector` | `HBoxContainer` | `game/scenes/ui/quantity_selector.gd` | − / + y deslizador de 1 a la cantidad de una pila; emite `value_changed`; `set_editable(bool)` lo desactiva sin ocultarlo (spec 013) |
 | `TouchControls` + `FloatingJoystick` | Escena | `game/scenes/ui/touch_controls.gd`, `floating_joystick.gd` | Joystick flotante, solo con pantalla táctil |
 | Pantallas de inventario | Pantallas | [inventory.md](inventory.md) | `InventoryScreen`, `ContainerScreen` y sus rejillas |
+| `EquipmentPanel` | `PanelContainer` | `game/scenes/ui/equipment_panel.gd`, `.tscn` | Panel de equipo y stats dentro de `InventoryScreen` ([equipment.md](equipment.md)) |
 | `ContainerScreen` | `UIScreen` | `game/scenes/ui/container_screen.gd`, `.tscn` | Cofre o caja abierta junto al inventario, cada rejilla con cabecera y ocupación, y una ficha fija `%ActionCard` (selección, selector de cantidad, `%MoveButton`, `%PlaceButton`, `%TakeAllButton`, `%Notice`); modos `BROWSING` / `PLACING` (spec 013) |
 
 ## Cómo funciona
 
 Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `DebugHud`, `TransferScreen` y
 `LoadingScreen` (ver el archivo para el orden exacto). Lo que va después se dibuja encima.
+Como el HUD va encima de las pantallas, el panel de una pantalla debe dejar libre el botón de almacenamiento (abajo en
+el centro), que sirve para cerrarla; `test_main_scene.gd` lo mide con el inventario en 1920×1080.
 
 1. **Abrir.** `main.gd` llama a `ui_manager.open(id, context)`. El manager busca la escena en el catálogo, la
    instancia, la añade como hijo, la apila, conecta su `close_requested` y llama a `setup(context)`. Id
@@ -82,8 +85,10 @@ Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `Deb
 11. **Carga y colocación** (009). `LoadingScreen` es como `TransferScreen`: fuera de `UIManager`, traga los toques y
     no tiene mínimo de duración. `PlacementScreen` recibe los clics del suelo en `_gui_input` (un toque llega como
     clic de ratón emulado) y usa `handle_back`/`on_closed` ([base.md](base.md)).
-12. **Contenedor** (012, 013). `ContainerScreen` solo pide. Lo abren `Main` (`Kind.LOOT_BOX`) y `StructureUseFlow`
-    (`Kind.CHEST`, [wind_generator_chests.md](wind_generator_chests.md)); `CONTEXT_KIND` elige por tabla el título, la
+12. **Contenedor** (012, 013, 015). `ContainerScreen` solo pide. Lo abren `Main` (`Kind.LOOT_BOX`), `StructureUseFlow`
+    (`Kind.CHEST`, [wind_generator_chests.md](wind_generator_chests.md)) y `DroppedItemFlow` (`Kind.DROPPED`, título
+    `DROPPED_TITLE`, cabecera `CONTAINER_HEADER_DROPPED`, botón "Dejar aquí"; [death.md](death.md)). `DROPPED` va al final
+    del enum porque los textos se indexan por valor. `CONTEXT_KIND` elige por tabla el título, la
     cabecera y el texto de "guardar". Un `Kind` que falta o no es válido es `push_error` y no se muestra nada.
     - Cabeceras: cada rejilla lleva su nombre y `usadas/total` (`InventoryRules.count_used_slots`), repintadas con
       `inventory_changed` de ambos inventarios.
@@ -110,7 +115,11 @@ Orden de hijos de `UI` en `main.tscn`: `UIManager`, `Hud`, `TouchControls`, `Deb
     `UIManager` lo trata como atrás solo si esa pantalla es la de arriba. El evento aceptado no llega a `_unhandled_input`:
     ni ataque, ni joystick, ni interacción.
 14. **Cerrado y guardado de cofres** (012). `_remove_at` emite `UIScreen.closed` tras `on_closed()`, por cualquier camino
-    (`close_all` incluido); `StructureUseFlow` lo usa para saber cuándo se cerró la pantalla de un cofre.
+    (`close_all` incluido); `StructureUseFlow` lo usa para saber cuándo se cerró la pantalla de un cofre, y
+    `DroppedItemFlow` la de un objeto caído. `UIManager.close(pantalla)` (spec 015) es el `_close` interno hecho público:
+    el flujo cierra la pantalla de un objeto caído que caduca; una pantalla que no está abierta no hace nada.
+16. **Equipo** (015). `InventoryScreen` enseña el `EquipmentPanel` junto a la rejilla, dentro de su panel único (un toque
+    entre ambos no cuenta como "fuera"). Solo pide `Robot.equip` / `unequip`; ver [equipment.md](equipment.md).
 15. **Táctil.** `TouchControls` es el único sitio que pregunta por la pantalla táctil (o `force_touch_debug`);
    oculta la capa y desactiva el joystick si no hay. Las pantallas son un fondo oscuro a pantalla completa que
    consume los toques, así que el joystick no aparece mientras hay una abierta.
@@ -154,10 +163,13 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 | `CONTEXT_KIND` (enum) en vez de `CONTEXT_TITLE` | Tres textos por tipo de contenedor sin combinaciones incoherentes | [plan 013 D8](../../specs/013-loot-box-sites-container-ui/plan.md) |
 | Duración del resaltado en `ControlConfigData.move_highlight_s` | El número es de BALANCE §11 | R-013-19, [plan 013 D15](../../specs/013-loot-box-sites-container-ui/plan.md) |
 | La pantalla de inventario (Tab) no adopta la ficha fija | Queda para la UI de la Fase 4 | [spec 013 pregunta 8](../../specs/013-loot-box-sites-container-ui/spec.md) |
+| `UIManager.close(pantalla)` público | Nadie emite señales de otro nodo: el flujo pide el cierre | [plan 015 D13](../../specs/015-pieces-slots-degradation/plan.md) |
+| Panel de equipo dentro de la pantalla de inventario, sin pantalla propia | Se equipa en cualquier sitio, con los stats junto a la rejilla | R-015-35, [plan 015 D17](../../specs/015-pieces-slots-degradation/plan.md) |
+| "Pieza rota" por `show_notice` | Hasta el sistema de avisos de ACTION_PLAN 4.1 | R-015-24 |
 
 ## Relación con otros sistemas
 
-- Usa: [battery.md](battery.md) (`battery_changed`, `battery_depleted`), [interaction.md](interaction.md)
+- Usa: [equipment.md](equipment.md) (`piece_broken`, panel de equipo), [battery.md](battery.md) (`battery_changed`, `is_low`, `battery_depleted`), [interaction.md](interaction.md)
   (`target_changed`, botón Interact), [inventory.md](inventory.md) (`overflowed`, pantallas),
   [movement.md](movement.md) (`PlayerInput`, joystick).
 - Lo usa: [combat.md](combat.md) (`CombatFeedback` llama a `flash_damage`), [death.md](death.md) (transferencia),
@@ -198,13 +210,13 @@ maquetación o tiempo de UI, no de [BALANCE.md](../../BALANCE.md). Los valores d
 
 | Archivo | Verifica |
 |---|---|
-| `tests/unit/test_ui_manager.gd` | Pila, ids desconocidos/repetidos, `modal_state_changed`, `close_top`/`close_all`, `pause` y atrás, `handle_back` que mantiene la pantalla, `on_closed` en cada cierre, `is_open`; tocar fuera (solo la de arriba, vía `handle_back`, evento aceptado) |
+| `tests/unit/test_ui_manager.gd` | Pila, ids desconocidos/repetidos, `modal_state_changed`, `close_top`/`close_all`/`close(pantalla)`, `pause` y atrás, `handle_back` que mantiene la pantalla, `on_closed` en cada cierre, `is_open`; tocar fuera (solo la de arriba, vía `handle_back`, evento aceptado) |
 | `tests/unit/test_container_screen.gd` | Cabeceras por tipo, ficha fija (tamaño y sin selección), tocar solo selecciona, botón con destino, modo colocar, atrás y toque fuera salen del modo, coger todo, rechazos, resaltado, sin comprobaciones de plataforma, no se cierra vacía |
-| `tests/unit/test_hud.gd` | Barra y número de batería, botón Interact con/sin bloqueo, mensaje de inventario lleno, `use_refused`, avisos con argumentos, botón de atacar, borde rojo, botón "Editar base" solo en la base |
+| `tests/unit/test_hud.gd` | Barra y número de batería, barra naranja por debajo del umbral, aviso "Pieza rota", botón Interact con/sin bloqueo, mensaje de inventario lleno, `use_refused`, avisos con argumentos, botón de atacar, borde rojo, botón "Editar base" solo en la base |
 | `tests/unit/test_loading_screen.gd` | Oculta hasta `show_loading()`, textos como claves, traga toques |
 | `tests/unit/test_transfer_screen.gd` | Título traducido, oculta hasta `play()`, traga toques, duración desde la config, `finished` una vez |
 | `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador, `set_editable` |
-| `tests/unit/test_debug_hud.gd` | Muestra la XP, la semilla y `new_world_requested` |
+| `tests/unit/test_debug_hud.gd` | Muestra la XP, la semilla y `new_world_requested`; lista cerrada tras el botón "•••" |
 | `tests/unit/test_notice_screen.gd` | Texto como clave y que no se cierra |
 | `tests/integration/test_hud_attack_input.gd` | Un clic en un botón del HUD no es un golpe |
 | `tests/unit/test_floating_joystick.gd` | Joystick táctil y modo ratón de depuración |

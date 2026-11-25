@@ -2,23 +2,23 @@
 
 > Ranuras de ítems por entidad (robot, cajas de loot, cofres), con reglas de apilado puras y las
 > pantallas que las muestran. Es la primera pieza de estado por jugador después de la batería.
-> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md), [014](../../specs/014-chassis-level/spec.md) · Última actualización: spec 014 (ranuras por nivel)
+> Specs: [005](../../specs/005-inventory/spec.md), [008](../../specs/008-death-recovery/spec.md), [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md), [011](../../specs/011-crafting-repair/spec.md), [012](../../specs/012-wind-generator-chests/spec.md), [013](../../specs/013-loot-box-sites-container-ui/spec.md), [014](../../specs/014-chassis-level/spec.md), [015](../../specs/015-pieces-slots-degradation/spec.md) · Última actualización: spec 015 (`exchange_slot`, equipar desde la pantalla)
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
 | `InventoryRules` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/inventory_rules.gd` | Apila, cuenta y quita sobre un `Array[ItemStack]` recibido por parámetro (`null` = ranura vacía). Spec 011: `add_stack`, `is_valid_stack`, `index_of_uid`. Spec 012: `can_merge`, `move_to_slot`, `transfer`. Spec 013: `count_used_slots` (ranuras con pila) |
-| `InventoryComponent` | Componente (`Node`) | `game/scripts/components/inventory_component.gd` | Dueño y único escritor de las ranuras; valida, delega en las reglas y devuelve resultados. Spec 011: `craft` y `repair` ([crafting.md](crafting.md)). Spec 012: `move_to_slot`, `transfer_to` |
+| `InventoryComponent` | Componente (`Node`) | `game/scripts/components/inventory_component.gd` | Dueño y único escritor de las ranuras; valida, delega en las reglas y devuelve resultados. Spec 011: `craft` y `repair` ([crafting.md](crafting.md)). Spec 012: `move_to_slot`, `transfer_to`. Spec 015: `exchange_slot(índice, pila o null)`, con el que el inventario escribe su propia ranura al equipar ([equipment.md](equipment.md)) |
 | `ItemStack` | Dato (`RefCounted`) | `game/scripts/data/item_stack.gd` | `item`, `quantity`, `durability` (-1 si no aplica) y `uid` (vacío en pilas normales); `copy()` los conserva y no comparte estado. Una pieza (`PieceData`) siempre lleva ambos |
 | `InventoryAddResult` | Dato (hereda de `ActionResult`) | `game/scripts/data/inventory_add_result.gd` | Resultado de añadir/mover: `ok`, `error_key` y `leftovers` |
 | `ChassisLevelData` | Recurso | `game/scripts/data/chassis_level_data.gd` | Tabla de XP y ranuras por nivel de chasis |
 | `chassis_levels.tres` | `.tres` | `game/resources/progression/chassis_levels.tres` | La tabla real |
 | `InventoryGrid` | Presentación | `game/scenes/ui/inventory_grid.gd` | Una celda por ranura de un componente; se repinta con `inventory_changed`; `flash_slots` y `set_targets_marked` (spec 013) |
 | `InventorySlotView` | Presentación | `game/scenes/ui/inventory_slot.gd` | Una celda (`Button`): icono y cantidad, o aspecto vacío; marco de selección, resaltado que se apaga solo (`flash_highlight`) y contorno de destino (`set_target_marked`), spec 013 |
-| `InventoryScreen` | Pantalla | `game/scenes/ui/inventory_screen.gd` | Inventario del jugador; selecciona una pila y pide tirarla o, si es consumible, usarla (botón "Usar", spec 012) |
+| `InventoryScreen` | Pantalla | `game/scenes/ui/inventory_screen.gd` | Inventario del jugador; selecciona una pila y pide tirarla o, si es consumible, usarla (botón "Usar", spec 012). Spec 015: con el robot en el contexto enseña el `EquipmentPanel`, pide "Equipar" / "Quitar" y la ficha muestra la durabilidad de una pieza ("72/100") |
 | `QuantitySelector` | Presentación | `game/scenes/ui/quantity_selector.gd`, `.tscn` | − / + y deslizador de 1 a la pila; solo informa del número |
-| `ContainerScreen` | Pantalla | `game/scenes/ui/container_screen.gd` | Cofre o caja abierta junto al inventario del jugador: cabeceras con ocupación, ficha fija, pasar, colocar, "Coger todo" (sustituye a `LootScreen`, spec 012; ficha de la spec 013) |
+| `ContainerScreen` | Pantalla | `game/scenes/ui/container_screen.gd` | Cofre, caja u objeto caído (`Kind.DROPPED`, spec 015) abierto junto al inventario del jugador: cabeceras con ocupación, ficha fija, pasar, colocar, "Coger todo" (sustituye a `LootScreen`, spec 012; ficha de la spec 013) |
 
 ## Cómo funciona
 
@@ -61,7 +61,18 @@
    vacía o la cantidad no está en 1..pila); es la regla pura que reutiliza `move_to_slot` (spec 012).
 5. `InventoryComponent.clear(n)` vacía el componente y lo deja con `n` ranuras: lo usan los objetos caídos del pool.
 6. Al morir, `DeathController` mueve todas las pilas a un `DroppedItem` con `take_from`; las ranuras del robot no
-   cambian.
+   cambian. Recoger lo caído es abrir el objeto en `ContainerScreen` ([death.md](death.md)): ya no hay un "recoger todo"
+   directo con `take_from`.
+
+### Equipar (spec 015)
+
+1. Con una pieza seleccionada, `%EquipButton` dice "Equipar" y llama `Robot.equip(ranura)`; con una ranura del equipo
+   ocupada seleccionada, dice "Quitar" y llama `Robot.unequip(ranura)`. La pantalla es dueña de la selección: una ranura
+   del inventario o una del equipo, nunca las dos.
+2. `EquipmentComponent` pide al inventario `exchange_slot(índice, lo que estaba equipado o null)`: el inventario escribe
+   su ranura y devuelve un `ActionResult`; la pieza mantiene `uid` y durabilidad. Quitar usa `add_stacks`: una pieza ocupa
+   la primera ranura vacía; sin ninguna, `ERR_NO_FREE_SLOT`. Un rechazo sale en `%Notice`.
+3. Equipar sale con `inventory_changed` y después `equipment_changed`; la pantalla repinta ambos lados.
 
 ### Guardado (spec 010)
 
@@ -144,6 +155,7 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
   `overflowed` para mostrar `MSG_INVENTORY_FULL` durante 3 s), [interaction.md](interaction.md) (el robot abre la
   caja con su `InteractorComponent`).
 - [death.md](death.md): la muerte, tirar items y recoger usan `take_from` / `take_amount_from` entre inventarios.
+  [equipment.md](equipment.md): equipar usa `exchange_slot` y `add_stacks`.
 - Lo guarda [save.md](save.md). [crafting.md](crafting.md) crea y repara piezas con `craft` y `repair`. Cofres y consumibles: [wind_generator_chests.md](wind_generator_chests.md).
 
 ## Trampas y límites
@@ -153,7 +165,9 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
 - `count()` de un id desconocido hace `push_error` y devuelve 0.
 - `set_slot_count` no reduce (error y `ERR_INVALID_REQUEST`).
 - No hay arrastrar ni ordenar ([spec 005 §4](../../specs/005-inventory/spec.md)). Dividir y colocar por
-  ranura solo existe en `ContainerScreen`; `InventoryScreen` (Tab) sigue solo con tirar y usar. Lo que queda en una caja
+  ranura solo existe en `ContainerScreen`; `InventoryScreen` (Tab) sigue solo con tirar, usar y equipar.
+- `exchange_slot` solo es para quien ya tiene en la mano la pila entrante (el equipo): llamarlo de otro modo duplicaría
+  objetos. Lo que queda en una caja
   se descarta al repoblar la zona.
 - `durability` y `uid` se conservan en todos los caminos de una pila (spec 011). Quien cree una pieza (botín de la
   spec 016) debe usar `CraftingSystem.create_result`: `ItemStack.new` sin `uid` la haría rechazar.
@@ -177,10 +191,10 @@ La capacidad de una caja abierta y de un cofre sale de `container.tres` ([BALANC
 | Archivo | Verifica |
 |---|---|
 | `tests/unit/test_inventory_rules.gd` | Apilado, orden de relleno, `count`, `remove` de atrás hacia delante; `split` entero, parcial e inválido; `move_to_slot` y `transfer` (colocar, sumar, intercambio entero, parcial rechazado, piezas, inválidas); piezas que no se fusionan, `add_stack` y `split` con durabilidad y `uid`, `is_valid_stack`, `index_of_uid` |
-| `tests/unit/test_inventory_component.gd` | Validación, señales una vez por operación, `take_from`, `take_amount_from`, `clear`, copias, `overflowed`, `move_to_slot` y `transfer_to` (una señal por inventario, rechazos sin cambio); piezas (rechazo, conservación, carga inválida), `craft` y `repair` |
+| `tests/unit/test_inventory_component.gd` | Validación, señales una vez por operación, `take_from`, `take_amount_from`, `clear`, copias, `overflowed`, `move_to_slot` y `transfer_to` (una señal por inventario, rechazos sin cambio); piezas (rechazo, conservación, carga inválida), `craft` y `repair`; `exchange_slot` |
 | `tests/unit/test_quantity_selector.gd` | Rango 1..máximo, empieza en el máximo, − / + y deslizador |
 | `tests/unit/test_chassis_level_data.gd` | Tabla y `validate()` (spec 014: primer umbral 0, ranuras no decrecientes) |
 | `tests/unit/test_item_stack.gd` | `durability`, `uid` y `copy()` |
 | `tests/integration/test_save_contract.gd`, `test_save_load.gd` | Formato de ranuras, ranuras malas, una sola señal |
-| `tests/unit/test_inventory_screen.gd`, `test_container_screen.gd` | Celdas, repintado por señal, selección, selector, botones "Tirar" y "Usar"; contenedor: seleccionar, colocar, transferir, coger todo, no se cierra al vaciarse |
+| `tests/unit/test_inventory_screen.gd`, `test_container_screen.gd` | Celdas, repintado por señal, selección, selector, botones "Tirar", "Usar" y "Equipar"/"Quitar", ficha de durabilidad; contenedor: seleccionar, colocar, transferir, coger todo, no se cierra al vaciarse |
 | `tests/integration/test_robot_inventory.gd` | El robot tiene su inventario con las ranuras del nivel 1, ningún autoload guarda contenido y `request_throw` emite |

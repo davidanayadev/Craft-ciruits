@@ -3,14 +3,14 @@
 > El robot golpea con un brazo en la dirección que mira, cada golpe cuesta batería, los zombies mueren y el robot
 > suma XP. Incluye el feedback del golpe (destello, sacudida, chispas, borde rojo).
 > Specs: [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) (solo
-> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada), [014](../../specs/014-chassis-level/spec.md) (nivel en `ExperienceComponent`) · Última actualización: spec 014
+> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada), [014](../../specs/014-chassis-level/spec.md) (nivel en `ExperienceComponent`), [015](../../specs/015-pieces-slots-degradation/spec.md) (el ataque sale de los brazos equipados) · Última actualización: spec 015
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
 | `CombatSystem` | Sistema puro (`RefCounted`) | `game/scripts/systems/combat_system.gd` | Cuándo puede empezar un golpe, cuándo llega el impacto, cuánto daña |
-| `MeleeAttackComponent` | Componente (`Node3D`, hijo del robot) | `game/scripts/components/melee_attack_component.gd` | Estado del golpe y hitbox; `tick()`, `apply_impact()`, `cancel_swing()` |
+| `MeleeAttackComponent` | Componente (`Node3D`, hijo del robot) | `game/scripts/components/melee_attack_component.gd` | Estado del golpe y hitbox; `tick()`, `set_attack()`, `apply_impact()`, `cancel_swing()` |
 | `HurtboxComponent` | Componente (`Area3D`) | `game/scripts/components/hurtbox_component.gd` | Lo que detecta el hitbox; recuerda al último atacante |
 | `HitFlashComponent` | Componente | `game/scripts/components/hit_flash_component.gd` | Destello blanco (`material_overlay`) de una entidad golpeada |
 | `ExperienceComponent` | Componente | `game/scripts/components/experience_component.gd` | XP total del jugador; `reward_kill()`. Desde la spec 014 también el nivel de chasis ([chassis_level.md](chassis_level.md)) |
@@ -22,15 +22,19 @@
 | `AttackButton`, `DamageFlash` | Controles del HUD | `game/scenes/ui/attack_button.gd`, `damage_flash.gd` | Botón de mantener y borde rojo ([ui.md](ui.md)) |
 | `PlayerInput.poll_attack()` | Método | `game/scripts/components/player_input.gd` | Entrada de ataque ([movement.md](movement.md)) |
 | `AttackStatsData`, `CombatConfigData`, `CombatFeedbackData` | Recursos | `game/scripts/data/` | Daño y ritmo; hitbox e impacto; tiempos de feedback |
-| `.tres` | Datos | `resources/combat/one_arm.tres`, `basic_arms.tres`, `resources/config/combat.tres`, `combat_feedback.tres`, `resources/materials/hit_flash.tres` | Valores reales |
+| `.tres` | Datos | `resources/config/combat.tres`, `combat_feedback.tres`, `resources/materials/hit_flash.tres` | Valores reales |
 
 ## Cómo funciona
 
 1. **Entrada.** Cada paso de física `Robot._physics_process` mueve y gira primero y después llama a
    `melee.tick(delta, player_input.poll_attack(), battery.is_depleted(), player_input.is_input_blocked())`.
 2. **Empezar un golpe.** `tick()` suma `delta`; si `CombatSystem.can_start_swing()` lo permite, pone el contador a
-   0, marca el impacto como pendiente y emite `swing_started(battery_cost)`. Una pulsación que no puede empezar
-   golpe se descarta, no se encola.
+   0, marca el impacto como pendiente, guarda `_swing_attack = attack` y emite `swing_started(battery_cost)`. Una
+   pulsación que no puede empezar golpe se descarta, no se encola. Sin un `attack` válido `tick()` no hace nada.
+   **Qué ataque (spec 015).** `attack` ya no es un `@export`: `Robot._apply_stats` llama `set_attack()` con
+   `StatsComponent.get_attack()` en cada `stats_changed` ([stats.md](stats.md)). Un golpe en curso conserva los valores con
+   que empezó (`apply_impact` usa `_swing_attack`); `set_attack` sin golpe pendiente actualiza también `_swing_attack`, así
+   `apply_impact` sigue funcionando llamado a mano. El ritmo y el siguiente golpe usan ya los valores nuevos.
 3. **Coste y animación.** `Robot._on_swing_started` hace `battery.consume(cost)` (acierte o no, aunque lo agote) y
    reinicia la animación `attack`, que es solo presentación ([battery.md](battery.md)).
 4. **Impacto.** Cuando `CombatSystem.impact_reached()` marca el paso del momento de impacto
@@ -63,13 +67,13 @@ Botón/Espacio/clic -> PlayerInput.poll_attack -> MeleeAttack.tick -> swing_star
 
 | Recurso | Clase | Valores desde |
 |---|---|---|
-| `one_arm.tres`, `basic_arms.tres` | `AttackStatsData` | [BALANCE.md §4.2](../../BALANCE.md), coste por golpe en §1.1 |
+| `robot_base_stats.tres` y `PieceData.modifiers` de los brazos | `RobotBaseStatsData`, `StatModifier` | [BALANCE.md §4.2](../../BALANCE.md), coste por golpe en §1.1 ([stats.md](stats.md)) |
 | `combat.tres` | `CombatConfigData` | BALANCE.md §11 ("Combate") |
 | `combat_feedback.tres` | `CombatFeedbackData` | BALANCE.md §11 ("Combate") |
 | `zombie_slow.tres`, `zombie_fast.tres` (`xp_reward`) | `EnemyData` | BALANCE.md §3.1 y §6.2 |
 
-El robot usa `one_arm.tres`. `basic_arms.tres` no lo usa nadie hasta la spec 015 (existe porque lo pide R-007-01).
-El alto de la caja del hitbox y su altura son geometría de colisión en `robot.tscn`, no balance.
+`AttackStatsData` es un objeto de valor que construye `StatsComponent`; ya no hay `.tres` de ataque. Sin brazos equipados
+el robot pega con los valores de un brazo de la base. El alto de la caja del hitbox y su altura son geometría de colisión en `robot.tscn`, no balance.
 
 ## Decisiones
 
@@ -79,7 +83,8 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 | `tick()` sin `_physics_process` propio | El ritmo se prueba con `delta` a mano | R-007-08, plan 007 §1 |
 | Sin auto-apuntado: golpea hacia donde mira | Se quita esa facilidad a propósito | R-007-13, PMV §10 |
 | Se mueve y gira libre durante el golpe | Decisión cerrada nov 2026 (pregunta 6) | R-007-14 |
-| El robot nunca se queda sin ataque: un brazo | Red de seguridad hasta la spec 015 | R-007-02, spec 007 pregunta 1 |
+| El robot nunca se queda sin ataque: un brazo | Red de seguridad; desde la 015 son los valores de la base sin brazos | R-007-02, R-015-16, spec 007 pregunta 1 |
+| El golpe empezado termina con los valores con que empezó | El golpe empezado se paga y termina | R-015-17, [plan 015 D11](../../specs/015-pieces-slots-degradation/plan.md) |
 | El coste se paga al empezar, acierte o no | BALANCE §1.1 | R-007-10 |
 | `killer_uid` en `HurtboxComponent`, `take_damage` no cambia | `HealthComponent` no sabe de jugadores | plan 007 §1, spec pregunta 8 |
 | `enemy_killed` por el bus; el golpe, por llamada directa | La XP, la guía y el audio no se conocen entre sí; atacante-objetivo sí | plan 007 §6 (P6), [architecture §7](../../specs/architecture.md) |
@@ -99,8 +104,8 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 ## Trampas y límites
 
 - El impacto ve la posición del hurtbox del zombie un paso de física atrás (≤ 6 cm a su velocidad): aceptado.
-- No hay armas, degradación por golpe, retroceso, hit stop, SFX ni HUD de XP (spec 015 y ACTION_PLAN 4.x). Desde la
-  spec 014 la XP sube el nivel de chasis ([chassis_level.md](chassis_level.md)); `ExperienceComponent` ya no solo acumula.
+- No hay armas, retroceso, hit stop, SFX ni HUD de XP (ACTION_PLAN 4.x). El desgaste lo aplica `Robot.receive_hit`
+  ([equipment.md](equipment.md)), no este componente. Desde la spec 014 la XP sube el nivel de chasis ([chassis_level.md](chassis_level.md)); `ExperienceComponent` ya no solo acumula.
 - `player_uid` es aleatorio hasta que `Robot.set_player_uid` le da el `player_uuid` del Perfil (también al ataque, `melee.attacker_uid`). `ExperienceComponent` es dueño de guardado (`experience`: el total) y cargar emite `xp_changed` y `level_changed` pero nunca `level_up` ([save.md](save.md), [chassis_level.md](chassis_level.md)).
 - `enemy_killed` sale dentro de un paso de física: un oyente que toque el árbol debe usar `call_deferred`.
 - `reward_kill` con un id fuera del catálogo da un solo `push_error` y no suma.
@@ -109,7 +114,8 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 
 ## Cómo extenderlo
 
-- Otro ataque: `AttackStatsData` `.tres` con su sección en BALANCE §4.2 y asignarlo a `Robot.melee.attack`.
+- Otro ataque: los modificadores de la pieza de brazos (`attack_damage`, `attacks_per_second`, `battery_per_swing`) con su
+  sección en BALANCE §4.2; ver [stats.md](stats.md). Nunca asignar `attack` a mano: usar `set_attack()`.
 - Otra entidad que reciba golpes: `HurtboxComponent` con su `HealthComponent` y forma, como en `zombie.tscn`.
 - Otro feedback: conectarlo en `CombatFeedback.bind`, nunca en la lógica del golpe.
 
@@ -118,8 +124,8 @@ El alto de la caja del hitbox y su altura son geometría de colisión en `robot.
 | Archivo | Verifica |
 |---|---|
 | `tests/unit/test_combat_system.gd` | Puede empezar, enfriamiento, batería agotada, input bloqueado, 60 pasos = 1 s |
-| `tests/unit/test_combat_resources.gd` | `.tres` de ataque y feedback frente a BALANCE, sin literales, golpes para matar |
-| `tests/unit/test_melee_attack_component.gd` | Ritmo, coste, daño una vez por objetivo, máscara de la consulta |
+| `tests/unit/test_combat_resources.gd` | Feedback y combate frente a BALANCE, sin literales, golpes para matar |
+| `tests/unit/test_melee_attack_component.gd` | Ritmo, coste, daño una vez por objetivo, máscara de la consulta; R-015-17: el golpe pendiente conserva sus valores |
 | `tests/unit/test_hurtbox_component.gd` | Capa, último atacante, daño negativo |
 | `tests/unit/test_experience_component.gd` | Suma, `reward_kill`, errores, `reset` |
 | `tests/unit/test_event_bus.gd`, `test_uid.gd` | Firma del evento, bus sin estado, formato del uid |
