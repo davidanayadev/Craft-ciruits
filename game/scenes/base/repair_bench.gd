@@ -33,16 +33,20 @@ func craft(player: Robot, recipe: RecipeData) -> ActionResult:
 	return result
 
 
-## The player's repair request: the player's inventory repairs piece_uid with
-## the catalog's repair costs and, when it succeeds, EventBus.piece_repaired.
-## No player → push_error, ERR_INVALID_REQUEST.
+## The player's repair request: the piece piece_uid, equipped (spec 015,
+## R-015-30) or in the inventory, is repaired with the catalog's repair costs,
+## paid from the player's inventory, and, when it succeeds,
+## EventBus.piece_repaired. No player → push_error, ERR_INVALID_REQUEST.
 func repair(player: Robot, piece_uid: String) -> ActionResult:
 	if player == null:
 		push_error("RepairBench '%s': repair() needs a player." % name)
 		return ActionResult.failure(InventoryComponent.ERR_INVALID_REQUEST)
-	var result: ActionResult = player.inventory.repair(
-		piece_uid, DataRegistry.get_catalog().repair_costs
-	)
+	var costs: RepairCostData = DataRegistry.get_catalog().repair_costs
+	var result: ActionResult = null
+	if player.equipment.has_piece(piece_uid):
+		result = player.equipment.repair(piece_uid, player.inventory, costs)
+	else:
+		result = player.inventory.repair(piece_uid, costs)
 	if result.ok:
 		EventBus.piece_repaired.emit(piece_uid, player.player_uid)
 	return result

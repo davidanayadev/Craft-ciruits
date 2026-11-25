@@ -27,7 +27,8 @@ var _player: Robot = null
 
 
 ## Missing or wrong context → push_error, no entries. Connects the player's
-## inventory_changed.
+## inventory_changed and, for the equipped pieces of the Repair tab (spec 015),
+## its equipment_changed and durability_changed.
 func setup(context: Dictionary) -> void:
 	_set_tab_titles()
 	var player: Robot = context.get(CONTEXT_PLAYER) as Robot
@@ -45,6 +46,8 @@ func setup(context: Dictionary) -> void:
 	_repair.setup(player, bench, DataRegistry.get_catalog().repair_costs)
 	_build.build_picked.connect(_on_build_picked)
 	player.inventory.inventory_changed.connect(_on_inventory_changed)
+	player.equipment.equipment_changed.connect(_on_equipment_changed)
+	player.equipment.durability_changed.connect(_on_durability_changed)
 	show_tab(Tab.BUILD)
 
 
@@ -57,8 +60,14 @@ func show_tab(tab: Tab) -> void:
 
 
 func on_closed() -> void:
-	if _player != null and _player.inventory.inventory_changed.is_connected(_on_inventory_changed):
+	if _player == null:
+		return
+	if _player.inventory.inventory_changed.is_connected(_on_inventory_changed):
 		_player.inventory.inventory_changed.disconnect(_on_inventory_changed)
+	if _player.equipment.equipment_changed.is_connected(_on_equipment_changed):
+		_player.equipment.equipment_changed.disconnect(_on_equipment_changed)
+	if _player.equipment.durability_changed.is_connected(_on_durability_changed):
+		_player.equipment.durability_changed.disconnect(_on_durability_changed)
 
 
 ## Translated here rather than trusting TabBar to translate its titles (plan 011 D10).
@@ -70,6 +79,14 @@ func _set_tab_titles() -> void:
 func _on_inventory_changed() -> void:
 	_build.refresh()
 	_craft.refresh()
+	_repair.refresh()
+
+
+func _on_equipment_changed() -> void:
+	_repair.refresh()
+
+
+func _on_durability_changed(_slot: PieceData.SlotType, _durability: int) -> void:
 	_repair.refresh()
 
 

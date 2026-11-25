@@ -133,3 +133,35 @@ func test_r_011_21_base_gives_its_bench() -> void:
 	var base: BaseZone = BASE_SCENE.instantiate() as BaseZone
 	add_child_autofree(base)
 	assert_same(base.get_bench(), base.get_node("%RepairBench"), "get_bench returns the base's bench")
+
+
+# --- Equipped pieces (spec 015) -------------------------------------------------
+
+
+func test_r_015_30_bench_repairs_equipped_and_emits() -> void:
+	var robot: Robot = _new_robot()
+	var arms: ItemStack = _give_damaged_arms(robot, 50)
+	assert_true(robot.equip(0).ok, "the damaged arms are equipped")
+	robot.inventory.add(&"iron", 2)
+	robot.inventory.add(&"cables", 1)
+	watch_signals(EventBus)
+	var result: ActionResult = _bench.repair(robot, arms.uid)
+	assert_true(result.ok, "repaired while equipped")
+	var equipped: ItemStack = robot.equipment.get_piece(PieceData.SlotType.ARMS)
+	assert_eq(equipped.uid, arms.uid, "still equipped, same uid")
+	assert_eq(equipped.durability, (arms.item as PieceData).durability_max, "at its maximum")
+	assert_eq(robot.inventory.count(&"iron"), 0, "paid from the inventory (BALANCE §4.3.2)")
+	assert_eq(robot.inventory.count(&"cables"), 0, "paid from the inventory (BALANCE §4.3.2)")
+	assert_signal_emit_count(EventBus, "piece_repaired", 1, "once per repair")
+	assert_signal_emitted_with_parameters(EventBus, "piece_repaired", [arms.uid, robot.player_uid])
+
+
+func test_r_015_30_bench_equipped_refused_emits_nothing() -> void:
+	var robot: Robot = _new_robot()
+	var arms: ItemStack = _give_damaged_arms(robot, 50)
+	assert_true(robot.equip(0).ok, "the damaged arms are equipped")
+	watch_signals(EventBus)
+	var result: ActionResult = _bench.repair(robot, arms.uid)
+	assert_eq(result.error_key, CraftingSystem.ERR_NOT_ENOUGH_MATERIALS, "nothing to pay with")
+	assert_eq(robot.equipment.get_piece(PieceData.SlotType.ARMS).durability, 50, "unchanged")
+	assert_signal_not_emitted(EventBus, "piece_repaired", "no event for a refused repair")

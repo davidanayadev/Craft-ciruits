@@ -22,6 +22,7 @@ const CONTEXT_INVENTORY := &"inventory"
 const CONTEXT_KIND := &"kind"
 const CHEST_TITLE_KEY := &"CHEST_TITLE"
 const LOOT_TITLE_KEY := &"LOOT_TITLE"
+const DROPPED_TITLE_KEY := &"DROPPED_TITLE"
 const NO_SELECTION := -1
 
 const _INVENTORY_HEADER_KEY := &"CONTAINER_HEADER_INVENTORY"
@@ -34,15 +35,18 @@ const _PLACE_KEY := &"CONTAINER_PLACE"
 const _CANCEL_KEY := &"CONTAINER_CANCEL"
 
 enum GridSide { CONTAINER, PLAYER }
-enum Kind { LOOT_BOX, CHEST }
+## New kinds go at the end: the texts are indexed by value (plan 013 D8).
+enum Kind { LOOT_BOX, CHEST, DROPPED }
 ## BROWSING: a tap selects. PLACING: a tap on a slot moves the selection there.
 enum Mode { BROWSING, PLACING }
 
 ## Texts of each Kind, indexed by its value (plan 013 D8).
-const _TITLE_KEYS: Array[StringName] = [LOOT_TITLE_KEY, CHEST_TITLE_KEY]
-const _HEADER_KEYS: Array[StringName] = [&"CONTAINER_HEADER_BOX", &"CONTAINER_HEADER_CHEST"]
+const _TITLE_KEYS: Array[StringName] = [LOOT_TITLE_KEY, CHEST_TITLE_KEY, DROPPED_TITLE_KEY]
+const _HEADER_KEYS: Array[StringName] = [
+	&"CONTAINER_HEADER_BOX", &"CONTAINER_HEADER_CHEST", &"CONTAINER_HEADER_DROPPED"
+]
 const _MOVE_TO_CONTAINER_KEYS: Array[StringName] = [
-	&"CONTAINER_MOVE_TO_BOX", &"CONTAINER_STORE_IN_CHEST"
+	&"CONTAINER_MOVE_TO_BOX", &"CONTAINER_STORE_IN_CHEST", &"CONTAINER_LEAVE_IN_DROPPED"
 ]
 
 ## Source of move_highlight_s, the destination highlight (BALANCE §11).

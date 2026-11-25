@@ -125,8 +125,8 @@ func test_r_004_13_button_shows_target_prompt() -> void:
 	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_OPEN"))
 	assert_true(_interact_button.visible, "shown while the robot has a target")
 	assert_eq(_interact_button.text, "PROMPT_OPEN", "the text is the target's translation key")
-	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_PICK_UP"))
-	assert_eq(_interact_button.text, "PROMPT_PICK_UP", "it follows a change of target")
+	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_USE"))
+	assert_eq(_interact_button.text, "PROMPT_USE", "it follows a change of target")
 	_robot.interactor.target_changed.emit(null)
 	assert_false(_interact_button.visible, "hidden again without target")
 
@@ -215,11 +215,11 @@ func test_r_005_27_interact_button_hidden_while_modal() -> void:
 	assert_true(_interact_button.visible, "shown with a target and no screen open")
 	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	assert_false(_interact_button.visible, "hidden while a screen is open")
-	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_PICK_UP"))
+	_robot.interactor.target_changed.emit(_new_target(&"PROMPT_USE"))
 	assert_false(_interact_button.visible, "a new target does not bring it back while open")
 	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
 	assert_true(_interact_button.visible, "shown again when the screen closes")
-	assert_eq(_interact_button.text, "PROMPT_PICK_UP", "with the current target's prompt")
+	assert_eq(_interact_button.text, "PROMPT_USE", "with the current target's prompt")
 	_robot.player_input.set_input_blocked(true, PlayerInput.REASON_SCREEN)
 	_robot.interactor.target_changed.emit(null)
 	_robot.player_input.set_input_blocked(false, PlayerInput.REASON_SCREEN)
@@ -486,3 +486,55 @@ func test_r_012_20_notice_with_arguments_formats_the_translation() -> void:
 func test_r_012_20_notice_without_arguments_unchanged() -> void:
 	_hud.show_notice(SaveManager.ERR_SAVE_FAILED)
 	assert_eq(_message_label.text, String(SaveManager.ERR_SAVE_FAILED), "no args: the key, as before")
+
+
+# --- Spec 015: broken piece notice and low battery colour ----------------------
+
+
+func _fill_is_low() -> bool:
+	return _bar.has_theme_stylebox_override(&"fill") and _bar.get_theme_stylebox(&"fill") == _hud.low_battery_fill
+
+
+func test_r_015_24_piece_broken_notice_names_piece() -> void:
+	_hud.bind(_robot)
+	var legs: PieceData = _robot.equipment.get_piece(PieceData.SlotType.LEGS).item as PieceData
+	for i: int in ceili(float(legs.durability_max) / _robot.stats.get_stat(StatIds.DURABILITY_PER_HIT)):
+		_robot.receive_hit(0.0, null)
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.LEGS), "the legs broke")
+	assert_true(_message_label.visible, "the short message shows")
+	assert_eq(_message_label.text, tr(Hud.MSG_PIECE_BROKEN) % tr(legs.name_key), "naming the piece")
+
+
+func test_r_015_24_piece_broken_key_translated() -> void:
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		if translations.size() != 1:
+			fail_test("no translation file for %s" % locale)
+			continue
+		assert_ne(translations[0].get_message(Hud.MSG_PIECE_BROKEN), "", "%s has a text" % locale)
+
+
+func test_r_015_43_bar_orange_below_threshold() -> void:
+	_hud.bind(_robot)
+	assert_not_null(_hud.low_battery_fill, "the HUD has a low battery fill")
+	assert_false(_fill_is_low(), "a full battery has its normal colour")
+	var threshold: float = _robot.battery.get_maximum() * _robot.battery.config.low_threshold_ratio
+	_robot.battery.consume(_robot.battery.get_current() - threshold)
+	assert_false(_fill_is_low(), "at the threshold it is not low yet")
+	_robot.battery.consume(0.5)
+	assert_true(_fill_is_low(), "below the threshold: orange")
+	_robot.battery.recharge_full()
+	assert_false(_fill_is_low(), "a recharge brings the normal colour back")
+
+
+func test_r_015_43_follows_load_and_bonus() -> void:
+	_hud.bind(_robot)
+	var threshold: float = _robot.battery.get_maximum() * _robot.battery.config.low_threshold_ratio
+	_robot.battery.from_save_data({"current": threshold - 1.0})
+	assert_true(_fill_is_low(), "a load below the threshold paints it, without battery_low")
+	_robot.battery.from_save_data({"current": threshold + 2.0})
+	assert_false(_fill_is_low(), "a load above it clears it")
+	_robot.battery.set_maximum_bonus(20.0)
+	assert_true(_fill_is_low(), "a larger maximum raises the threshold above the charge")
+	_robot.battery.add(20.0)
+	assert_false(_fill_is_low(), "a portable battery takes it back above")

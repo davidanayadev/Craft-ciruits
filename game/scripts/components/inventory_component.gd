@@ -270,6 +270,38 @@ func transfer_to(target: InventoryComponent, from_index: int, quantity: int) -> 
 	return result
 
 
+## Puts incoming (null, or a valid stack this catalog knows) in slot_index,
+## replacing what was there: the caller read it before (equipping, spec 015
+## plan D7). Only for a caller that already holds incoming, or items would be
+## duplicated. A copy with the catalog's item is stored. Bad index or invalid
+## incoming → push_error, ERR_INVALID_REQUEST, no change. One inventory_changed
+## when something changed.
+func exchange_slot(slot_index: int, incoming: ItemStack) -> ActionResult:
+	if slot_index < 0 or slot_index >= _slots.size():
+		push_error("InventoryComponent '%s': exchange_slot() got slot %d of %d." % [name, slot_index, _slots.size()])
+		return ActionResult.failure(ERR_INVALID_REQUEST)
+	var stored: ItemStack = null
+	if incoming != null:
+		if incoming.item == null or not _knows(incoming.item.id):
+			push_error("InventoryComponent '%s': exchange_slot() got an item this catalog does not know." % name)
+			return ActionResult.failure(ERR_INVALID_REQUEST)
+		stored = _with_catalog_item(incoming, incoming.quantity)
+		if (
+			not InventoryRules.is_valid_stack(stored) or stored.quantity < 1
+			or stored.quantity > stored.item.stack_max
+		):
+			push_error(
+				"InventoryComponent '%s': exchange_slot() got an invalid stack of '%s'."
+				% [name, incoming.item.id]
+			)
+			return ActionResult.failure(ERR_INVALID_REQUEST)
+	if stored == null and _slots[slot_index] == null:
+		return ActionResult.success()
+	_slots[slot_index] = stored
+	inventory_changed.emit()
+	return ActionResult.success()
+
+
 ## Pays the recipe and adds its result (CraftingSystem.create_result) in one
 ## step, one inventory_changed (R-011-13, R-011-15). No recipe, no result_item,
 ## a result_structure, or a result this catalog does not know → push_error,

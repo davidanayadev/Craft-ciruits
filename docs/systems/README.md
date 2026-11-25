@@ -66,19 +66,21 @@ Si el porqué de algo no está escrito en ninguna fuente, se pone **"Sin documen
 |---|---|---|---|
 | Base del proyecto | [foundation.md](foundation.md) | 001, 007 | `game/project.godot`, `tools/run_tests.sh`, `tools/check_scripts.gd`, `.github/workflows/ci.yml` |
 | Catálogo de datos y autoloads | [data_catalog.md](data_catalog.md) | 004, 005, 006, 007, 008, 009, 010, 011, 012 | `EventBus`, `DataRegistry`, `GameManager`, `DataCatalog`, `ActionResult` |
-| Movimiento y cámara | [movement.md](movement.md) | 002, 007, 009 | `Robot`, `PlayerInput`, `LocomotionSystem`, `JoystickLogic`, `FloatingJoystick`, `CameraRig` |
-| Batería | [battery.md](battery.md) | 003, 007, 008, 010, 012 | `BatteryComponent` (`set_maximum_bonus`), `BatteryConfigData` |
+| Movimiento y cámara | [movement.md](movement.md) | 002, 007, 009, 015 | `Robot`, `PlayerInput`, `LocomotionSystem`, `JoystickLogic`, `FloatingJoystick`, `CameraRig` |
+| Batería | [battery.md](battery.md) | 003, 007, 008, 010, 012, 015 | `BatteryComponent` (`set_base_maximum`, `set_maximum_bonus`, `set_drain_rates`, `is_low`), `BatteryConfigData` |
 | Mundo y zonas | [world_zones.md](world_zones.md) | 004, 006, 008, 009, 010, 013 | `Main`, `FarmZone`, `ZoneData`, `ZonePopulation` (`pick_box_markers`), `SeededRng`, `ZoneMemory`, `GameManager` (Mundo y visitas), `Zone` |
-| Interacción | [interaction.md](interaction.md) | 004, 008, 009 | `InteractableComponent`, `InteractorComponent` |
+| Interacción | [interaction.md](interaction.md) | 004, 008, 009, 015 | `InteractableComponent`, `InteractorComponent` |
 | Botín | [loot.md](loot.md) | 004, 005, 008, 010, 012, 013 | `LootBox`, `LootSystem`, `LootTableData`, `ItemData` |
-| Inventario | [inventory.md](inventory.md) | 005, 008, 009, 010, 011, 012, 013 | `InventoryComponent`, `InventoryRules`, `ItemStack`, `QuantitySelector`, `ContainerScreen`, `InventorySlotView`, `InventoryScreen` |
-| Interfaz (UI) | [ui.md](ui.md) | 002, 003, 005, 007, 008, 009, 010, 011, 012, 013 | `UIManager`, `UIScreen`, `ContainerScreen`, `Hud`, `NoticeScreen`, `TransferScreen`, `AttackButton`, `QuantitySelector` |
+| Inventario | [inventory.md](inventory.md) | 005, 008, 009, 010, 011, 012, 013, 014, 015 | `InventoryComponent`, `InventoryRules`, `ItemStack`, `QuantitySelector`, `ContainerScreen`, `InventorySlotView`, `InventoryScreen` |
+| Interfaz (UI) | [ui.md](ui.md) | 002, 003, 005, 007, 008, 009, 010, 011, 012, 013, 015 | `UIManager` (`close`), `EquipmentPanel`, `UIScreen`, `ContainerScreen`, `Hud`, `NoticeScreen`, `TransferScreen`, `AttackButton`, `QuantitySelector` |
 | Enemigos | [enemies.md](enemies.md) | 006, 007, 008, 010 | `Zombie`, `HealthComponent`, `HurtboxComponent`, `EnemyBrain`, `ZombieSpawner`, `ObjectPool` |
-| Combate y XP | [combat.md](combat.md) | 007, 008, 009, 010 | `MeleeAttackComponent`, `CombatSystem`, `HurtboxComponent`, `ExperienceComponent`, `CombatFeedback` |
-| Muerte y objetos caídos | [death.md](death.md) | 008, 009, 010, 011 | `DeathController`, `RulesetData`, `DroppedItem`, `DroppedItemSpawner`, `DroppedItemRules`, `ITimeService`, `TransferScreen` |
+| Combate y XP | [combat.md](combat.md) | 007, 008, 009, 010, 014, 015 | `MeleeAttackComponent` (`set_attack`), `CombatSystem`, `HurtboxComponent`, `ExperienceComponent`, `CombatFeedback` |
+| Muerte y objetos caídos | [death.md](death.md) | 008, 009, 010, 011, 015 | `DeathController`, `RulesetData`, `DroppedItem`, `DroppedItemSpawner`, `DroppedItemFlow`, `DroppedItemRules`, `ITimeService`, `TransferScreen` |
 | Viaje entre zonas | [travel.md](travel.md) | 009, 010 | `ZoneLoader`, `Zone`, `ExitPoint`, `LoadingScreen`, `LocationComponent`, `GameManager` (zona actual) |
 | Base, construcción y estación de carga | [base.md](base.md) | 009, 010, 011, 012 | `BaseZone`, `BaseStructures`, `BuildGrid`, `BuildFlow`, `PlacementScreen`, `BenchBuildSection`, `RepairBench`, `ChargingStation` |
-| Crafteo y reparación en el banco | [crafting.md](crafting.md) | 009, 011 | `CraftingSystem`, `RepairBench`, `BenchScreen`, `BenchEntry`, `PieceData`, `RepairCostData`, `InventoryComponent.craft/repair` |
-| Guardado (Perfil, Mundo y tienda) | [save.md](save.md) | 010, 011, 012, 013 | `SaveManager`, `SaveFlow`, `ISaveStore`, `LocalSaveStore`, `SaveCodec`, `SaveMigrations`, `SaveDocuments`, `ProfileData`, `IStore`, `LocalStore` |
+| Crafteo y reparación en el banco | [crafting.md](crafting.md) | 009, 011, 015 | `CraftingSystem` (`check_repair_stack`), `RepairBench`, `BenchScreen`, `BenchEntry`, `PieceData`, `RepairCostData`, `InventoryComponent.craft/repair` |
+| Guardado (Perfil, Mundo y tienda) | [save.md](save.md) | 010, 011, 012, 013, 015 | `SaveManager`, `SaveFlow`, `ISaveStore`, `LocalSaveStore`, `SaveCodec`, `SaveMigrations`, `SaveDocuments`, `ProfileData`, `IStore`, `LocalStore` |
 | Nivel de chasis | [chassis_level.md](chassis_level.md) | 014 | `ChassisLevelSystem`, `ChassisLevelData`, `ExperienceComponent` (`level_changed`, `level_up`), `Robot._on_level_changed`, `DebugHud` |
 | Generador eólico, baterías portátiles y cofres | [wind_generator_chests.md](wind_generator_chests.md) | 012 | `StructureStates`, `WindGeneratorComponent`, `WindGeneratorRules`, `WindGenerator`, `StorageChest`, `StructureUseFlow`, `ConsumableRules` |
+| Stats del robot | [stats.md](stats.md) | 015 | `StatIds`, `StatModifier`, `RobotBaseStatsData`, `StatsCalculator`, `StatsComponent`, `Robot._apply_stats` |
+| Equipo, desgaste y rotura | [equipment.md](equipment.md) | 015 | `EquipmentComponent`, `DegradationSystem`, `PieceData` (`slot_type`, `modifiers`), `DurabilityDisplayData`, `EquipmentPanel`, `InventoryComponent.exchange_slot` |

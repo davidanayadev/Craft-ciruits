@@ -1515,3 +1515,98 @@ func test_r_012_34_transfer_keeps_piece() -> void:
 	if moved != null:
 		assert_eq(moved.durability, 40, "durability kept")
 	assert_true(robot.is_empty(), "the robot gave it")
+
+
+# --- Spec 015: exchange_slot (R-015-09, plan D7) --------------------------------
+
+
+func test_r_015_09_exchange_slot() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(3)
+	_fill(inventory, &"scrap", 4)
+	watch_signals(inventory)
+	var piece: ItemStack = _piece_stack(40, "u1")
+	var result: ActionResult = inventory.exchange_slot(1, piece)
+	assert_true(result.ok, "a valid piece goes into an empty slot")
+	assert_signal_emit_count(inventory, "inventory_changed", 1, "one signal for one change")
+	var slots: Array[ItemStack] = inventory.get_slots()
+	assert_eq(slots[1].uid, "u1", "uid kept")
+	assert_eq(slots[1].durability, 40, "durability kept")
+	var replaced: ItemStack = _piece_stack(70, "u2", OTHER_PIECE_ID)
+	result = inventory.exchange_slot(0, replaced)
+	assert_true(result.ok, "it replaces what was there")
+	assert_signal_emit_count(inventory, "inventory_changed", 2, "second change, second signal")
+	slots = inventory.get_slots()
+	assert_eq(slots[0].uid, "u2", "the scrap was replaced")
+	assert_eq(inventory.count(&"scrap"), 0, "the replaced stack is gone")
+
+
+func test_r_015_09_exchange_slot_null_incoming() -> void:
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 4)
+	watch_signals(inventory)
+	var result: ActionResult = inventory.exchange_slot(0, null)
+	assert_true(result.ok, "null empties the slot")
+	assert_true(inventory.is_empty(), "the slot is empty")
+	assert_signal_emit_count(inventory, "inventory_changed", 1, "one change")
+	result = inventory.exchange_slot(1, null)
+	assert_true(result.ok, "null into an empty slot is a success")
+	assert_signal_emit_count(inventory, "inventory_changed", 1, "nothing changed: no new signal")
+
+
+func test_r_015_09_exchange_slot_bad_index() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 4)
+	watch_signals(inventory)
+	var before: Array[int] = _quantities(inventory)
+	var errors: int = 0
+	for index: int in [-1, 2, 99]:
+		var result: ActionResult = inventory.exchange_slot(index, _piece_stack(40, "u1"))
+		errors += 1
+		assert_push_error_count(errors)
+		assert_false(result.ok, "index %d refused" % index)
+		assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	assert_eq(_quantities(inventory), before, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_015_09_exchange_slot_invalid_stack() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	_fill(inventory, &"scrap", 4)
+	watch_signals(inventory)
+	var before: Array[int] = _quantities(inventory)
+	var two: ItemStack = _piece_stack(40, "u2")
+	two.quantity = 2
+	var unknown: ItemStack = ItemStack.new(_item(&"ghost", 1), 1)
+	var bad: Array[ItemStack] = [
+		_piece_stack(0, "u1"),
+		_piece_stack(PIECE_MAX + 1, "u1"),
+		_piece_stack(40, ""),
+		two,
+		unknown,
+	]
+	var errors: int = 0
+	for stack: ItemStack in bad:
+		var result: ActionResult = inventory.exchange_slot(1, stack)
+		errors += 1
+		assert_push_error_count(errors)
+		assert_false(result.ok)
+		assert_eq(result.error_key, InventoryComponent.ERR_INVALID_REQUEST)
+	assert_eq(_quantities(inventory), before, "no change")
+	assert_signal_not_emitted(inventory, "inventory_changed")
+
+
+func test_r_015_09_exchange_slot_stores_a_copy_with_catalog_item() -> void:
+	_with_pieces()
+	var inventory: InventoryComponent = _new_inventory(2)
+	var foreign: PieceData = _piece_item(PIECE_ID)
+	var incoming: ItemStack = ItemStack.new(foreign, 1)
+	incoming.durability = 40
+	incoming.uid = "u1"
+	assert_true(inventory.exchange_slot(0, incoming).ok)
+	incoming.durability = 5
+	var stored: ItemStack = inventory.get_slots()[0]
+	assert_eq(stored.durability, 40, "the caller's stack is not shared")
+	assert_same(stored.item, _catalog.get_item(PIECE_ID), "the catalog's item, not the caller's")

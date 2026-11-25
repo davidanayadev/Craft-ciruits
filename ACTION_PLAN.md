@@ -206,7 +206,7 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario. Revi
     - [ ] Guardar posición de muerte como `(zone_id, posición local)`; también si muere dentro de la base, con las mismas reglas (PMV.md §2.4)
     - [ ] Morir cuenta como salir de la zona: subir su contador de visitas, de modo que cajas y enemigos se repongan antes de la recuperación (BALANCE.md §7.2). El contador se crea aquí, en memoria; la Tarea 2.3 lo guarda (decisión nov 2026, spec 008)
     - [ ] Guardar items del inventario (para drop)
-    - [ ] Limpiar piezas equipadas (conservar solo core). Brazos y piernas se sueltan con el inventario; lo aplica la Tarea 3.1, que crea las ranuras (decisión nov 2026, spec 008)
+    - [x] Limpiar piezas equipadas (conservar solo core). Brazos y piernas se sueltan con el inventario; lo aplica la Tarea 3.1, que crea las ranuras (decisión nov 2026, spec 008)
     - [ ] Transición a base, con la batería al 100% (BALANCE.md §1.1). Hasta la Fase 2 no hay estaciones de carga: reaparecer es la única recarga completa. Hasta la Tarea 2.1 tampoco hay base: el robot reaparece en el punto de aparición de la zona (decisión nov 2026, spec 008)
   - [ ] Mostrar pantalla de "Transferencia de Consciencia" (animación). Termina sola (duración en BALANCE.md §11)
 - [ ] Drop de items al morir:
@@ -217,7 +217,7 @@ Hecha con el spec 004, salvo los modelos 3D, la animación y el inventario. Revi
 - [ ] Tirar items del inventario (decisión nov 2026, PMV.md §10): desde la pantalla de inventario, el item cae como `DroppedItem` en la posición del robot y caduca con la misma regla (BALANCE.md §7.2). Al seleccionar una pila, un selector de cantidad (− / + y deslizador, por defecto la pila entera) decide cuántas unidades se tiran; el resto sigue en su ranura (decisión nov 2026, spec 008)
 - [ ] Recuperación de items:
   - [ ] Viajar de vuelta a zona de muerte (viaje instantáneo en PMV, desde el punto de salida de la base). Encuentra enemigos repuestos
-  - [ ] Interactuar con el objeto caído para recuperar: coge directamente todo lo que quepa, sin pantalla
+  - [x] Interactuar con el objeto caído para recuperar: coge directamente todo lo que quepa, sin pantalla. **Cambiado (nov 2026, spec 015)**: el objeto caído es un contenedor que se abre en la pantalla de contenedor (spec 013), con "Coger todo", elegir qué pilas coger y dejar cosas para hacer sitio; lo que quede dentro al caducar desaparece
 - [ ] Test: al morir, jugador reaparece en base sin piezas y con la batería al 100%, items dropeados en zona
 
 **Entregable**: mecánica de muerte funcional con drop y recuperación de items.
@@ -416,43 +416,45 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
 > Sigue `specs/architecture.md` §9.3-§9.4 (ADR 0005): la pieza es un objeto único en un `ItemStack` (con
 > `uid` y durabilidad propia) y sus stats son modificadores, no un diccionario.
 
-- [ ] Ampliar el recurso `PieceData.gd` (extends `ItemData`; la spec 011 lo crea con `durability_max` y las tres piezas básicas):
-  - [ ] Variables: `slot_type` (Brazo/Pierna/Core), `modifiers: Array[StatModifier]`
-  - [ ] Stats como `StatModifier` (`attack_damage`, `attack_speed`, `move_speed`, `run_speed`, `walk_drain`…)
-- [ ] Crear `RobotBaseStats.tres` (robot sin piezas) y 3 piezas básicas, con valores de BALANCE.md §4.2:
-  - [ ] Brazos básicos: daño 10, velocidad 1.0 golpe/s
-  - [ ] Piernas básicas: andar 3.0 m/s, correr 4.8 m/s
-  - [ ] Core básico: batería máxima 100
-  - [ ] Archivos `.tres` para cada pieza (ya existen desde la spec 011; esta tarea les añade stats)
-- [ ] `EquipmentComponent` en el jugador:
-  - [ ] Tres ranuras (brazo, pierna, core) que guardan `ItemStack`
-  - [ ] Métodos: `equip(stack) -> ActionResult`, `unequip(slot) -> ActionResult`; señal `equipment_changed`
-- [ ] `StatsCalculator.compute(base, modifiers)` (puro, `SET` → `ADD` → `MULTIPLY`) y `StatsComponent`, que
+- [x] Ampliar el recurso `PieceData.gd` (extends `ItemData`; la spec 011 lo crea con `durability_max` y las tres piezas básicas):
+  - [x] Variables: `slot_type` (Brazo/Pierna/Core), `modifiers: Array[StatModifier]`
+  - [x] Stats como `StatModifier` (`attack_damage`, `attacks_per_second`, `walk_speed`, `run_speed`, `walk_drain`…, ids de `StatIds`, spec 015)
+- [x] Crear `RobotBaseStats.tres` (robot sin piezas) y 3 piezas básicas, con valores de BALANCE.md §4.2:
+  - [x] Brazos básicos: daño 10, velocidad 1.0 golpe/s
+  - [x] Piernas básicas: andar 3.0 m/s, correr 4.8 m/s
+  - [x] Core básico: batería máxima 100
+  - [x] Archivos `.tres` para cada pieza (ya existen desde la spec 011; esta tarea les añade stats)
+- [x] `EquipmentComponent` en el jugador:
+  - [x] Tres ranuras (brazo, pierna, core) que guardan `ItemStack`
+  - [x] Métodos: `equip(stack) -> ActionResult`, `unequip(slot) -> ActionResult`; señal `equipment_changed`
+- [x] `StatsCalculator.compute(base, modifiers)` (puro, `SET` → `ADD` → `MULTIPLY`) y `StatsComponent`, que
   recalcula con `equipment_changed` y emite `stats_changed`
-- [ ] UI de equipamiento (popup):
-  - [ ] Mostrar 3 ranuras (Brazo, Pierna, Core)
-  - [ ] Mostrar pieza equipada en cada ranura (icono + nombre)
-  - [ ] Botón "Cambiar" (abre inventario de piezas)
-  - [ ] Mostrar stats totales (daño, velocidad, consumo batería)
-- [ ] Test: equipar y desequipar piezas altera stats
+- [x] Equipo inicial de un mundo nuevo: Core básico y Piernas básicas, y un brazo (BALANCE.md §4.2; decisión nov 2026, spec 015)
+- [x] UI de equipamiento: un panel dentro de la pantalla de inventario, no un popup aparte (decisión nov 2026, spec 015):
+  - [x] Mostrar 3 ranuras (Brazo, Pierna, Core)
+  - [x] Mostrar pieza equipada en cada ranura (icono + nombre)
+  - [x] "Equipar" al seleccionar una pieza del inventario (intercambia si la ranura está ocupada) y "Quitar" al seleccionar una ranura
+  - [x] Mostrar stats totales (daño, velocidad, consumo batería)
+- [x] Barra de batería del HUD en naranja por debajo del umbral de batería baja (BALANCE.md §1.1; decisión nov 2026, spec 015)
+- [x] Test: equipar y desequipar piezas altera stats
 
 **Entregable**: sistema de ranuras funcional con UI.
 
 ### Tarea 3.2: Degradación de piezas (12h)
-- [ ] Sistema de durabilidad:
-  - [ ] La durabilidad actual vive en el `ItemStack` de cada pieza (instancia); `PieceData` solo guarda
+- [x] Sistema de durabilidad:
+  - [x] La durabilidad actual vive en el `ItemStack` de cada pieza (instancia); `PieceData` solo guarda
     `durability_max = 100`. Así dos piezas iguales se degradan por separado
-  - [ ] Degradación por golpe recibido: -5 puntos a la primera pieza equipada intacta, en orden Brazos → Piernas → Core (BALANCE.md §4.1)
-  - [ ] Lógica de rotura:
-    - [ ] Si la durabilidad del `ItemStack` llega a 0 (cálculo en `DegradationSystem`, puro):
-      - [ ] Pieza se rompe (se elimina de ranura)
-      - [ ] Emitir señal `piece_broken`
-      - [ ] Mostrar notificación "Pieza rota"
-      - [ ] Stats vuelven a valor base (sin pieza): `StatsComponent` recalcula
-- [ ] UI de durabilidad:
-  - [ ] En UI de equipamiento: barra de durabilidad bajo cada pieza
-  - [ ] Color: verde (>50%), amarillo (25-50%), rojo (<25%)
-- [ ] Test: piezas se degradan y rompen con el uso
+  - [x] Degradación por golpe recibido: -5 puntos a la primera pieza equipada intacta, en orden Brazos → Piernas → Core (BALANCE.md §4.1)
+  - [x] Lógica de rotura:
+    - [x] Si la durabilidad del `ItemStack` llega a 0 (cálculo en `DegradationSystem`, puro):
+      - [x] Pieza se rompe (se elimina de ranura)
+      - [x] Emitir señal `piece_broken`
+      - [x] Mostrar notificación "Pieza rota"
+      - [x] Stats vuelven a valor base (sin pieza): `StatsComponent` recalcula
+- [x] UI de durabilidad:
+  - [x] En UI de equipamiento: barra de durabilidad bajo cada pieza
+  - [x] Color: verde (>50%), amarillo (hasta más de 25%), rojo (≤25%, como el tramo "muy dañada" de la reparación; BALANCE.md §4.1)
+- [x] Test: piezas se degradan y rompen con el uso
 
 **Entregable**: sistema de degradación funcional con UI.
 

@@ -4,7 +4,8 @@
 > marcha y la cámara que lo sigue.
 > Specs: [002](../../specs/002-iso-scene-player-movement/spec.md), [007](../../specs/007-melee-combat/spec.md)
 > (entrada de ataque y sacudida de cámara), [009](../../specs/009-base-placement-charging/spec.md) (motivos de
-> bloqueo, `place_at`) · Última actualización: spec 009
+> bloqueo, `place_at`), [015](../../specs/015-pieces-slots-degradation/spec.md) (velocidades de las piernas como stats) ·
+> Última actualización: spec 015
 
 ## Piezas
 
@@ -16,7 +17,7 @@
 | `FloatingJoystick` | Control | `game/scenes/ui/floating_joystick.gd` | Eventos táctiles, aparece donde se toca; emite muestras |
 | `TouchControls` | CanvasLayer | `game/scenes/ui/touch_controls.gd` | Decide si se muestra la UI táctil |
 | `LocomotionSystem` | sistema puro | `game/scripts/systems/locomotion_system.gd` | Dirección relativa a cámara, marcha, velocidad, giro |
-| `MovementStatsData` | Resource | `game/scripts/data/movement_stats_data.gd` | Velocidades y si puede correr (`resources/movement/basic_legs.tres`) |
+| `MovementStatsData` | Resource (objeto de valor) | `game/scripts/data/movement_stats_data.gd` | Velocidades y si puede correr; lo construye `StatsComponent.get_movement()`, sin `.tres` ([stats.md](stats.md)) |
 | `ControlConfigData` | Resource | `game/scripts/data/control_config_data.gd` | Umbrales del joystick y giro (`resources/config/controls.tres`) |
 | `CameraRig` | Node3D | `game/scenes/camera/camera_rig.gd` | Aplica la config, sigue al objetivo y sacude (`shake()`, spec 007) |
 | `CameraConfigData` | Resource | `game/scripts/data/camera_config_data.gd` | Ángulos, distancia y tamaño ortográfico (`resources/config/camera.tres`) |
@@ -37,7 +38,9 @@
    1. Si se acaba de pulsar `interact`, `request_interact()`.
    2. `LocomotionSystem.world_direction(entrada, yaw de la cámara)` rota la dirección al marco del mundo.
    3. `LocomotionSystem.horizontal_velocity(...)` da velocidad fija: andar, correr (si hay intención y
-      `can_run`) o cero.
+      `can_run`) o cero. Los valores son `Robot._movement`, el `MovementStatsData` del último `stats_changed`
+      (spec 015): con Piernas equipadas, sus velocidades; sin ellas, la velocidad sin piernas y nunca corre
+      (`can_run` es `run_speed > 0`).
    4. `battery.tick(delta, LocomotionSystem.gait(...))`: la marcha sale de la intención, no del desplazamiento
       real ([battery.md](battery.md)).
    5. Si hay dirección, `rotate_toward_yaw` gira por el arco corto sin pasarse de `turn_speed_rad * delta`.
@@ -65,11 +68,11 @@
 
 | Recurso | Clase | Valores en |
 |---|---|---|
-| `resources/movement/basic_legs.tres` | `MovementStatsData` | `BALANCE.md` §4.2 |
+| `resources/robot/robot_base_stats.tres` y `PieceData.modifiers` de las piernas | `RobotBaseStatsData`, `StatModifier` | `BALANCE.md` §4.2 ([stats.md](stats.md)) |
 | `resources/config/controls.tres` | `ControlConfigData` | `BALANCE.md` §11 (el alcance de interacción es de la spec 004) |
 | `resources/config/camera.tres` | `CameraConfigData` | `BALANCE.md` §11 |
 
-`MovementStatsData.walk_drain` también lo lee la batería ([battery.md](battery.md)). El radio del joystick (en
+El consumo al caminar es el stat `walk_drain`, que `Robot` entrega a la batería ([battery.md](battery.md)). El radio del joystick (en
 píxeles) es de layout de UI, no de balance.
 
 ## Decisiones
@@ -84,7 +87,8 @@ píxeles) es de layout de UI, no de balance.
 | Una sola regla de "correr" (`gait`) | Velocidad y drenaje de batería no pueden discrepar | Comentario de `locomotion_system.gd` |
 | Cámara ortográfica que sigue rígidamente | La zona de 50x50 m no cabe en pantalla | R-002-02 |
 | Todos los números en `.tres` | Constitución P2, P5 | R-002-14 |
-| Piernas fijas en un `.tres` hasta tener piezas | Spec 015 las derivará de `StatsComponent` | Comentario de `movement_stats_data.gd` |
+| Las velocidades salen de `StatsComponent`; `Robot` las guarda en `_movement` | Movimiento no mira piezas | R-015-14, [plan 015 D5](../../specs/015-pieces-slots-degradation/plan.md) |
+| Sin piernas es `run_speed = 0`, y `can_run` se deriva | Un `MULTIPLY` futuro sobre 0 sigue sin correr | R-015-15, [plan 015 D2](../../specs/015-pieces-slots-degradation/plan.md) |
 
 ## Relación con otros sistemas
 
@@ -109,14 +113,15 @@ y suelta el joystick durante la transferencia).
 - Con `force_touch_debug` el clic izquierdo mueve el joystick y también golpea: `FloatingJoystick` no marca el
   evento como gestionado (plan 007 §7). Solo en depuración.
 - `FloatingJoystick.cancel()` (spec 008) suelta el dedo que sigue, para cuando algo tapa la pantalla.
-- Aún no hay piezas: `can_run = false` solo se prueba con un recurso hecho a mano.
+- Un mundo nuevo empieza con Piernas básicas equipadas; sin ellas el robot anda a la velocidad sin piernas y no corre
+  ([equipment.md](equipment.md)).
 - No hay salto, esquiva ni agacharse (agacharse es v1.1, SPECS §30).
 - Los ajustes del jugador (sensibilidad del joystick) aún no existen; llegan con ACTION_PLAN 4.2.
 
 ## Cómo extenderlo
 
-- **Otras piernas**: nuevo `MovementStatsData` `.tres` (cifras antes a `BALANCE.md` §4.2) y asignarlo a
-  `Robot.movement_stats`.
+- **Otras piernas**: nueva `PieceData` de ranura `LEGS` con sus `StatModifier` (cifras antes a `BALANCE.md` §4.2);
+  ver [stats.md](stats.md).
 - **Otra sensación de control o de cámara**: editar `controls.tres` o `camera.tres` tras actualizar `BALANCE.md` §11.
 - **Nueva fuente de entrada** (mando): alimentar `PlayerInput`; no leer eventos en el gameplay.
 
@@ -129,5 +134,6 @@ y suelta el joystick durante la transferencia).
 | `game/tests/unit/test_floating_joystick.gd` | Mitad izquierda, un solo dedo, liberación, UI táctil y debug |
 | `game/tests/unit/test_player_input.gd` | Bloqueo de entrada (joystick, teclado, interactuar), motivos independientes y `blocked_changed`, `poll_attack` (pulsación no encolada, evento no gestionado, ratón emulado, sin quedarse pegado) |
 | `game/tests/unit/test_camera_rig.gd` | Sacudida: desplaza, no supera la fuerza, vuelve a 0, gana la más fuerte |
-| `game/tests/unit/test_movement_resources.gd` | `.tres` de piernas, controles y cámara contra BALANCE |
+| `game/tests/unit/test_movement_resources.gd` | Controles y cámara contra BALANCE |
+| `game/tests/integration/test_robot_equipment.gd` | Con piernas anda y corre; sin ellas anda lento y nunca corre (R-015-15) |
 | `game/tests/integration/test_robot_movement.gd` | Capsule, andar por InputMap, parada sin deslizar, obstáculo |

@@ -1,8 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scenes/ui/attack_button.gd" id="2_attack"]
 [ext_resource type="Script" path="res://scenes/ui/damage_flash.gd" id="3_damage"]
+
+[sub_resource type="StyleBoxFlat" id="low_battery_fill"]
+bg_color = Color(1, 0.55, 0.1, 1)
 
 [sub_resource type="Gradient" id="damage_gradient"]
 offsets = PackedFloat32Array(0.6, 1)
@@ -23,6 +26,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_hud")
+low_battery_fill = SubResource("low_battery_fill")
 
 [node name="DamageFlash" type="TextureRect" parent="."]
 unique_name_in_owner = true

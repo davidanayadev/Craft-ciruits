@@ -30,11 +30,10 @@ CONTAINER_CANCEL,Cancel,Cancelar
 ERR_PARTIAL_SWAP,Choose the whole stack to swap,Elige la pila entera para intercambiar
 ERR_SLOT_FULL,That slot is full,Esa ranura está llena
 ERR_NO_ROOM,No room on the other side,No hay sitio en el otro lado
-HUD_STORAGE,Storage,Almacén
+HUD_STORAGE,Inventory,Inventario
 ENEMY_ZOMBIE_SLOW,Slow zombie,Zombie lento
 ENEMY_ZOMBIE_FAST,Fast zombie,Zombie rápido
 HUD_ATTACK,Attack,Atacar
-PROMPT_PICK_UP,Pick up,Recoger
 TRANSFER_TITLE,Consciousness Transfer,Transferencia de Consciencia
 INVENTORY_THROW,Drop,Tirar
 INVENTORY_USE,Use,Usar
@@ -81,3 +80,29 @@ MSG_WORLD_DAMAGED,The saved game was damaged; a new world starts,La partida guar
 MSG_PROFILE_DAMAGED,The profile was damaged; a new one was created,El perfil estaba dañado; se ha creado uno nuevo
 MSG_SAVE_NEWER_VERSION,This save comes from a newer version of the game. Update it to keep playing.,Esta partida es de una versión más nueva del juego. Actualízalo para seguir jugando.
 MSG_GAME_SAVED,Game saved,Partida guardada
+DROPPED_TITLE,Dropped items,Objeto caído
+CONTAINER_HEADER_DROPPED,Dropped %d/%d,Objeto caído %d/%d
+CONTAINER_LEAVE_IN_DROPPED,← Leave here,← Dejar aquí
+BENCH_EQUIPPED,Equipped,Equipada
+EQUIPMENT_TITLE,Equipment,Equipo
+EQUIPMENT_SLOT_ARMS,Arms,Brazos
+EQUIPMENT_SLOT_LEGS,Legs,Piernas
+EQUIPMENT_SLOT_CORE,Core,Core
+EQUIPMENT_NO_ARMS,One arm,Un brazo
+EQUIPMENT_NO_LEGS,No legs,Sin piernas
+EQUIPMENT_NO_CORE,No Core,Sin Core
+EQUIPMENT_EQUIP,Equip,Equipar
+EQUIPMENT_UNEQUIP,Unequip,Quitar
+STAT_ATTACK_DAMAGE,Damage: %d,Daño: %d
+STAT_ATTACKS_PER_SECOND,Attacks per second: %.1f,Golpes por segundo: %.1f
+STAT_BATTERY_PER_SWING,Battery per hit: %.1f,Batería por golpe: %.1f
+STAT_WALK_SPEED,Walking speed: %.1f m/s,Velocidad andando: %.1f m/s
+STAT_RUN_SPEED,Running speed: %.1f m/s,Velocidad corriendo: %.1f m/s
+STAT_CANNOT_RUN,Cannot run,No puede correr
+STAT_WALK_DRAIN,Walking drain: %.2f/s,Consumo al andar: %.2f/s
+STAT_PASSIVE_DRAIN,Passive drain: %.2f/s,Consumo pasivo: %.2f/s
+STAT_MAX_BATTERY,Maximum battery: %d,Batería máxima: %d
+MSG_PIECE_BROKEN,Piece broken: %s,Pieza rota: %s
+ERR_NOT_A_PIECE,That is not a piece,Eso no es una pieza
+ERR_NO_FREE_SLOT,No free inventory slot,No hay hueco libre en el inventario
+ERR_SLOT_EMPTY,Nothing equipped there,No hay nada equipado ahí

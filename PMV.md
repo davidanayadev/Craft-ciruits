@@ -29,13 +29,13 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 
 | Sistema | Detalle |
 |---|---|
-| **Personaje robot** | 3 ranuras: Brazos, Piernas, Core. Cada pieza altera batería + rendimiento. Degradación hasta rotura. |
+| **Personaje robot** | 3 ranuras, cada una con su papel: Brazos = pelear, Piernas = moverse, Core = aguantar y progresar (batería máxima y consumo pasivo, huecos de los recuerdos; BALANCE.md §4.2). Cada pieza altera batería + rendimiento. Degradación hasta rotura. Las piezas se equipan, quitan y cambian a mano, también el Core. |
 | **Batería** | Recurso principal. Llega a 0 = muerte. Se consume en todas partes, también dentro de la base. Se recarga al 100% al interactuar con una Estación de carga (instantáneo) o +20 puntos con baterías portátiles. Consumo pasivo: 0.1/s, movimiento: +0.05/s, correr: +0.15/s. |
 | **Movimiento** | Viaje entre zonas = instantáneo con animación, y se inicia en un punto de salida físico de la zona o de la base (§10). Dentro de zona = joystick virtual: empujado hasta el 80 % de su radio anda, más allá corre (umbral ajustable en opciones). En PC: WASD y Shift para correr. Sin piernas no se puede correr. Velocidades en BALANCE.md §4.2. |
 | **Zona de farmeo** | **1 zona** (verde). Recolecta: chatarra, cables, hierro. Spawns de zombies y robots. |
 | **Zombies (2 tipos)** | Lento, Rápido. No sueltan piezas. |
 | **Robots hostiles (1 tipo)** | Básico (daño físico). Suelta piezas al morir. |
-| **Sistema de daño por partes** | Cada golpe recibido (zombies y robots) degrada -5 la primera pieza equipada intacta, en orden: Brazos (al romperse vuelves a pelear con un brazo, más débil) → Piernas (movimiento muy lento) → Core (drena batería). Ver BALANCE.md §4.1. |
+| **Sistema de daño por partes** | Cada golpe recibido (zombies y robots) degrada -5 la primera pieza equipada intacta, en orden: Brazos (al romperse vuelves a pelear con un brazo, más débil) → Piernas (movimiento muy lento) → Core (sin Core el robot drena batería: consumo pasivo doble, y los recuerdos se apagan sin perderse). Brazos y piernas protegen al Core; como el Core se conserva al morir con su desgaste, repararlo es mantenimiento entre muertes. Ver BALANCE.md §4.1-§4.2. |
 | **Mecánica de muerte** | Al morir (batería = 0): pierdes TODO excepto el Core. Reapareces en la base. Ventana temporal para volver a la zona y recuperar piezas. |
 | **Base** | Safe zone, sin muros ni ataques dentro. **Colocación libre en cuadrícula** dentro de los límites de la escena de la base: el jugador elige dónde va cada estructura que construye (estaciones, generador, cofres) y puede moverla después (decisión nov 2026; base en cualquier sitio del mundo en v1.1, SPECS.md §32). Contiene: |
 | — Banco de reparaciones | Incluido desde el inicio (lo único que trae la base). Reparar o crear piezas básicas; construir estaciones de carga, generador eólico y cofres. |
@@ -90,7 +90,7 @@ Supervivencia 3D isométrica estilo *Last Day on Earth* donde controlas un robot
 2. **Conservas**: el Core (siempre), progresión de base, cofres almacenados.
 3. **Reaparición**: en la base, con la batería al 100% y animación de "Transferencia de Consciencia".
 4. **Ventana de recuperación**: tus piezas quedan dropeadas en la zona donde moriste (si fue en la base, en la base). Tienes tiempo limitado para volver y recuperarlas: los items caducan por tiempo de juego, que sigue contando con la app cerrada (§10).
-5. **Safety net**: si no tienes NADA (sin piezas, sin materiales), la zona verde garantiza drops mínimos (chatarra básica, piezas medio rotas) para que puedas reconstruirte.
+5. **Safety net**: si no tienes NADA (sin piezas, sin materiales), conservas el Core, peleas con un brazo y andas con una pierna, y las cajas de la zona verde garantizan chatarra (BALANCE.md §2.1) para reconstruirte. Volver sin piernas es lento a propósito: o guardas repuestos en la base o te arriesgas a perder el equipo (decisión nov 2026, spec 015).
 
 **Diseño intencional**: la muerte duele pero no es permanente. El jugador siempre puede recuperarse.
 
@@ -176,7 +176,7 @@ res://
 │   └── entities/          # Robot jugador, zombies, robots hostiles (modelos 3D)
 ├── scripts/
 │   ├── autoload/          # Singletons: GameManager, SaveManager, AudioManager
-│   ├── components/        # Componentes reutilizables: HealthComponent, BatteryComponent, InventoryComponent, DegradationComponent
+│   ├── components/        # Componentes reutilizables: HealthComponent, BatteryComponent, InventoryComponent, EquipmentComponent, StatsComponent
 │   ├── data/              # Recursos: PieceData, EnemyData, MaterialData, RecipeData, RulesetData, ChassisLevelData (.tres)
 │   ├── systems/           # Lógica pura: CraftingSystem, CombatSystem, DegradationSystem
 │   └── util/              # Helpers: MathUtils, EncryptionHelper
@@ -195,7 +195,7 @@ res://
 | Patrón | Uso |
 |---|---|
 | **Autoload (Singleton)** | GameManager (estado global de la partida, no del jugador), SaveManager (persistencia) |
-| **Componentes** | BatteryComponent, InventoryComponent, DegradationComponent — attachables a cualquier entidad. El estado de cada jugador (batería, inventario) vive en sus componentes, no en autoloads (§4.5) |
+| **Componentes** | BatteryComponent, InventoryComponent, EquipmentComponent (ranuras y desgaste de las piezas), StatsComponent (stats finales) — attachables a cualquier entidad. El estado de cada jugador (batería, inventario) vive en sus componentes, no en autoloads (§4.5) |
 | **Recursos custom** | `PieceData extends Resource` — definir piezas en el editor, sin hardcodear |
 | **Señales** | Comunicación entre sistemas sin acoplamiento directo |
 | **Object Pool** | Enemigos, proyectiles, partículas de recolección |
@@ -473,13 +473,13 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 **Muerte y objetos caídos (spec 008)**
 - [x] **Reaparecer antes de tener base**: ✅ Decidido (nov 2026): hasta que la spec 009 traiga la base y el viaje, el robot reaparece en el punto de aparición de la zona, que hace de base provisional. Las reglas de §2.4 no cambian.
 - [x] **Quién crea el contador de visitas**: ✅ Decidido (nov 2026): la spec 008 lo crea en memoria, lo sube al morir y repone cajas y enemigos; la 009 lo sube al salir por el punto de salida; la 010 solo lo guarda (BALANCE.md §7.2).
-- [x] **Forma del objeto caído**: ✅ Decidido (nov 2026): **un solo objeto por muerte**, con todas las pilas. El material de un zombie y un item tirado son un objeto con una pila. Interactuar **coge directamente** todo lo que quepa, sin pantalla; lo que no cabe se queda con su hora original. Descartado: un objeto por pila (hasta 20 interacciones en el nivel 5) y abrir la pantalla de caja.
+- [x] **Forma del objeto caído**: ✅ Decidido (nov 2026): **un solo objeto por muerte**, con todas las pilas. El material de un zombie y un item tirado son un objeto con una pila. Interactuar **coge directamente** todo lo que quepa, sin pantalla; lo que no cabe se queda con su hora original. Descartado: un objeto por pila (hasta 20 interacciones en el nivel 5) y abrir la pantalla de caja. **Cambiado (nov 2026, spec 015)**: el objeto caído es un **contenedor**, como las cajas y los cofres. Interactuar abre la pantalla de contenedor (spec 013) con el objeto y el inventario: "Coger todo" se lleva lo que quepa con un toque, o el jugador elige qué pilas coge y cuáles deja, y puede dejar cosas suyas para hacer sitio. El contenedor tiene el temporizador del objeto caído: lo que haya dentro al caducar desaparece, también lo dejado por el jugador. Vale para todo objeto caído (muerte, material de zombie, objeto tirado). Lo recogido va al inventario y se equipa desde la pantalla de inventario. Motivo: al morir con brazos y piernas equipados el objeto puede tener más pilas que ranuras libres al reaparecer, y coger en orden dejaba las piezas en el suelo. Descartado: equipar automáticamente al recoger y dar prioridad a las piezas en el orden de recogida.
 - [x] **Piezas equipadas al morir**: ✅ Decidido (nov 2026): brazos y piernas se **sueltan** en el mismo objeto caído, con su durabilidad (recuperables, no destruidos); el Core se queda. Lo aplica la spec 015, que crea las ranuras; la 008 suelta solo el inventario.
 - [x] **Pantalla de transferencia**: ✅ Decidido (nov 2026): termina sola, sin botón, a los 2,0 s (BALANCE.md §11). La animación definitiva es de ACTION_PLAN Tarea 4.4.
 - [x] **Caducidad del material de los zombies**: ✅ Decidido (nov 2026): la misma regla que cualquier objeto caído (BALANCE.md §7.2).
 - [x] **Aviso de caducidad**: ✅ Decidido (nov 2026): el objeto desaparece al cumplirse su tiempo, también a la vista. Sin cuenta atrás ni marcador en la 008; se decide con el HUD (ACTION_PLAN Tarea 4.1) y el playtesting.
 - [x] **Dividir y colocar pilas**: ✅ Decidido (nov 2026): una pila se puede **dividir** para colocar sus unidades donde quieras. Al seleccionarla aparece un selector de cantidad (− / + y deslizador, por defecto la pila entera) y la acción usa esa cantidad. La spec 008 lo aplica a tirar; mover la pila o una parte a la ranura que elijas, y repartirla entre el inventario y un contenedor, llega con los cofres (ACTION_PLAN Tarea 2.6), con "tocar la pila y tocar el destino": se mueve, se suma si es el mismo item o se intercambia si es otro. Sustituye a "no se pide en el PMV" de la spec 005. Descartado: botón de dividir a la mitad y arrastrar y soltar. **Cambiado (nov 2026, spec 013)**: tocar solo selecciona; colocar en una ranura concreta es un modo explícito "Colocar…" con "Cancelar" (ver "Pantalla de contenedor").
-- [ ] **Red de seguridad, "piezas medio rotas"** (§2.4 punto 5): la chatarra ya está garantizada (la caja da 2-5, BALANCE.md §2.1), pero las piezas medio rotas no tienen tabla ni valores. Decidir con la spec 015, o quitar la frase si el brazo y la pierna base ya bastan como red.
+- [x] **Red de seguridad, "piezas medio rotas"** (§2.4 punto 5): ✅ Decidido (nov 2026, spec 015): se quita la frase. La red es el brazo y la pierna base, el Core que se conserva y la chatarra de las cajas. Reaparecer sin piernas (0.5 m/s) es un castigo buscado: o guardas repuestos en la base o te arriesgas a perder el equipo.
 
 **Base, viaje y colocación (spec 009)** (todas decididas en nov 2026)
 - [x] **Construir la estación antes del banco completo**: ✅ la spec 009 adelanta lo mínimo de la Tarea 2.4: `RecipeData` con la receta de la estación, el cobro de materiales en `CraftingSystem` y el banco con una pantalla de construcción de una sola entrada. La spec 011 añade piezas, reparación y la UI completa. Los materiales se cobran al confirmar la colocación, no al pulsar "Construir".
@@ -500,13 +500,21 @@ Ninguna bloquea el PMV (la subida de nivel quedó resuelta con ACTION_PLAN Tarea
 - [x] **Archivos dañados**: ✅ si fallan el principal y la copia, se apartan sin borrarlos y se empieza un mundo nuevo con aviso. Un guardado de una versión más nueva ni se carga ni se sobrescribe.
 - [x] **Mundo del PMV**: ✅ uno solo, creado al primer arranque con semilla aleatoria y sin nombre; borrar el mundo borra su copia y deja el Perfil.
 
-**Crafteo y reparación (spec 011)** (decididas en nov 2026 salvo la última)
+**Crafteo y reparación (spec 011)** (todas decididas en nov 2026)
 - [x] **Piezas antes del equipo**: ✅ la spec 011 crea las tres piezas básicas como objetos únicos del inventario (con `uid` y durabilidad), sin efecto hasta que la spec 015 traiga el equipo, los stats y el desgaste. Su durabilidad y su `uid` se conservan al moverlas, tirarlas, morir y guardar.
 - [x] **Coste de reparación**: ✅ por tramos según la durabilidad que queda (BALANCE.md §4.3.2): reparar pronto sale más barato; una pieza rota no se repara.
 - [x] **Inventario lleno al crear**: ✅ si la pieza no cabe, contando la ranura que libera el pago, "Crear" está desactivado con aviso; no se deja en el suelo.
 - [x] **Pantalla del banco**: ✅ una sola, con pestañas Construir, Crear y Reparar; abre en Construir. Crear y reparar la dejan abierta; construir la cierra para colocar.
 - [x] **Reparar piezas equipadas**: ✅ llega con la spec 015, sin desequiparlas. Hasta entonces ninguna pieza se daña jugando y reparar se prueba con tests.
-- [ ] **Core de repuesto al morir** (§2.4): propuesta: se conserva solo el Core equipado; uno de repuesto en el inventario cae como cualquier objeto. Confirmar con la spec 015, que crea las ranuras.
+- [x] **Core de repuesto al morir** (§2.4): ✅ Decidido (nov 2026, spec 015): se conserva solo el Core equipado; uno de repuesto en el inventario cae como cualquier objeto.
+
+**Piezas, equipo y desgaste (spec 015)** (decididas el 24 nov 2026, salvo la última)
+- [x] **Equipo inicial**: ✅ un mundo nuevo empieza con Core básico y Piernas básicas equipados y con un brazo (BALANCE.md §4.2). Fabricar los Brazos básicos es el primer objetivo de crafteo.
+- [x] **Dónde se equipa**: ✅ en un panel de equipo dentro de la pantalla de inventario (tres ranuras y stats): "Equipar" al seleccionar una pieza (se intercambia si la ranura está ocupada) y "Quitar" al seleccionar una ranura. En cualquier sitio, también en la zona, sin pausar el juego. Descartado: una pantalla propia con otro botón en el HUD.
+- [x] **Colores de la durabilidad**: ✅ verde > 50 %, amarillo hasta más de 25 %, rojo ≤ 25 %, igual que el tramo de reparación "muy dañada" (BALANCE.md §4.1).
+- [x] **Barra de batería baja**: ✅ por debajo del umbral de batería baja (20 % de la máxima, BALANCE.md §1.1) la barra del HUD se pone naranja. No amarillo, que ya es el tramo medio de la durabilidad.
+- [x] **Papel del Core y robot sin Core**: ✅ el Core es "el corazón del robot" (aguantar y progresar). Marca la batería máxima; sin Core el robot **drena batería** (consumo pasivo doble, 0.2/s, estimación a ajustar en la prueba del juego), pero la máxima no se reduce: no hay recorte de carga de golpe y se reaparece al 100 %. Sostiene los huecos de los recuerdos (spec 017): se conserva al morir y, si se rompe, los recuerdos se apagan sin perderse. Es la última capa de desgaste: brazos y piernas lo protegen, y como se conserva con su desgaste, repararlo es mantenimiento entre muertes. Se quita y se cambia a mano como cualquier pieza. Descartado en el PMV: máxima reducida sin Core (recorte de golpe y reaparecer con menos batería), Core más resistente (casi no se rompería), Core indestructible (su receta y su reparación no servirían) y Core con armadura o defensa, que pasa a v1.1 como pieza avanzada (por ejemplo, un Core blindado que absorbe parte del golpe a cambio de menos batería máxima). Las habilidades activas vienen de las piezas avanzadas (SPECS.md §6).
+- [ ] **Recoger el material de un zombie con pantalla** (riesgo, spec 015 pregunta 17): con el objeto caído como contenedor, la chatarra de un zombie pasa de un toque a tres (abrir, "Coger todo", cerrar). Se mantiene; medirlo en la prueba del juego y en la Tarea 5.1 y, si molesta, decidir un atajo.
 
 **Generador y cofres (spec 012)** (todas decididas en nov 2026)
 - [x] **Cuántos generadores**: ✅ uno por base (BALANCE.md §5.2). Con los mundos abiertos de v1.1 se revisa el número.

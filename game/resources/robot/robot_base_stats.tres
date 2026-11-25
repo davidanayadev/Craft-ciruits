@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RobotBaseStatsData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/robot_base_stats_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+walk_speed = 0.5
+run_speed = 0.0
+walk_drain = 0.1
+run_drain = 0.15
+passive_drain = 0.2
+max_battery = 100.0
+attack_damage = 5.0
+attacks_per_second = 1.0
+battery_per_swing = 1.0
+durability_per_hit = 5.0

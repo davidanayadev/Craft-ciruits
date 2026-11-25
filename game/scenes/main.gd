@@ -17,7 +17,8 @@ extends Node
 ## Death (spec 008): DeathController applies the ruleset; Main shows the
 ## transfer screen, freezes World meanwhile and, when it ends, travels to the
 ## base and brings the robot back there (spec 009). Thrown items and enemy loot
-## become dropped items, which live under World and outside the zone.
+## become dropped items, which live under World and outside the zone; opening
+## one is DroppedItemFlow's (spec 015).
 ## Building (spec 009) is BuildFlow's: bench, build screen, placement and the
 ## "Edit base" button. Chests and generators (spec 012) are StructureUseFlow's,
 ## and the generators' maximum battery bonus reaches the robot from here.
@@ -43,6 +44,7 @@ extends Node
 @onready var _base_structures: BaseStructures = %BaseStructures
 @onready var _save_flow: SaveFlow = %SaveFlow
 @onready var _structure_use_flow: StructureUseFlow = %StructureUseFlow
+@onready var _dropped_item_flow: DroppedItemFlow = %DroppedItemFlow
 
 ## The transfer ended and the robot comes back when the travel to the base ends.
 var _respawn_pending: bool = false
@@ -68,6 +70,7 @@ func _ready() -> void:
 	_debug_hud.bind_base_structures(_base_structures)
 	_build_flow.bind(_robot, _hud, _zone_loader)
 	_structure_use_flow.bind(_robot, _hud)
+	_dropped_item_flow.bind(_robot)
 	_wire_battery_bonus()
 	_dropped_items.time_service = GameManager.get_time_service()
 	_robot.throw_requested.connect(_on_throw_requested)

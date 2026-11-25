@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DurabilityDisplayData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/durability_display_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/config/repair_costs.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+yellow_up_to_percent = 50
+repair_costs = ExtResource("2")

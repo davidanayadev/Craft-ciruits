@@ -12,7 +12,8 @@ between zones, free placement and charging station, ACTION_PLAN Tareas 2.1, 2.8,
 levels, Profile and World, and `IStore`, ACTION_PLAN Tarea 2.3) is done. Spec 011 (crafting pieces and repair at the
 bench, ACTION_PLAN Tarea 2.4) is done. Spec 012 (wind generator, portable batteries and chests, ACTION_PLAN
 Tareas 2.5, 2.6) is done. Spec 013 (loot boxes on sites that change per visit and the reworked container screen, a
-revision of ACTION_PLAN Tareas 1.1 and 2.6) is done. Spec 014 (chassis level, ACTION_PLAN Tarea 2.7) is done.
+revision of ACTION_PLAN Tareas 1.1 and 2.6) is done. Spec 014 (chassis level, ACTION_PLAN Tarea 2.7) is done. Spec 015
+(pieces, slots and degradation, ACTION_PLAN Tareas 3.1, 3.2) is done.
 `game/` has its
 settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
@@ -30,8 +31,8 @@ the robot's input while one is open without pausing the game. Slow and fast zomb
 `HealthComponent`, the pure `EnemyBrain` state machine and a `NavigationAgent3D` on the zone's baked navmesh)
 patrol, chase and hit the robot, which loses battery through `Robot.receive_hit`. `ZombieSpawner` places them
 from the world seed and the visit number, taking them from an `ObjectPool` under `World`. The zombie model is a
-placeholder made of primitives. The robot fights with one arm (`AttackStatsData`, rules in the pure
-`CombatSystem`): its `MeleeAttackComponent` swings on the HUD attack button, Space or left click (read through
+placeholder made of primitives. The robot fights with the stats of its equipped arms, or with one bare arm
+(`AttackStatsData` from `StatsComponent.get_attack`, rules in the pure `CombatSystem`): its `MeleeAttackComponent` swings on the HUD attack button, Space or left click (read through
 `PlayerInput.poll_attack`, never from the action state, so HUD clicks are not attacks), each swing costs battery
 and its impact is one shape query that only sees `HurtboxComponent`s. A zombie killed by a player emits
 `EventBus.enemy_killed` and the killer's `ExperienceComponent` adds the XP of its `EnemyData`. The chassis level
@@ -43,7 +44,7 @@ applied before the saved slots load. XP and level show in the debug HUD only, wh
 Death is real (spec 008): at 0 battery `DeathController` applies the world's `RulesetData` (only `normal.tres`),
 the inventory falls where the robot died as a pooled `DroppedItem`, the zone's visit counter (in `GameManager`)
 goes up and the zone is repopulated (new zombies, boxes closed with the contents of the new visit), the
-`TransferScreen` covers the game for 2 s and the robot reappears with full battery in the base. Dropped items are picked up with "Interact", expire after 5 minutes of real time
+`TransferScreen` covers the game for 2 s and the robot reappears with full battery in the base. A dropped item is a container (spec 015): "Interact" opens it in the `ContainerScreen` (`DroppedItemFlow`), expires after 5 minutes of real time
 (`DroppedItemRules`, read through `ITimeService` / `LocalTimeService` from `GameManager.get_time_service()`) and
 live under `World/DroppedItems`, outside the zone. Killed zombies roll a seeded drop table, and the inventory
 screen throws a chosen quantity of a stack (`QuantitySelector`, `InventoryRules.split`). Seeds that depend on the
@@ -58,7 +59,7 @@ Repair restores a damaged piece with the tiers of `RepairCostData`. `CraftingSys
 `check_repair`) and `InventoryComponent.craft` / `repair` change the slots; `RepairBench.craft` / `repair` emit
 `EventBus.item_crafted` / `piece_repaired`, which save the World. Every path that moves a stack (`add_stack`, split,
 take, drop, death, the dropped item's save) keeps a piece's durability and `uid`, and `add` of a piece id is
-rejected. Pieces have no effect until spec 015. The `PlacementScreen` places, or with the
+rejected. The `PlacementScreen` places, or with the
 HUD "Edit base" button moves, structures on the grid with a valid/invalid preview while the robot stands still.
 `BaseStructures` under `World` owns the placed structures. A `ChargingStation` recharges the robot to 100%
 instantly; the base itself does not recharge. The game saves (spec 010): the `SaveManager` autoload writes a Profile
@@ -81,8 +82,15 @@ a fixed action card; a tap only selects, the move button names its destination, 
 with Cancel or back, "Take all", and the receiving slots light up; moves through `InventoryRules.move_to_slot` /
 `transfer`) or collects from a generator. Bench, inventory
 and container screens close with a tap outside their panel (`UIScreen.closes_on_outside_tap`). The `EventBus`,
-`GameManager`, `DataRegistry` and `SaveManager` autoloads exist. There are no equipped pieces or degradation yet.
-The next spec is 015 (pieces, slots and degradation).
+`GameManager`, `DataRegistry` and `SaveManager` autoloads exist. Pieces are equipped (spec 015): the robot's
+`EquipmentComponent` (first of the `persistent` group in `robot.tscn`) holds an Arms, a Legs and a Core slot, the inventory
+screen's `EquipmentPanel` equips and unequips with durability bars and the resulting stats, and `StatsComponent`
+computes the final stats from `robot_base_stats.tres` and the pieces' `StatModifier`s (pure `StatsCalculator`) for the
+battery, movement and attack. Each hit takes the wear of the pure `DegradationSystem` from the first intact piece in
+the order Arms, Legs, Core, and a piece at 0 breaks and leaves its slot. On death the Normal ruleset keeps the Core;
+arms and legs fall with the inventory. The bench repairs equipped pieces too, and the HUD battery bar turns orange
+below the low-battery threshold. A new world starts with the basic Core and Legs. The next spec is 016 (hostile
+robot, ACTION_PLAN Tarea 3.3).
 
 ## Commands
 
@@ -210,8 +218,9 @@ Rules that follow from this:
 - **Per-player state lives in components, never in autoloads:** battery in `BatteryComponent`,
   inventory in `InventoryComponent`, both on the player entity. LAN co-op (v2.0) depends on this.
 - **Components** attached to entities: `BatteryComponent`, `HealthComponent` (enemies),
-  `InventoryComponent`, `DegradationComponent`. The architecture (ADR 0005) adds `EquipmentComponent`,
-  `StatsComponent`, `InteractableComponent` and `InteractorComponent` (`specs/architecture.md` §6, §9).
+  `InventoryComponent`, `EquipmentComponent` (slots and the wear of pieces), `StatsComponent` (final stats),
+  `InteractableComponent` and `InteractorComponent` (`specs/architecture.md` §6, §9). There is no
+  `DegradationComponent`: the wear rule is the pure `DegradationSystem` (spec 015).
 - **Data as custom Resources:** `ItemData`, `PieceData`, `EnemyData` (with a `faction` field),
   `MaterialData`, `RecipeData` (`station`, `tier`, `requires`), `RulesetData`, `ChassisLevelData`,
   each as a `.tres` file under `resources/`.

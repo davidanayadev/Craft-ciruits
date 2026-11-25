@@ -7,11 +7,12 @@ extends GutTest
 ## without auto-aim (R-007-13), while the robot keeps moving and turning
 ## (R-007-14). The robot has a player uid (R-007-18) and earns the XP of what
 ## it kills (R-007-20).
-## Values come from the real .tres files; target HP is a test input.
+## Values come from the real .tres files; target HP is a test input. Since
+## spec 015 one arm is the robot's base stats (no arms equipped).
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
-const ONE_ARM_PATH := "res://resources/combat/one_arm.tres"
+const BASE_STATS_PATH := "res://resources/robot/robot_base_stats.tres"
 const COMBAT_CONFIG_PATH := "res://resources/config/combat.tres"
 const SLOW_PATH := "res://resources/enemies/zombie_slow.tres"
 const HEX_PATTERN := "^[0-9a-f]{32}$"
@@ -32,10 +33,20 @@ var _config: CombatConfigData
 
 
 func before_each() -> void:
-	_attack = load(ONE_ARM_PATH) as AttackStatsData
+	_attack = _one_arm()
 	_config = load(COMBAT_CONFIG_PATH) as CombatConfigData
 	_robot = _new_robot(Vector3.ZERO)
 	watch_signals(_robot.melee)
+
+
+## One arm: the attack values of the base stats (BALANCE §4.2).
+func _one_arm() -> AttackStatsData:
+	var base: RobotBaseStatsData = load(BASE_STATS_PATH) as RobotBaseStatsData
+	var attack: AttackStatsData = AttackStatsData.new()
+	attack.damage = roundi(base.attack_damage)
+	attack.attacks_per_second = base.attacks_per_second
+	attack.battery_cost = base.battery_per_swing
+	return attack
 
 
 func after_each() -> void:
@@ -85,8 +96,10 @@ func _swing_once() -> void:
 
 
 func test_r_007_02_robot_attacks_with_one_arm() -> void:
-	assert_not_null(_attack, "one_arm.tres exists")
-	assert_same(_robot.melee.attack, _attack, "the robot fights with one arm")
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.ARMS), "no arms equipped")
+	assert_eq(_robot.melee.attack.damage, _attack.damage, "the robot fights with one arm: damage")
+	assert_eq(_robot.melee.attack.attacks_per_second, _attack.attacks_per_second, "rate")
+	assert_eq(_robot.melee.attack.battery_cost, _attack.battery_cost, "cost")
 	assert_same(_robot.melee.config, _config, "and the shared combat config")
 
 
@@ -240,7 +253,7 @@ func test_r_007_14_moves_while_swinging() -> void:
 	assert_signal_emit_count(_robot.melee, "swing_started", 1, "swinging")
 	assert_false(_robot.melee.is_impact_pending(), "through its impact")
 	var walked: float = _robot.global_position.distance_to(start)
-	var expected: float = _robot.movement_stats.walk_speed * _config.impact_time_s
+	var expected: float = _robot.stats.get_movement().walk_speed * _config.impact_time_s
 	assert_gt(walked, expected * 0.8, "while walking at full speed")
 
 

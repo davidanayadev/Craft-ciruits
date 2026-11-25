@@ -52,7 +52,7 @@ func _config() -> CombatConfigData:
 func _new_melee(attack: AttackStatsData, config: CombatConfigData) -> MeleeAttackComponent:
 	var melee: MeleeAttackComponent = MeleeAttackComponent.new()
 	melee.name = "Melee"
-	melee.attack = attack
+	melee.set_attack(attack)
 	melee.config = config
 	melee.hitbox_height_m = HEIGHT
 	melee.hitbox_center_y_m = CENTER_Y
@@ -97,13 +97,26 @@ func test_r_007_04_hitbox_in_front_of_owner() -> void:
 
 
 func test_r_007_04_missing_data_reports_error() -> void:
-	var broken: MeleeAttackComponent = _new_melee(null, _config())
+	var broken: MeleeAttackComponent = _new_melee(_attack(), null)
 	broken.name = "Broken"
 	_owner.add_child(broken)
 	assert_push_error("Broken")
 	watch_signals(broken)
 	broken.tick(STEP, true, false, false)
-	assert_signal_not_emitted(broken, "swing_started", "without data it never swings")
+	assert_signal_not_emitted(broken, "swing_started", "without a config it never swings")
+
+
+## Spec 015 (plan D11): the attack arrives from its owner after _ready().
+func test_r_015_16_no_attack_yet_never_swings() -> void:
+	var waiting: MeleeAttackComponent = _new_melee(null, _config())
+	_owner.add_child(waiting)
+	watch_signals(waiting)
+	waiting.tick(STEP, true, false, false)
+	assert_signal_not_emitted(waiting, "swing_started", "without an attack it never swings")
+	assert_push_error_count(0, "not an error: the owner sets it later")
+	waiting.set_attack(_attack())
+	waiting.tick(STEP, true, false, false)
+	assert_signal_emit_count(waiting, "swing_started", 1, "it swings once it has one")
 
 
 func test_r_007_06_swing_emits_started() -> void:
@@ -243,3 +256,37 @@ func test_r_008_25_cancel_with_nothing_pending_is_noop() -> void:
 	assert_push_error_count(0)
 	_tick(1, true)
 	assert_signal_emit_count(_melee, "swing_started", 1, "the first swing still starts at once")
+
+
+# --- Arms that change (spec 015) ---------------------------------------------
+
+
+func _stronger_attack() -> AttackStatsData:
+	var attack: AttackStatsData = _attack()
+	attack.damage = DAMAGE * 2
+	return attack
+
+
+func test_r_015_17_pending_swing_keeps_its_values() -> void:
+	var target: HurtboxComponent = _new_target()
+	_melee.tick(STEP, true, false, false)
+	_melee.set_attack(_stronger_attack())
+	_melee.apply_impact([target])
+	assert_eq(target.health.get_current(), TARGET_HP - DAMAGE, "the swing lands with the values it started with")
+
+
+func test_r_015_17_next_swing_uses_new_values() -> void:
+	_melee.set_attack(_stronger_attack())
+	var target: HurtboxComponent = _new_target()
+	_melee.tick(STEP, true, false, false)
+	_melee.apply_impact([target])
+	assert_eq(target.health.get_current(), TARGET_HP - DAMAGE * 2, "a new swing uses the new values")
+
+
+func test_r_015_17_new_cost_from_next_swing() -> void:
+	_melee.tick(STEP, true, false, false)
+	var cheaper: AttackStatsData = _attack()
+	cheaper.battery_cost = COST / 2.0
+	_melee.set_attack(cheaper)
+	_melee.tick(INTERVAL, true, false, false)
+	assert_signal_emitted_with_parameters(_melee, "swing_started", [COST / 2.0], 1)

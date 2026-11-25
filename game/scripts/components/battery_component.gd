@@ -2,6 +2,9 @@ class_name BatteryComponent
 extends Node
 ## Battery of one entity (spec 003): the robot's health. Holds its own state
 ## (constitution P4), so two entities never share a battery.
+## Its maximum and drain rates are stats its entity gives it (spec 015,
+## set_base_maximum, set_drain_rates): it never reads pieces (R-015-14). It
+## starts empty with a maximum of 0 until then; the entity fills it.
 ## It has no _physics_process and reads no input or zone: the owning entity
 ## feeds it through tick(), so the drain rule is testable without a scene and
 ## a future co-op host can drive it for any entity.
@@ -19,24 +22,25 @@ const _CURRENT_KEY := "current"
 const _NO_PENDING := -1.0
 
 @export var config: BatteryConfigData
-## Walking drain of the equipped legs; StatsComponent replaces it in spec 015.
-@export var legs: MovementStatsData
 
 var _current: float = 0.0
 var _maximum: float = 0.0
 var _low_warning_armed: bool = true
-## Points on top of config.maximum (the wind generator, spec 012).
+## The maximum-battery stat (spec 015, R-015-18).
+var _base_maximum: float = 0.0
+## Points on top of the stat (the wind generator, spec 012).
 var _maximum_bonus: float = 0.0
 ## A loaded charge above the maximum, kept until a bonus admits it (plan 012 D11).
 var _pending_charge: float = _NO_PENDING
+## Points per second (R-015-15, R-015-44), given by set_drain_rates().
+var _passive_drain: float = 0.0
+var _walk_drain: float = 0.0
+var _run_drain: float = 0.0
 
 
 func _ready() -> void:
-	if config == null or legs == null:
-		push_error("BatteryComponent '%s': config and legs must be assigned." % name)
-		return
-	_maximum = config.maximum + _maximum_bonus
-	_current = _maximum
+	if config == null:
+		push_error("BatteryComponent '%s': config must be assigned." % name)
 
 
 func get_current() -> float:
@@ -56,10 +60,31 @@ func is_depleted() -> bool:
 func drain_per_second(gait: LocomotionSystem.Gait) -> float:
 	match gait:
 		LocomotionSystem.Gait.WALK:
-			return config.passive_drain + legs.walk_drain
+			return _passive_drain + _walk_drain
 		LocomotionSystem.Gait.RUN:
-			return config.passive_drain + config.run_drain
-	return config.passive_drain
+			return _passive_drain + _run_drain
+	return _passive_drain
+
+
+## Rates used by drain_per_second() from now on, in points per second: always,
+## while walking (on top of passive) and while running (instead of walk)
+## (R-015-15, R-015-44). A negative rate → push_error, no change.
+func set_drain_rates(passive: float, walk: float, run: float) -> void:
+	if passive < 0.0 or walk < 0.0 or run < 0.0:
+		push_error(
+			"BatteryComponent '%s': set_drain_rates() got a negative rate (%f, %f, %f)."
+			% [name, passive, walk, run]
+		)
+		return
+	_passive_drain = passive
+	_walk_drain = walk
+	_run_drain = run
+
+
+## Charge below maximum × config.low_threshold_ratio: the rule of battery_low,
+## read as state (R-015-43).
+func is_low() -> bool:
+	return config != null and _current < _maximum * config.low_threshold_ratio
 
 
 ## Drains for delta seconds at the rate of the given gait. Depends only on the
@@ -91,36 +116,32 @@ func recharge_full() -> void:
 	_set_current(_maximum)
 
 
-## Maximum = config.maximum + bonus (spec 012, R-012-11, plan D10). The charge
-## stays, lowered only if it would be above the new maximum; a charge loaded
-## above the old maximum is applied now if nothing changed the charge since
-## (R-012-14, D11). One battery_changed when anything changed; never
-## battery_low nor battery_depleted: nothing was consumed. bonus < 0 →
-## push_error, no change.
+## The stat part of the maximum (R-015-18): the equipped Core's, or the
+## no-Core value. Same rule as set_maximum_bonus() (R-015-19, plan 015 D6).
+## maximum < 0 → push_error, no change.
+func set_base_maximum(maximum: float) -> void:
+	if maximum < 0.0:
+		push_error("BatteryComponent '%s': set_base_maximum() got a negative maximum (%f)." % [name, maximum])
+		return
+	_base_maximum = maximum
+	_apply_maximum()
+
+
+## The wind generator's part of the maximum (spec 012, R-012-11, plan D10),
+## added to the stat. bonus < 0 → push_error, no change.
 func set_maximum_bonus(bonus: float) -> void:
 	if bonus < 0.0:
 		push_error("BatteryComponent '%s': set_maximum_bonus() got a negative bonus (%f)." % [name, bonus])
 		return
 	_maximum_bonus = bonus
-	if config == null:
-		return
-	var old_current: float = _current
-	var old_maximum: float = _maximum
-	_maximum = config.maximum + bonus
-	_current = minf(_current, _maximum)
-	if _pending_charge != _NO_PENDING:
-		_current = minf(_pending_charge, _maximum)
-		_drop_pending(_pending_charge > _maximum)
-	_low_warning_armed = _current >= _maximum * config.low_threshold_ratio
-	if _current != old_current or _maximum != old_maximum:
-		battery_changed.emit(_current, _maximum)
+	_apply_maximum()
 
 
 func get_save_key() -> StringName:
 	return SAVE_KEY
 
 
-## The charge only: the maximum comes from the config on load (R-010-24).
+## The charge only: the maximum comes from the stats on load (R-010-24, R-015-37).
 func to_save_data() -> Dictionary:
 	return {_CURRENT_KEY: _current}
 
@@ -152,6 +173,26 @@ func from_save_data(data: Dictionary) -> void:
 		return
 	_current = current
 	battery_changed.emit(_current, _maximum)
+
+
+## Maximum = stat + bonus. The charge stays, lowered only if it would be above
+## the new maximum; a charge loaded above the old maximum is applied now if
+## nothing changed the charge since (R-012-14, plan 012 D11). One
+## battery_changed when anything changed; never battery_low nor
+## battery_depleted: nothing was consumed (R-012-12, R-015-19).
+func _apply_maximum() -> void:
+	if config == null:
+		return
+	var old_current: float = _current
+	var old_maximum: float = _maximum
+	_maximum = _base_maximum + _maximum_bonus
+	_current = minf(_current, _maximum)
+	if _pending_charge != _NO_PENDING:
+		_current = minf(_pending_charge, _maximum)
+		_drop_pending(_pending_charge > _maximum)
+	_low_warning_armed = _current >= _maximum * config.low_threshold_ratio
+	if _current != old_current or _maximum != old_maximum:
+		battery_changed.emit(_current, _maximum)
 
 
 ## Forgets the pending charge; report → push_error when there was one.

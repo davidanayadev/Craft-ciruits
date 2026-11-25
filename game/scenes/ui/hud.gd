@@ -9,6 +9,9 @@ extends Control
 ## (spec 007). An "Edit base" button under the battery shows only while the
 ## base is loaded (spec 009, R-009-59). The short message also shows the
 ## save notices and "Game saved" after a recharge at a station (spec 010).
+## Spec 015: the short message names a piece that broke (R-015-24) until the
+## notifications of ACTION_PLAN 4.1 exist, and the battery bar turns orange
+## while the battery is low, following battery_changed (R-015-43).
 ## It only listens to the signals of the local player it is bound to and never
 ## reads state in _process (architecture §9.5).
 
@@ -22,9 +25,14 @@ signal attack_held_changed(held: bool)
 signal edit_base_pressed
 
 const MSG_GAME_SAVED := &"MSG_GAME_SAVED"
+const MSG_PIECE_BROKEN := &"MSG_PIECE_BROKEN"
+
+## Fill of the battery bar while the battery is low (R-015-43); presentation.
+@export var low_battery_fill: StyleBox
 
 var _has_target: bool = false
 var _input_blocked: bool = false
+var _battery: BatteryComponent = null
 
 @onready var _battery_bar: ProgressBar = %BatteryBar
 @onready var _battery_label: Label = %BatteryLabel
@@ -56,6 +64,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## HUD existed, so the current state is painted once through the same handlers.
 func bind(player: Robot) -> void:
 	var battery: BatteryComponent = player.battery
+	_battery = battery
 	battery.battery_changed.connect(_on_battery_changed)
 	_on_battery_changed(battery.get_current(), battery.get_maximum())
 	player.interactor.target_changed.connect(_on_target_changed)
@@ -64,6 +73,7 @@ func bind(player: Robot) -> void:
 	player.use_refused.connect(_on_use_refused)
 	player.player_input.blocked_changed.connect(_on_input_blocked_changed)
 	_on_input_blocked_changed(player.player_input.is_input_blocked())
+	player.equipment.piece_broken.connect(_on_piece_broken)
 
 
 ## Shows a translation key in the short message for its usual time (spec 005);
@@ -96,6 +106,16 @@ func _on_battery_changed(current: float, maximum: float) -> void:
 	_battery_bar.max_value = maximum
 	_battery_bar.value = current
 	_battery_label.text = str(display_value(current))
+	# A state signal: right after a load, a recharge or a new maximum too (R-015-43).
+	if _battery != null and _battery.is_low():
+		_battery_bar.add_theme_stylebox_override(&"fill", low_battery_fill)
+	else:
+		_battery_bar.remove_theme_stylebox_override(&"fill")
+
+
+## The name of a piece that no longer exists comes with the signal (plan 015 D10).
+func _on_piece_broken(_piece_uid: String, _slot: PieceData.SlotType, piece: PieceData) -> void:
+	show_notice(MSG_PIECE_BROKEN, [tr(piece.name_key)])
 
 
 func _on_target_changed(target: InteractableComponent) -> void:

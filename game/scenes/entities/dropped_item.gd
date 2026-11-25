@@ -1,15 +1,17 @@
 class_name DroppedItem
 extends Node3D
 ## Stacks lying on the ground (spec 008): what a dead robot carried, what a
-## zombie left or what the player threw. Interacting takes everything that
-## fits; the rest stays. It keeps its stacks in its own InventoryComponent, so
-## dropping and picking up reuse the inventory rules and never create or lose
-## items. Instances are pooled: setup() starts a new use and reset() leaves
-## nothing of the previous one. It knows neither the pool nor the clock:
-## DroppedItemSpawner owns both.
+## zombie left or what the player threw. It is a container (spec 015, R-015-45):
+## interacting only announces opened, and the container screen moves stacks
+## both ways. It keeps its stacks in its own InventoryComponent, so dropping
+## and taking reuse the inventory rules and never create or lose items; its
+## slot count is the one it was created with (R-015-47). Instances are pooled:
+## setup() starts a new use and reset() leaves nothing of the previous one. It
+## knows neither the pool, the clock nor the UI: DroppedItemSpawner owns the
+## first two and DroppedItemFlow opens the screen.
 
-## Its last stack was picked up. Once per use.
-signal emptied(dropped: DroppedItem)
+## Fact: someone interacted with it (R-015-45). Every interaction while it exists.
+signal opened(item: DroppedItem, opener: Node3D)
 
 ## Identity for saves and the network (architecture §10.3).
 var uid: String = ""
@@ -59,7 +61,8 @@ func get_contents() -> InventoryComponent:
 
 
 ## Its state in JSON types only, as spec 010 saves it (R-010-29). Each stack
-## carries its durability and uid, so a piece survives the save (R-011-10).
+## carries its durability and uid, so a piece survives the save (R-011-10), and
+## the slot count is kept, empty slots included (R-015-55).
 func to_data() -> Dictionary:
 	var stacks: Array[Dictionary] = []
 	for stack: ItemStack in _contents.get_slots():
@@ -76,24 +79,10 @@ func to_data() -> Dictionary:
 		"position": SaveFields.vector3_to_array(local_position),
 		"dropped_at": dropped_at_unix,
 		"stacks": stacks,
+		"slot_count": _contents.get_slot_count(),
 	}
 
 
-## Everything that fits goes to the interactor's inventory, in slot order.
-## What does not fit stays here; that inventory reports it (overflowed).
-## emptied comes only from here: setup() and reset() also leave it empty.
+## Nothing is taken here: whoever opens the screen does it (R-015-45).
 func _on_interacted(interactor: Node3D) -> void:
-	var inventory: InventoryComponent = InventoryComponent.find_in(interactor)
-	if inventory == null:
-		push_error(
-			"DroppedItem '%s': '%s' picked it up but has no InventoryComponent."
-			% [name, interactor.name]
-		)
-		return
-	var slot_indices: Array[int] = []
-	for index: int in _contents.get_slot_count():
-		slot_indices.append(index)
-	inventory.take_from(_contents, slot_indices)
-	if _contents.is_empty():
-		_interactable.enabled = false
-		emptied.emit(self)
+	opened.emit(self, interactor)

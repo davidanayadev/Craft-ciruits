@@ -4,7 +4,4 @@
 
 [resource]
 script = ExtResource("1")
-maximum = 100.0
-passive_drain = 0.1
-run_drain = 0.15
 low_threshold_ratio = 0.2

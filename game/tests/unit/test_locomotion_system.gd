@@ -2,15 +2,22 @@ extends GutTest
 ## Pure locomotion rules: camera-relative direction (R-002-05), run speed
 ## (R-002-06), smooth turn (R-002-07), immediate stop (R-002-08), fixed speed
 ## per gait (R-002-17) and no legs -> no run (R-002-18).
-## Speeds come from the real basic_legs.tres (BALANCE §4.2 single source).
+## Speeds come from the real basic legs piece over the robot's base stats,
+## read through StatsComponent (BALANCE §4.2 single source, spec 015).
 
-const BASIC_LEGS_PATH := "res://resources/movement/basic_legs.tres"
+const BASE_STATS_PATH := "res://resources/robot/robot_base_stats.tres"
+const BASIC_LEGS_PATH := "res://resources/pieces/basic_legs.tres"
 
 var _legs: MovementStatsData
 
 
 func before_each() -> void:
-	_legs = load(BASIC_LEGS_PATH) as MovementStatsData
+	var stats: StatsComponent = StatsComponent.new()
+	stats.base_stats = load(BASE_STATS_PATH) as RobotBaseStatsData
+	add_child_autofree(stats)
+	var legs: PieceData = load(BASIC_LEGS_PATH) as PieceData
+	stats.recompute(legs.modifiers)
+	_legs = stats.get_movement()
 
 
 func test_r_002_05_direction_is_camera_relative() -> void:

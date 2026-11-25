@@ -112,9 +112,8 @@ Main (Node)                          main.gd: arranque y cableado
 │       └── Robot (CharacterBody3D)  persiste entre zonas
 │           ├── BatteryComponent
 │           ├── InventoryComponent
-│           ├── EquipmentComponent   ranuras Brazos / Piernas / Core
+│           ├── EquipmentComponent   ranuras Brazos / Piernas / Core y su desgaste (§9.3)
 │           ├── StatsComponent       stats finales (§9.4)
-│           ├── DegradationComponent desgaste por golpe (BALANCE §4.1)
 │           └── InteractorComponent  objeto interactuable más cercano (§9.1)
 ├── CameraRig                        sigue al jugador local
 ├── ZoneLoader (Node)                carga y descarga zonas
@@ -124,6 +123,8 @@ Main (Node)                          main.gd: arranque y cableado
     └── UIManager                    pila de pantallas emergentes (§9.5)
 ```
 
+- **Sin `DegradationComponent`** (spec 015, plan D9): no tendría estado propio, porque la durabilidad vive en las
+  pilas del equipo. El desgaste es de `EquipmentComponent` con la regla en el sistema puro `DegradationSystem`.
 - **Viajar**: `ZoneLoader.travel_to(zone_id)` carga la escena de la zona en segundo plano
   (`ResourceLoader.load_threaded_request`, **(verificar)**) mientras se ve la pantalla de carga, libera la zona
   anterior, instancia la nueva en `ZoneSlot`, coloca al robot en su `SpawnPoint` y emite
@@ -167,6 +168,13 @@ tiene efectos (`battery_changed`, `inventory_changed`, `xp_changed`, `level_chan
 convención se llaman `*_changed`. Las **de hecho** dicen que algo pasó y sus oyentes reaccionan (todo `EventBus`, `zone_visit_counted`,
 `battery_low`, `battery_depleted`, `overflowed`, `level_up`…). Cargar una partida emite solo señales de estado
 (§10.2). Una señal nueva elige su clase y su nombre con esta regla.
+
+El equipo (spec 015) emite desde `robot.equipment` `equipment_changed` (estado: las ranuras cambiaron, también al
+cargar), `durability_changed(slot, durability)` (estado: una pieza se desgastó sin romperse o se reparó) y
+`piece_broken(piece_uid, slot, piece)` (hecho: una pieza se rompió y se perdió, nunca al cargar); `robot.stats`
+emite `stats_changed` (estado). Ninguna va al `EventBus`: "Pieza rota" se engancha ahí hasta la Tarea 4.1. El objeto
+caído emite `opened` y `DroppedItemSpawner` lo reemite como `item_opened`, más `item_removed` al irse un objeto
+(caducidad, descarga, vaciado): los tres son de hecho.
 
 El nivel de chasis (spec 014) emite `level_changed(level)` (estado) y `level_up(new_level)` (hecho, nunca al
 cargar) desde `robot.experience`, el mismo componente que `xp_changed`: ahí se enganchan la notificación (Tarea
@@ -235,6 +243,10 @@ func interact(interactor: Node3D) -> void    # emite interacted si enabled
   `tr(prompt_key)`; en PC, la tecla E.
 - Caja, banco, estación, cofre, generador y objeto caído **solo** conectan `interacted` a su lógica. La
   proximidad, el botón y el texto se programan una vez.
+- **Objeto caído** (spec 015): es un contenedor como cajas y cofres. Interactuar solo emite `opened`;
+  `DroppedItemSpawner` lo reemite como `item_opened` y `DroppedItemFlow` abre la pantalla de contenedor
+  (`Kind.DROPPED`). Al cerrarse la pantalla pide `release_if_empty`; si el objeto caduca con la pantalla abierta,
+  `item_removed` la cierra con `UIManager.close(screen)`.
 - **Cofre y generador** (spec 012): su estado no vive en la instancia (se libera con la base), así que la
   instancia solo emite `used(user)`; `BaseStructures` lo reemite como `structure_used(structure_uid, user)` y
   `StructureUseFlow` abre la pantalla del cofre o pide `BaseStructures.collect_batteries(player, uid)`, igual que
@@ -278,7 +290,12 @@ var uid: String = ""                         # solo objetos únicos (piezas): id
   conserva su durabilidad y su `uid` (`InventoryRules.add_stack`).
 - `InventoryComponent` gestiona ranuras (`add`, `remove`, `has`, `get_slots`) y emite `inventory_changed`; las
   reglas de apilado viven en un sistema puro (`InventoryRules`) que se testea solo.
-- `EquipmentComponent` guarda las tres ranuras y emite `equipment_changed`.
+- `EquipmentComponent` (spec 015) guarda las tres ranuras indexadas por `PieceData.SlotType` (`ARMS`, `LEGS`,
+  `CORE`), cada una vacía o con una pila de pieza con su `uid` y durabilidad, y emite `equipment_changed`. Equipar
+  y quitar no amplían la excepción de `move_to_slot`: el equipo escribe su ranura y pide al inventario que escriba
+  la suya (`InventoryComponent.exchange_slot`, `add_stacks`), con el estado final antes de cualquier señal. El
+  desgaste por golpe (`apply_hit_wear`) elige la pieza con `DegradationSystem` (brazos → piernas → core); a 0 la
+  pieza se rompe y se pierde.
 
 ### 9.4 Stats de piezas
 
@@ -290,16 +307,22 @@ extends Resource
 
 enum Op { SET, ADD, MULTIPLY }
 
-@export var stat: StringName                 # "move_speed", "run_speed", "walk_drain", "attack_damage"…
+@export var stat: StringName                 # un id de StatIds: "walk_speed", "run_speed", "attack_damage"…
 @export var op: Op
 @export var value: float
 ```
 
-- Valores base del robot **sin piezas** en `RobotBaseStats.tres` (BALANCE §4.2: sin piernas 0.5 m/s, con un
-  brazo 5 de daño…).
+- Ids reales (spec 015, `StatIds`): `walk_speed`, `run_speed` (0 = no puede correr), `walk_drain`, `run_drain`,
+  `passive_drain`, `max_battery`, `attack_damage`, `attacks_per_second`, `battery_per_swing`, `durability_per_hit`.
+- Valores base del robot **sin piezas** en `RobotBaseStatsData` (`resources/robot/robot_base_stats.tres`,
+  BALANCE §1.1, §4.1, §4.2: sin piernas 0.5 m/s, con un brazo 5 de daño, sin Core 0.2/s…), un campo por id. Cada
+  `PieceData` lleva su `slot_type` y sus `modifiers` (su fila de BALANCE §4.2 con `SET`).
 - `StatsCalculator.compute(base, modifiers) -> Dictionary` aplica en orden `SET` → `ADD` → `MULTIPLY`.
-- `StatsComponent` recalcula al cambiar el equipo o romperse una pieza y emite `stats_changed`. Batería,
-  movimiento y combate **leen** de él; ninguno mira las piezas directamente.
+- `StatsComponent` recalcula al cambiar el equipo o romperse una pieza y emite `stats_changed`. Cableado "push"
+  (plan 015 D5): `Robot` le pasa los modificadores del equipo y, en cada `stats_changed`, **entrega** a movimiento
+  (`MovementStatsData`), combate (`MeleeAttackComponent.set_attack`) y batería (`set_drain_rates`,
+  `set_base_maximum`) los valores que usan; ninguno mira las piezas ni conoce a `StatsComponent`. La máxima de la
+  batería es el stat más la bonificación del generador (`set_maximum_bonus`).
 - **Por qué**: una pieza nueva de v1.1 o el overclock (modificador temporal) son datos, no código. Cumple el
   "Strategy" de PMV §4.3 sin una clase por pieza.
 
@@ -310,6 +333,7 @@ enum Op { SET, ADD, MULTIPLY }
 ```gdscript
 func open(screen_id: StringName, context: Dictionary = {}) -> UIScreen   # la abierta o null (spec 012)
 func close_top() -> void
+func close(screen: UIScreen) -> void                 # spec 015: cierra esa, esté donde esté en la pila
 func is_modal_open() -> bool
 func is_open(screen_id: StringName) -> bool         # spec 009
 signal modal_state_changed(is_open: bool)
@@ -372,10 +396,12 @@ sobrescriben (ONLINE.md). `SaveManager` recibe la implementación al arrancar; n
   es un `float` y perdería precisión) y los `float` se escriben con precisión completa (spec 010).
 - `from_save_data()` emite las señales **de estado** de su dueño y **nunca** las de hecho (§7): cargar no es que
   algo haya pasado. Por ejemplo, al cargar el nivel de chasis (spec 014) se emiten `xp_changed` y `level_changed`,
-  pero no `level_up`.
+  pero no `level_up`; al cargar el equipo (spec 015), `equipment_changed` y `stats_changed`, nunca `piece_broken`.
 - `SaveManager` aplica las partes en el orden del árbol del grupo `persistent`; un dueño cuyo estado se deriva de
   otro va después de él en la escena (spec 014: en `robot.tscn`, `Experience` va antes que `InventoryComponent`,
-  para que el inventario tenga las ranuras del nivel cargado al leer las suyas).
+  para que el inventario tenga las ranuras del nivel cargado al leer las suyas; spec 015: `Equipment` es el primer
+  nodo persistente del robot, antes que `BatteryComponent`, para que la batería tenga la máxima del Core cargado al
+  leer su carga).
 - El archivo lleva `schema_version`. Cada cambio de formato añade una función `migrate_vN_to_vN1(data)`; cargar
   aplica la cadena hasta la versión actual (Tarea 2.3).
 - Añadir un campo **opcional** cuyo valor por defecto reproduce lo que se cargaba antes **no** sube

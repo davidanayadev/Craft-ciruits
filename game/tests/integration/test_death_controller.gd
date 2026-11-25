@@ -12,6 +12,9 @@ extends GutTest
 ## Spec 011: a piece keeps its durability and uid when it falls and is recovered (R-011-09).
 ## Spec 012: the respawn charge uses the maximum with the generator bonus (R-012-13).
 ## Spec 014: with normal.tres the robot keeps its chassis level and slots (R-014-12).
+## Spec 015: equipped arms and legs fall with the inventory, one slot per stack,
+## and the Core stays when the ruleset keeps it (R-015-25 to R-015-28, R-015-47,
+## R-015-51); the lethal hit wears the arms first (R-015-54).
 ## The robot's physics is switched off: its battery only moves when the test says.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -96,6 +99,28 @@ func _fill_inventory() -> void:
 	_robot.inventory.add(SCRAP, scrap_max + SCRAP_EXTRA)
 	_robot.inventory.add(IRON, IRON_AMOUNT)
 	_robot.inventory.add(CABLES, CABLES_AMOUNT)
+
+
+func _equip_new(item_id: StringName) -> ItemStack:
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(item_id))
+	var offered: Array[ItemStack] = [piece]
+	assert_true(_robot.inventory.add_stacks(offered).ok, "the piece entered the inventory")
+	var slot: int = InventoryRules.index_of_uid(_robot.inventory.get_slots(), piece.uid)
+	assert_true(_robot.equip(slot).ok, "%s equipped" % item_id)
+	return piece
+
+
+## Durability one hit takes (BALANCE §4.1, a stat).
+func _wear() -> int:
+	return roundi(_robot.stats.get_stat(StatIds.DURABILITY_PER_HIT))
+
+
+func _uids_in(item: DroppedItem) -> Array[String]:
+	var uids: Array[String] = []
+	for stack: ItemStack in item.get_contents().get_slots():
+		if stack != null and not stack.uid.is_empty():
+			uids.append(stack.uid)
+	return uids
 
 
 func _kill_by_consume() -> void:
@@ -191,6 +216,10 @@ func test_r_008_26_inventory_falls_where_it_died() -> void:
 
 
 func test_r_008_27_empty_inventory_creates_nothing() -> void:
+	# Nothing equipped that falls either (R-015-51).
+	var _taken: Array[ItemStack] = _robot.equipment.take_slots(
+		[PieceData.SlotType.ARMS, PieceData.SlotType.LEGS]
+	)
 	watch_signals(EventBus)
 	_kill_by_consume()
 	assert_eq(_spawner.get_items().size(), 0, "no dropped item")
@@ -346,8 +375,8 @@ func test_r_011_09_death_drops_and_recovers_piece() -> void:
 		assert_eq(fallen[0].durability, 65, "durability kept when it falls")
 		assert_eq(fallen[0].uid, piece.uid, "uid kept when it falls")
 	_controller.respawn(_robot, RESPAWN_POSITION)
-	var interactable: InteractableComponent = items[0].get_node("%Interactable") as InteractableComponent
-	interactable.interact(_robot)
+	# Recovered as the container screen moves it (spec 015, R-015-46).
+	var _taken: InventoryAddResult = _robot.inventory.take_from(items[0].get_contents(), [0])
 	var recovered: ItemStack = _robot.inventory.get_slots()[0]
 	assert_not_null(recovered, "the robot has it back")
 	if recovered != null:
@@ -359,10 +388,10 @@ func test_r_012_13_respawn_uses_new_maximum() -> void:
 	var bonus: float = 20.0
 	_robot.battery.set_maximum_bonus(bonus)
 	var ruleset: RulesetData = DataRegistry.get_ruleset(&"normal")
-	var config: BatteryConfigData = _robot.battery.config
+	var maximum: float = _robot.stats.get_stat(StatIds.MAX_BATTERY)
 	_kill_by_consume()
 	_controller.respawn(_robot, RESPAWN_POSITION)
-	var expected_maximum: float = config.maximum + bonus
+	var expected_maximum: float = maximum + bonus
 	assert_eq(_robot.battery.get_maximum(), expected_maximum, "the maximum includes the bonus")
 	assert_almost_eq(
 		_robot.battery.get_current(),
@@ -370,3 +399,118 @@ func test_r_012_13_respawn_uses_new_maximum() -> void:
 		0.001,
 		"the respawn charge is a share of the new maximum"
 	)
+
+
+# --- Equipment at death (spec 015) --------------------------------------------
+
+
+func test_r_015_25_arms_and_legs_fall_core_stays() -> void:
+	var arms: ItemStack = _equip_new(&"basic_arms")
+	_robot.receive_hit(0.0, null)
+	var legs: ItemStack = _robot.equipment.get_piece(PieceData.SlotType.LEGS)
+	var core: ItemStack = _robot.equipment.get_piece(PieceData.SlotType.CORE)
+	_kill_by_consume()
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() != 1:
+		return
+	var fallen: Array[ItemStack] = items[0].get_contents().get_slots()
+	var by_uid: Dictionary[String, ItemStack] = {}
+	for stack: ItemStack in fallen:
+		if stack != null:
+			by_uid[stack.uid] = stack
+	assert_true(by_uid.has(arms.uid), "the arms fell")
+	assert_true(by_uid.has(legs.uid), "the legs fell")
+	if by_uid.has(arms.uid):
+		assert_eq(by_uid[arms.uid].durability, arms.durability - _wear(), "with their durability after one hit")
+	if by_uid.has(legs.uid):
+		assert_eq(by_uid[legs.uid].durability, legs.durability, "the legs with theirs")
+	assert_false(by_uid.has(core.uid), "the Core did not fall")
+	assert_eq(_robot.equipment.get_piece(PieceData.SlotType.CORE).uid, core.uid, "the Core stays equipped (keeps_core)")
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.ARMS), "no arms")
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.LEGS), "no legs")
+
+
+func test_r_015_25_no_drop_created_pieces_stay_equipped() -> void:
+	_spawner.unbind_zone()
+	var legs: ItemStack = _robot.equipment.get_piece(PieceData.SlotType.LEGS)
+	_kill_by_consume()
+	assert_push_error("DroppedItemSpawner")
+	assert_eq(_spawner.get_items().size(), 0, "no zone, no dropped item")
+	assert_eq(_robot.equipment.get_piece(PieceData.SlotType.LEGS).uid, legs.uid, "nothing is lost: the legs stay")
+
+
+func test_r_015_26_spare_core_in_inventory_falls() -> void:
+	var spare: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_core"))
+	var offered: Array[ItemStack] = [spare]
+	assert_true(_robot.inventory.add_stacks(offered).ok, "a spare Core in the inventory")
+	_kill_by_consume()
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() == 1:
+		assert_true(_uids_in(items[0]).has(spare.uid), "the spare Core falls like any stack")
+	assert_false(_robot.equipment.has_piece(spare.uid), "it is not the equipped one")
+	assert_not_null(_robot.equipment.get_piece(PieceData.SlotType.CORE), "the equipped Core stays")
+
+
+func test_r_015_27_ruleset_without_keeps_core_drops_core() -> void:
+	_controller.ruleset = _ruleset(true, true, CUSTOM_RATIO)
+	var core: ItemStack = _robot.equipment.get_piece(PieceData.SlotType.CORE)
+	_kill_by_consume()
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() == 1:
+		assert_true(_uids_in(items[0]).has(core.uid), "the Core falls too")
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.CORE), "no Core left")
+
+
+func test_r_015_28_respawn_with_remaining_stats() -> void:
+	var _arms: ItemStack = _equip_new(&"basic_arms")
+	var base: RobotBaseStatsData = _robot.stats.base_stats
+	_kill_by_consume()
+	_controller.respawn(_robot, RESPAWN_POSITION)
+	assert_eq(_robot.melee.attack.damage, roundi(base.attack_damage), "one arm")
+	assert_eq(_robot.stats.get_stat(StatIds.WALK_SPEED), base.walk_speed, "no legs")
+	assert_false(_robot.stats.get_movement().can_run, "cannot run")
+	var core: PieceData = DataRegistry.get_item(&"basic_core") as PieceData
+	for modifier: StatModifier in core.modifiers:
+		assert_eq(_robot.stats.get_stat(modifier.stat), modifier.value, "its Core: %s" % modifier.stat)
+
+
+func test_r_015_47_one_slot_per_stack_at_death() -> void:
+	var _arms: ItemStack = _equip_new(&"basic_arms")
+	_robot.inventory.add(SCRAP, 3)
+	_robot.inventory.add(IRON, 2)
+	var used: int = InventoryRules.count_used_slots(_robot.inventory.get_slots())
+	_kill_by_consume()
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() == 1:
+		assert_eq(items[0].get_contents().get_slot_count(), used + 2, "the inventory stacks plus arms and legs")
+
+
+func test_r_015_51_only_pieces_create_drop() -> void:
+	assert_true(_robot.inventory.is_empty(), "an empty inventory")
+	var legs: ItemStack = _robot.equipment.get_piece(PieceData.SlotType.LEGS)
+	_kill_by_consume()
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "the legs make a dropped item")
+	if items.size() == 1:
+		assert_eq(items[0].get_contents().get_slot_count(), 1, "one slot: the legs")
+		assert_eq(_uids_in(items[0]), [legs.uid] as Array[String], "holding the legs")
+
+
+func test_r_015_54_lethal_hit_wears_arms_not_core() -> void:
+	var arms: ItemStack = _equip_new(&"basic_arms")
+	var core: ItemStack = _robot.equipment.get_piece(PieceData.SlotType.CORE)
+	_robot.battery.consume(_robot.battery.get_current() - 1.0)
+	_robot.receive_hit(5.0, null)
+	assert_true(_robot.battery.is_depleted(), "the hit killed the robot")
+	assert_eq(_robot.equipment.get_piece(PieceData.SlotType.CORE).durability, core.durability, "the Core is not worn")
+	var items: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(items.size(), 1, "one dropped item")
+	if items.size() != 1:
+		return
+	for stack: ItemStack in items[0].get_contents().get_slots():
+		if stack != null and stack.uid == arms.uid:
+			assert_eq(stack.durability, arms.durability - _wear(), "the lethal hit wore the arms")

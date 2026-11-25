@@ -16,8 +16,16 @@ extends CharacterBody3D
 ## not know the dropped items nor the ruleset (spec 008).
 ## It asks to build at the repair bench, and tells the base grid how much
 ## floor it covers, so no structure is placed on it (spec 009).
+## Its stats come from StatsComponent, computed from the modifiers of its
+## EquipmentComponent (spec 015): on every equipment_changed it recomputes them
+## and on every stats_changed it hands movement, attack and battery the values
+## they use, so none of them reads pieces (R-015-14, plan 015 D5). Equipment is
+## the first persistent node of robot.tscn, before BatteryComponent: on load
+## the battery already has the maximum of the loaded Core when it reads its
+## charge (R-015-38). A hit wears a piece before it takes battery (R-015-54).
 
-## A hit landed on this robot. Degradation of pieces connects here (spec 015).
+## A hit landed on this robot, after its wear and its battery damage were
+## applied (spec 006, spec 015 R-015-54).
 signal hit_received(damage: float, attacker: Node3D)
 ## The player wants quantity of that inventory slot on the ground. Whoever
 ## owns the dropped items makes the change (spec 008).
@@ -33,7 +41,6 @@ signal use_refused(error_key: StringName)
 const PLAYER_GROUP := &"players"
 const ANIMATION_ATTACK := &"attack"
 
-@export var movement_stats: MovementStatsData
 @export var control_config: ControlConfigData
 ## XP thresholds and inventory slots per chassis level (spec 014); assigned once, here.
 @export var chassis_levels: ChassisLevelData
@@ -44,6 +51,9 @@ const ANIMATION_ATTACK := &"attack"
 ## until the Profile's player_uuid arrives with set_player_uid() (spec 010).
 var player_uid: String = ""
 
+## Movement values of the last stats_changed (plan 015 D5).
+var _movement: MovementStatsData = null
+
 @onready var player_input: PlayerInput = %PlayerInput
 @onready var battery: BatteryComponent = %BatteryComponent
 @onready var interactor: InteractorComponent = %Interactor
@@ -51,6 +61,8 @@ var player_uid: String = ""
 @onready var melee: MeleeAttackComponent = %MeleeAttack
 @onready var experience: ExperienceComponent = %Experience
 @onready var location: LocationComponent = %Location
+@onready var equipment: EquipmentComponent = %Equipment
+@onready var stats: StatsComponent = %Stats
 @onready var _animation_player: AnimationPlayer = %AnimationPlayer
 @onready var _body_shape: CollisionShape3D = %BodyShape
 
@@ -60,6 +72,11 @@ func _ready() -> void:
 	melee.attacker_uid = player_uid
 	melee.swing_started.connect(_on_swing_started)
 	EventBus.enemy_killed.connect(_on_enemy_killed)
+	stats.stats_changed.connect(_apply_stats)
+	equipment.equipment_changed.connect(_on_equipment_changed)
+	# The starting equipment is already on (plan 015 D19); a new robot starts full.
+	_on_equipment_changed()
+	battery.recharge_full()
 	if chassis_levels == null:
 		push_error("Robot '%s': chassis_levels must be assigned." % name)
 		return
@@ -145,6 +162,22 @@ func request_use_consumable(slot_index: int = ConsumableRules.NO_SLOT) -> void:
 	use_consumable(index)
 
 
+## Equips the piece in inventory slot slot_index (R-015-08, R-015-09). A
+## depleted robot → ERR_INVALID_REQUEST, no change (R-015-12).
+func equip(slot_index: int) -> ActionResult:
+	if battery.is_depleted():
+		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
+	return equipment.equip_from(inventory, slot_index)
+
+
+## Sends the piece of slot to the inventory (R-015-10, R-015-11). A depleted
+## robot → ERR_INVALID_REQUEST, no change (R-015-12).
+func unequip(slot: PieceData.SlotType) -> ActionResult:
+	if battery.is_depleted():
+		return ActionResult.failure(ActionResult.ERR_INVALID_REQUEST)
+	return equipment.unequip_to(inventory, slot)
+
+
 ## Radius of the floor circle the robot stands on (R-009-58).
 func get_footprint_radius() -> float:
 	var capsule: CapsuleShape3D = _body_shape.shape as CapsuleShape3D
@@ -181,15 +214,17 @@ func respawn_at(world_position: Vector3, battery_amount: float) -> void:
 	battery.add(battery_amount)
 
 
-## Takes a hit: damage battery points, 1:1 (BALANCE §3.1), then hit_received.
-## A robot with a depleted battery takes none (R-006-18). Negative damage →
-## push_error, no change.
+## Takes a hit: first it wears the first equipped piece (spec 015, R-015-21,
+## R-015-54), then damage battery points, 1:1 (BALANCE §3.1), then
+## hit_received. A robot with a depleted battery takes none and wears nothing
+## (R-006-18, R-015-22). Negative damage → push_error, no change.
 func receive_hit(damage: float, attacker: Node3D) -> void:
 	if damage < 0.0:
 		push_error("Robot '%s': receive_hit() got a negative damage (%f)." % [name, damage])
 		return
 	if battery.is_depleted():
 		return
+	equipment.apply_hit_wear(stats.get_stat(StatIds.DURABILITY_PER_HIT))
 	battery.consume(damage)
 	hit_received.emit(damage, attacker)
 
@@ -200,10 +235,10 @@ func _move(delta: float) -> void:
 		player_input.get_direction(), camera_yaw
 	)
 	var run_intent: bool = player_input.is_run_intent()
-	velocity = LocomotionSystem.horizontal_velocity(world_dir, run_intent, movement_stats)
+	velocity = LocomotionSystem.horizontal_velocity(world_dir, run_intent, _movement)
 	# The gait comes from the intent, not from the real displacement: pushing
 	# against a wall drains like walking (plan 003 §7).
-	battery.tick(delta, LocomotionSystem.gait(world_dir, run_intent, movement_stats))
+	battery.tick(delta, LocomotionSystem.gait(world_dir, run_intent, _movement))
 	if world_dir != Vector3.ZERO:
 		rotation.y = LocomotionSystem.rotate_toward_yaw(
 			rotation.y,
@@ -220,6 +255,22 @@ func _on_swing_started(battery_cost: float) -> void:
 	battery.consume(battery_cost)
 	_animation_player.stop()
 	_animation_player.play(ANIMATION_ATTACK)
+
+
+## The stats follow the equipped pieces only (R-015-05, R-015-13).
+func _on_equipment_changed() -> void:
+	stats.recompute(equipment.get_modifiers())
+
+
+## Hands each consumer the values it uses (R-015-14, plan 015 D5).
+func _apply_stats() -> void:
+	_movement = stats.get_movement()
+	melee.set_attack(stats.get_attack())
+	battery.set_drain_rates(
+		stats.get_stat(StatIds.PASSIVE_DRAIN), stats.get_stat(StatIds.WALK_DRAIN),
+		stats.get_stat(StatIds.RUN_DRAIN)
+	)
+	battery.set_base_maximum(stats.get_stat(StatIds.MAX_BATTERY))
 
 
 ## The inventory takes the slots of the level; the same count changes nothing (R-014-08).

@@ -7,6 +7,11 @@ extends GutTest
 ## discards expired items on loading and restores the rest when its zone is bound
 ## (R-010-09, R-010-11, R-010-29, R-010-30). Spec 011: pieces keep durability
 ## and uid when thrown, picked up, saved and loaded; a bad piece stack is lost (R-011-09 to R-011-11).
+## Spec 015: a dropped item is a container; it re-emits opened (R-015-45), has one
+## slot per received stack (R-015-47), keeps its drop time whatever is moved
+## and expires with what is left (R-015-48), is released empty only on request
+## (R-015-50), is not created for nothing (R-015-51) and saves its slot count
+## (R-015-55).
 
 const DROPPED_ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
 const CONFIG_PATH := "res://resources/config/dropped_items.tres"
@@ -60,14 +65,16 @@ func _stack(item_id: StringName, quantity: int) -> ItemStack:
 	return ItemStack.new(DataRegistry.get_item(item_id), quantity)
 
 
+## What the container screen's "Take all" does, then the release the flow asks
+## for when the screen closes (a deferred call).
 func _pick_up(item: DroppedItem) -> InventoryComponent:
-	var picker: Node3D = Node3D.new()
-	add_child_autofree(picker)
 	var inventory: InventoryComponent = InventoryComponent.new()
-	picker.add_child(inventory)
+	add_child_autofree(inventory)
 	inventory.set_slot_count(10)
-	var interactable: InteractableComponent = item.get_node("%Interactable") as InteractableComponent
-	interactable.interact(picker)
+	var every_slot: Array[int] = []
+	every_slot.assign(range(item.get_contents().get_slot_count()))
+	inventory.take_from(item.get_contents(), every_slot)
+	_spawner.release_if_empty(item)
 	return inventory
 
 
@@ -87,7 +94,7 @@ func test_r_008_14_emptied_goes_back_to_pool() -> void:
 	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
 	var free_before: int = _pool.get_free_count()
 	_pick_up(item)
-	await wait_physics_frames(2)
+	await wait_process_frames(2)
 	assert_false(_spawner.get_items().has(item), "no longer an active item")
 	assert_false(item.is_inside_tree(), "outside the tree")
 	assert_gt(_pool.get_free_count(), free_before, "stored in the pool")
@@ -97,7 +104,7 @@ func test_r_008_18_reused_item_is_clean() -> void:
 	var first: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
 	var first_uid: String = first.uid
 	_pick_up(first)
-	await wait_physics_frames(2)
+	await wait_process_frames(2)
 	_clock.now = START_TIME + 50
 	var one: Array[ItemStack] = [_stack(&"cables", 4)]
 	var second: DroppedItem = _spawner.drop_stacks(one, Vector3(1.0, 0.0, 1.0))
@@ -164,7 +171,7 @@ func test_r_008_22_timer_runs_only_with_items() -> void:
 	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
 	assert_true(_spawner.is_checking_expiry(), "running with an item")
 	_pick_up(item)
-	await wait_physics_frames(2)
+	await wait_process_frames(2)
 	assert_false(_spawner.is_checking_expiry(), "stopped when the last one left")
 	var one: Array[ItemStack] = [_stack(&"scrap", 1)]
 	_spawner.drop_stacks(one, Vector3.ZERO)
@@ -614,3 +621,343 @@ func test_r_011_11_bad_saved_piece_stack_lost() -> void:
 			assert_eq(item.uid, "good", "only the good piece loads")
 			assert_eq(piece.uid, "p3", "with its uid")
 	assert_eq(pieces, 1, "the bad piece stacks are lost")
+
+
+# --- Spec 015: a dropped item is a container ----------------------------------
+
+var _removed_still_listed: bool = true
+var _removed_uid: String = "none"
+var _removed_count: int = 0
+
+
+func _on_removed(item: DroppedItem) -> void:
+	_removed_count += 1
+	_removed_still_listed = _spawner.get_items().has(item)
+	_removed_uid = item.uid
+
+
+func _interact(item: DroppedItem, who: Node3D) -> void:
+	(item.get_node("%Interactable") as InteractableComponent).interact(who)
+
+
+func _stacks_in(item: DroppedItem) -> int:
+	return InventoryRules.count_used_slots(item.get_contents().get_slots())
+
+
+func _stacks_in_inventory(inventory: InventoryComponent) -> int:
+	return InventoryRules.count_used_slots(inventory.get_slots())
+
+
+func test_r_015_45_item_opened_reemitted() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var opener: Node3D = Node3D.new()
+	add_child_autofree(opener)
+	watch_signals(_spawner)
+	_interact(item, opener)
+	assert_signal_emit_count(_spawner, "item_opened", 1, "re-emitted once")
+	assert_signal_emitted_with_parameters(_spawner, "item_opened", [item, opener])
+	assert_eq(_stacks_in(item), 2, "opening takes nothing")
+	assert_true(_spawner.get_items().has(item), "and releases nothing")
+
+
+func test_r_015_45_released_item_no_longer_reemits() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	watch_signals(_spawner)
+	item.opened.emit(item, null)
+	assert_signal_not_emitted(_spawner, "item_opened", "a released item is disconnected")
+
+
+func test_r_015_47_one_slot_per_received_stack() -> void:
+	var source: InventoryComponent = _source_with_loot()
+	var used: int = _stacks_in_inventory(source)
+	var piece: ItemStack = _piece(35)
+	var pieces: Array[ItemStack] = [piece]
+	var item: DroppedItem = _spawner.drop_inventory(source, Vector3.ZERO, pieces)
+	assert_not_null(item, "an item was created")
+	if item == null:
+		return
+	assert_eq(item.get_contents().get_slot_count(), used + 1, "used slots plus pieces")
+	assert_eq(_stacks_in(item), used + 1, "every slot is taken")
+	var dropped: ItemStack = _piece_in(item.get_contents())
+	assert_not_null(dropped, "the piece is in the item")
+	if dropped != null:
+		assert_eq(dropped.uid, piece.uid, "the piece keeps its uid")
+		assert_eq(dropped.durability, 35, "and its durability")
+	assert_true(source.is_empty(), "the source gave everything")
+
+
+func test_r_015_47_slot_count_follows_stacks_not_quantity() -> void:
+	var source: InventoryComponent = _new_inventory(6)
+	var scrap_max: int = DataRegistry.get_item(&"scrap").stack_max
+	source.add(&"scrap", scrap_max * 2 + 1)
+	var used: int = _stacks_in_inventory(source)
+	var item: DroppedItem = _spawner.drop_inventory(source, Vector3.ZERO)
+	assert_eq(item.get_contents().get_slot_count(), used, "one slot per stack")
+	assert_eq(item.get_contents().count(&"scrap"), scrap_max * 2 + 1, "nothing lost")
+
+
+func test_r_015_47_emptied_slot_accepts_player_stack() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var first_slot: Array[int] = [0]
+	assert_true(player.take_from(item.get_contents(), first_slot).ok, "a stack leaves")
+	assert_null(item.get_contents().get_slots()[0], "its slot is free")
+	assert_eq(item.get_contents().get_slot_count(), 2, "the slot count does not shrink")
+	# The player's scrap is in slot 0, so the cables land in slot 1.
+	player.add(&"cables", 3)
+	var result: ActionResult = player.move_to_slot(1, item.get_contents(), 0, 3)
+	assert_true(result.ok, "the freed slot receives the player's stack")
+	assert_eq(item.get_contents().count(&"cables"), 3, "it is in the item")
+	assert_eq(player.count(&"cables"), 0, "and gone from the player")
+	var second: ActionResult = player.transfer_to(item.get_contents(), 0, 1)
+	assert_false(second.ok, "an item with every slot taken does not grow")
+	assert_eq(item.get_contents().get_slot_count(), 2, "its slot count stays")
+
+
+func test_r_015_47_transfer_to_fills_the_freed_slot() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var first_slot: Array[int] = [0]
+	player.take_from(item.get_contents(), first_slot)
+	player.add(&"cables", 2)
+	assert_true(player.transfer_to(item.get_contents(), 1, 2).ok, "transfer into the freed slot")
+	assert_eq(item.get_contents().count(&"cables"), 2, "the cables are in the item")
+
+
+func test_r_015_48_taking_or_leaving_keeps_drop_time() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	_clock.now = START_TIME + 100
+	var player: InventoryComponent = _new_inventory(5)
+	var first_slot: Array[int] = [0]
+	player.take_from(item.get_contents(), first_slot)
+	assert_eq(item.dropped_at_unix, START_TIME, "taking does not renew the time")
+	player.add(&"cables", 1)
+	player.transfer_to(item.get_contents(), 1, 1)
+	assert_eq(item.dropped_at_unix, START_TIME, "leaving does not renew it either")
+	var data: Dictionary = item.to_data()
+	var saved_time: int = data["dropped_at"]
+	assert_eq(saved_time, START_TIME, "nor does the saved data")
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	assert_false(_spawner.get_items().has(item), "it expires at its original time")
+
+
+func test_r_015_48_expiry_removes_left_stacks() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var first_slot: Array[int] = [0]
+	player.take_from(item.get_contents(), first_slot)
+	player.add(&"cables", 4)
+	assert_true(player.move_to_slot(1, item.get_contents(), 0, 4).ok, "test setup: the player leaves cables")
+	watch_signals(_spawner)
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	assert_signal_emit_count(_spawner, "item_removed", 1, "announced once")
+	assert_signal_emitted_with_parameters(_spawner, "item_removed", [item])
+	assert_false(_spawner.get_items().has(item), "the item is gone")
+	assert_true(item.get_contents().is_empty(), "what was left is gone")
+	assert_eq(player.count(&"cables"), 0, "and did not return to the player")
+	assert_eq(player.count(&"scrap"), 6, "what the player took stays with the player")
+
+
+func test_r_015_48_item_removed_after_erase_before_reset() -> void:
+	_spawner.item_removed.connect(_on_removed)
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var uid: String = item.uid
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	assert_eq(_removed_count, 1, "announced once")
+	assert_eq(_removed_uid, uid, "the item is not reset yet")
+	assert_false(_removed_still_listed, "but it is no longer listed")
+	assert_eq(item.uid, "", "reset afterwards")
+
+
+func test_r_015_48_unbind_announces_every_item() -> void:
+	_spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var one: Array[ItemStack] = [_stack(&"cables", 1)]
+	_spawner.drop_stacks(one, Vector3.ONE)
+	watch_signals(_spawner)
+	_spawner.unbind_zone()
+	assert_signal_emit_count(_spawner, "item_removed", 2, "both items leave")
+
+
+func test_r_015_50_release_if_empty_releases_an_empty_item() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var both: Array[int] = [0, 1]
+	player.take_from(item.get_contents(), both)
+	var free_before: int = _pool.get_free_count()
+	_spawner.release_if_empty(item)
+	assert_true(_spawner.get_items().has(item), "the release is deferred")
+	await wait_process_frames(2)
+	assert_false(_spawner.get_items().has(item), "released")
+	assert_eq(_pool.get_free_count(), free_before + 1, "in the pool")
+
+
+func test_r_015_50_release_if_empty_keeps_a_non_empty_item() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var first_slot: Array[int] = [0]
+	player.take_from(item.get_contents(), first_slot)
+	var free_before: int = _pool.get_free_count()
+	_spawner.release_if_empty(item)
+	await wait_process_frames(2)
+	assert_true(_spawner.get_items().has(item), "it still holds a stack")
+	assert_eq(_stacks_in(item), 1, "with its contents")
+	assert_eq(_pool.get_free_count(), free_before, "the pool is untouched")
+
+
+func test_r_015_50_release_if_empty_does_nothing_for_a_released_item() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var both: Array[int] = [0, 1]
+	player.take_from(item.get_contents(), both)
+	var free_before: int = _pool.get_free_count()
+	_spawner.release_if_empty(item)
+	_spawner.release_if_empty(item)
+	await wait_process_frames(2)
+	assert_false(_spawner.get_items().has(item), "released once")
+	assert_eq(_pool.get_free_count(), free_before + 1, "the pool got it once")
+	_spawner.release_if_empty(item)
+	_spawner.release_if_empty(null)
+	await wait_process_frames(2)
+	assert_eq(_pool.get_free_count(), free_before + 1, "asking again changes nothing")
+
+
+func test_r_015_50_release_if_empty_ignores_a_reused_item() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var first_uid: String = item.uid
+	var player: InventoryComponent = _new_inventory(5)
+	var both: Array[int] = [0, 1]
+	player.take_from(item.get_contents(), both)
+	_spawner.release_if_empty(item)
+	# It expires before the deferred call and its instance is used again.
+	_spawner.discard_expired(START_TIME + _config.lifetime_s)
+	_clock.now = START_TIME + 10
+	var cables: Array[ItemStack] = [_stack(&"cables", 2)]
+	var reused: DroppedItem = _spawner.drop_stacks(cables, Vector3.ZERO)
+	assert_same(reused, item, "test setup: the pooled instance is reused")
+	assert_ne(reused.uid, first_uid, "another use")
+	var first_slot: Array[int] = [0]
+	player.take_from(reused.get_contents(), first_slot)
+	assert_true(reused.get_contents().is_empty(), "test setup: the new use is empty too")
+	await wait_process_frames(2)
+	assert_true(_spawner.get_items().has(reused), "the old request does not release the new use")
+
+
+func test_r_015_51_drop_inventory_nothing_to_drop_is_null() -> void:
+	_pool.prewarm(1)
+	var none: Array[ItemStack] = []
+	assert_null(_spawner.drop_inventory(_new_inventory(5), Vector3.ZERO, none), "empty inventory, no pieces")
+	assert_eq(_spawner.get_items().size(), 0, "no item")
+	assert_eq(_pool.get_free_count(), 1, "the pool was not touched")
+
+
+func test_r_015_51_drop_inventory_only_pieces_creates_item() -> void:
+	var piece: ItemStack = _piece(60)
+	var pieces: Array[ItemStack] = [piece]
+	var item: DroppedItem = _spawner.drop_inventory(_new_inventory(5), Vector3.ZERO, pieces)
+	assert_not_null(item, "pieces alone make an item")
+	if item == null:
+		return
+	assert_eq(item.get_contents().get_slot_count(), 1, "one slot")
+	var dropped: ItemStack = _piece_in(item.get_contents())
+	assert_not_null(dropped, "holding the piece")
+	if dropped != null:
+		assert_eq(dropped.uid, piece.uid, "same uid")
+		assert_eq(dropped.durability, 60, "same durability")
+
+
+func _restored_from(entry: Dictionary) -> DroppedItem:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.from_save_data({"items": [entry]})
+	spawner.bind_zone(FARM_ZONE, _root())
+	var items: Array[DroppedItem] = spawner.get_items()
+	assert_eq(items.size(), 1, "the entry came back")
+	return items[0] if items.size() == 1 else null
+
+
+func _entry_with_slots(slot_count: Variant, stack_count: int = 1) -> Dictionary:
+	var entry: Dictionary = _entry("slots", FARM_ZONE, START_TIME)
+	var ids: Array[String] = ["scrap", "iron", "cables"]
+	var stacks: Array = []
+	for i: int in stack_count:
+		stacks.append({"item_id": ids[i], "quantity": 1})
+	entry["stacks"] = stacks
+	entry["slot_count"] = slot_count
+	return entry
+
+
+func test_r_015_55_slot_count_saved_and_restored() -> void:
+	var item: DroppedItem = _spawner.drop_inventory(_source_with_loot(), ZONE_ORIGIN)
+	var player: InventoryComponent = _new_inventory(5)
+	var first_slot: Array[int] = [0]
+	player.take_from(item.get_contents(), first_slot)
+	var before: Array[Dictionary] = _spawner.to_data()
+	var saved_count: int = before[0]["slot_count"]
+	assert_eq(saved_count, 2, "the empty slot is saved")
+	_spawner.unbind_zone()
+	_spawner.bind_zone(ZONE, _zone_root)
+	var restored: Array[DroppedItem] = _spawner.get_items()
+	assert_eq(restored.size(), 1, "back after the zone cycle")
+	if restored.size() == 1:
+		assert_eq(restored[0].get_contents().get_slot_count(), 2, "the empty slot is back")
+		assert_eq(_stacks_in(restored[0]), 1, "with the remaining stack")
+	assert_eq(_spawner.to_data(), before, "same data")
+
+
+func test_r_015_55_slot_count_survives_save_load() -> void:
+	var spawner: DroppedItemSpawner = _fresh_spawner()
+	spawner.bind_zone(FARM_ZONE, _root())
+	var item: DroppedItem = spawner.drop_inventory(_source_with_loot(), Vector3.ZERO)
+	var player: InventoryComponent = _new_inventory(5)
+	var second_slot: Array[int] = [1]
+	player.take_from(item.get_contents(), second_slot)
+	var parsed: Variant = JSON.parse_string(JSON.stringify(spawner.to_save_data()))
+	var data: Dictionary = parsed
+	var restored: DroppedItemSpawner = _fresh_spawner()
+	restored.from_save_data(data)
+	restored.bind_zone(FARM_ZONE, _root())
+	var items: Array[DroppedItem] = restored.get_items()
+	assert_eq(items.size(), 1, "the item is back")
+	if items.size() == 1:
+		assert_eq(items[0].get_contents().get_slot_count(), 2, "JSON floats are whole numbers")
+		assert_eq(_stacks_in(items[0]), 1, "one stack")
+
+
+func test_r_015_55_old_save_one_slot_per_stack() -> void:
+	var entry: Dictionary = _entry("old", FARM_ZONE, START_TIME)
+	assert_false(entry.has("slot_count"), "test setup: a save from before spec 015")
+	var item: DroppedItem = _restored_from(entry)
+	if item != null:
+		assert_eq(item.get_contents().get_slot_count(), 1, "one slot per stack")
+		assert_eq(item.get_contents().count(&"scrap"), 2, "the stack is there")
+
+
+func test_r_015_55_slot_count_limits_are_accepted() -> void:
+	var exact: DroppedItem = _restored_from(_entry_with_slots(2, 2))
+	if exact != null:
+		assert_eq(exact.get_contents().get_slot_count(), 2, "as many slots as stacks")
+	var biggest: DroppedItem = _restored_from(
+		_entry_with_slots(DroppedItemSpawner.MAX_RESTORED_SLOTS)
+	)
+	if biggest != null:
+		assert_eq(
+			biggest.get_contents().get_slot_count(), DroppedItemSpawner.MAX_RESTORED_SLOTS, "the cap itself"
+		)
+
+
+func test_r_015_55_bad_slot_count_one_per_stack() -> void:
+	var cases: Dictionary[String, Dictionary] = {
+		"negative": _entry_with_slots(-1),
+		"fraction": _entry_with_slots(2.5),
+		"zero": _entry_with_slots(0),
+		"less than stacks": _entry_with_slots(1, 2),
+		"above the cap": _entry_with_slots(DroppedItemSpawner.MAX_RESTORED_SLOTS + 1),
+	}
+	for label: String in cases:
+		var entry: Dictionary = cases[label]
+		var stack_list: Array = entry["stacks"]
+		var item: DroppedItem = _restored_from(entry)
+		assert_push_error("slot count", "%s is reported" % label)
+		if item != null:
+			assert_eq(item.get_contents().get_slot_count(), stack_list.size(), "%s: one slot per stack" % label)
+			assert_eq(_stacks_in(item), stack_list.size(), "%s: no stack lost" % label)

@@ -8,6 +8,8 @@ extends GutTest
 ## Spec 014: it shows the chassis level next to the XP and follows
 ## level_changed (R-014-19); "Level up" adds the XP missing for the next
 ## threshold of the table, and nothing at the last level (R-014-20).
+## After the phone test of spec 015: everything sits in one list behind a "•••"
+## button in the top-right corner, closed at start, so it covers no screen.
 
 const DEBUG_HUD_SCENE := preload("res://scenes/ui/debug_hud.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
@@ -49,7 +51,40 @@ func test_r_007_22_shows_current_xp_when_bound() -> void:
 
 func test_r_007_22_xp_below_fps() -> void:
 	var fps_label: Label = _debug_hud.get_node("%FpsLabel") as Label
-	assert_gte(_xp_label.offset_top, fps_label.offset_bottom, "the XP sits under the FPS")
+	assert_eq(_xp_label.get_parent(), fps_label.get_parent(), "in the same list")
+	assert_gt(_xp_label.get_index(), fps_label.get_index(), "the XP sits under the FPS")
+
+
+func _menu() -> Control:
+	return _debug_hud.get_node("%Menu") as Control
+
+
+func _menu_toggle() -> Button:
+	return _debug_hud.get_node("%MenuToggle") as Button
+
+
+func test_r_007_22_data_closed_behind_menu_button() -> void:
+	assert_not_null(_menu_toggle(), "%MenuToggle exists")
+	assert_not_null(_menu(), "%Menu exists")
+	if _menu_toggle() == null or _menu() == null:
+		return
+	assert_true(_menu_toggle().visible, "the button shows")
+	assert_eq(_menu_toggle().anchor_left, 1.0, "in the right edge")
+	assert_eq(_menu_toggle().anchor_top, 0.0, "at the top")
+	assert_eq(_menu_toggle().auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "debug text, not translated")
+	assert_false(_menu().visible, "the data starts closed")
+	for unique: String in ["%FpsLabel", "%XpLabel", "%LevelLabel", "%LevelUpButton", "%FillBaseButton", "%SeedLabel", "%NewWorldButton"]:
+		assert_true(_menu().is_ancestor_of(_debug_hud.get_node(unique)), "%s is in the menu" % unique)
+
+
+func test_r_007_22_menu_button_toggles_data() -> void:
+	if _menu_toggle() == null or _menu() == null:
+		fail_test("no menu")
+		return
+	_menu_toggle().button_pressed = true
+	assert_true(_menu().visible, "pressing opens it")
+	_menu_toggle().button_pressed = false
+	assert_false(_menu().visible, "pressing again closes it")
 
 
 func test_r_009_22_fill_base_places_on_every_free_cell() -> void:
@@ -153,8 +188,8 @@ func test_r_014_19_shows_level_and_follows() -> void:
 
 
 func test_r_014_19_level_next_to_xp() -> void:
-	assert_gte(_level_label().offset_top, _xp_label.offset_bottom, "the level sits under the XP")
-	assert_eq(_level_label().offset_left, _xp_label.offset_left, "aligned with it")
+	assert_eq(_level_label().get_parent(), _xp_label.get_parent(), "in the same list")
+	assert_eq(_level_label().get_index(), _xp_label.get_index() + 1, "right under the XP")
 	assert_eq(_level_up_button().auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "debug text, not translated")
 
 

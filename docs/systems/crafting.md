@@ -1,23 +1,23 @@
 # Crafteo y reparación en el banco
 
 > En el banco de reparaciones el jugador crea las tres piezas básicas con materiales y repara piezas dañadas. Las piezas
-> son objetos únicos del inventario (con `uid` y durabilidad), sin efecto hasta la spec 015. La construcción de
-> estructuras del mismo banco está en [base.md](base.md).
-> Specs: [009](../../specs/009-base-placement-charging/spec.md), [011](../../specs/011-crafting-repair/spec.md) · Última actualización: spec 011
+> son objetos únicos con `uid` y durabilidad; desde la spec 015 se equipan y se pueden reparar también equipadas
+> ([equipment.md](equipment.md)). La construcción de estructuras del mismo banco está en [base.md](base.md).
+> Specs: [009](../../specs/009-base-placement-charging/spec.md), [011](../../specs/011-crafting-repair/spec.md), [015](../../specs/015-pieces-slots-degradation/spec.md) · Última actualización: spec 015
 
 ## Piezas
 
 | Pieza | Tipo | Archivo | Responsabilidad |
 |---|---|---|---|
-| `CraftingSystem` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/crafting_system.gd` | Decide, nunca escribe: `cost_of`, `can_pay`, `check_craft`, `create_result`, `is_damaged`, `repair_cost`, `check_repair` |
+| `CraftingSystem` | Sistema puro (`RefCounted`, estático) | `game/scripts/systems/crafting_system.gd` | Decide, nunca escribe: `cost_of`, `can_pay`, `check_craft`, `create_result`, `is_damaged`, `repair_cost`, `check_repair`, `check_repair_stack` (spec 015) |
 | `InventoryComponent` | Componente | `game/scripts/components/inventory_component.gd` | `craft(recipe)` y `repair(piece_uid, costs)`: cobran y escriben en un paso ([inventory.md](inventory.md)) |
-| `RepairBench` | `StaticBody3D` | `game/scenes/base/repair_bench.gd` | Petición del jugador: `craft(player, recipe)` y `repair(player, piece_uid)`; emite los eventos. Sin estado |
-| `BenchScreen` | `UIScreen` (`SCREEN_ID = &"bench"`) | `game/scenes/ui/bench_screen.gd`, `.tscn` | `TabContainer` con Construir, Crear y Reparar; escucha `inventory_changed` del jugador |
+| `RepairBench` | `StaticBody3D` | `game/scenes/base/repair_bench.gd` | Petición del jugador: `craft(player, recipe)` y `repair(player, piece_uid)` (en el equipo o en el inventario, según el `uid`); emite los eventos. Sin estado |
+| `BenchScreen` | `UIScreen` (`SCREEN_ID = &"bench"`) | `game/scenes/ui/bench_screen.gd`, `.tscn` | `TabContainer` con Construir, Crear y Reparar; escucha `inventory_changed`, `equipment_changed` y `durability_changed` del jugador |
 | `BenchEntry` | `HBoxContainer` | `game/scenes/ui/bench_entry.gd` | Fila común: icono, nombre, detalle, coste, aviso y botón (`setup`, `set_blocked(razón)`, señal `pressed`) |
 | `BenchBuildSection` | `VBoxContainer` | `game/scenes/ui/bench_build_section.gd` | Pestaña Construir (lógica de la antigua `BuildScreen`, [base.md](base.md)) |
 | `BenchCraftSection` | `VBoxContainer` | `game/scenes/ui/bench_craft_section.gd` | Una fila fija por receta `WORKBENCH` con `result_item` (nombre de nodo = id de receta) |
-| `BenchRepairSection` | `VBoxContainer` | `game/scenes/ui/bench_repair_section.gd` | Una fila por pieza dañada (nombre de nodo = `uid`); `%NothingToRepair` si no hay |
-| `PieceData` | Resource (`extends ItemData`) | `game/scripts/data/piece_data.gd` | `durability_max`; `stack_max` siempre 1 |
+| `BenchRepairSection` | `VBoxContainer` | `game/scenes/ui/bench_repair_section.gd` | Una fila por pieza dañada, primero las equipadas con la marca `BENCH_EQUIPPED` (nombre de nodo = `uid`); `%NothingToRepair` si no hay |
+| `PieceData` | Resource (`extends ItemData`) | `game/scripts/data/piece_data.gd` | `durability_max`; `stack_max` siempre 1; `slot_type` y `modifiers` (spec 015) |
 | `RepairCostData`, `RepairTierData` | Resources | `game/scripts/data/repair_cost_data.gd`, `repair_tier_data.gd` | Tramos de coste por porcentaje de durabilidad restante |
 | `RecipeData.result_item` | Campo | `game/scripts/data/recipe_data.gd` | Receta de ítem; una receta del catálogo tiene `result_structure` o `result_item`, no ambos |
 
@@ -36,13 +36,18 @@
    guardado diferido con razón `item_crafted` ([save.md](save.md)). La pantalla sigue abierta.
 
 **Reparar.**
-1. `BenchRepairSection.refresh()` rehace sus filas con cada `inventory_changed`: una por pieza con
-   `CraftingSystem.is_damaged`, con durabilidad, coste (`repair_cost`) y bloqueo de `check_repair`.
-2. `check_repair` rechaza en este orden: `uid` desconocido (`ERR_PIECE_NOT_FOUND`), intacta (`ERR_PIECE_INTACT`), rota
-   (`ERR_PIECE_BROKEN`), sin materiales (`ERR_NOT_ENOUGH_MATERIALS`).
+1. `BenchRepairSection.refresh()` rehace sus filas con cada `inventory_changed`, `equipment_changed` o `durability_changed`:
+   una por pieza con `CraftingSystem.is_damaged` (las equipadas primero), con durabilidad, coste (`repair_cost`) y bloqueo.
+   En las equipadas el bloqueo y la pulsación usan `check_repair_stack(pieza, ranuras del inventario, costes)`, porque
+   `check_repair` no encontraría su `uid` entre las ranuras.
+2. `check_repair` busca el `uid` (`ERR_PIECE_NOT_FOUND`) y llama a `check_repair_stack`, que rechaza en este orden: intacta
+   (`ERR_PIECE_INTACT`), rota (`ERR_PIECE_BROKEN`), sin materiales (`ERR_NOT_ENOUGH_MATERIALS`). Inventario y equipo
+   comparten esa regla.
 3. `repair_cost` elige el primer tramo (orden ascendente) con `durabilidad × PERCENT <= up_to_percent × máxima`,
    en enteros para que el borde no dependa de coma flotante.
-4. `RepairBench.repair` llama a `player.inventory.repair(uid, catalog.repair_costs)`, que cobra y pone la durabilidad
+4. `RepairBench.repair` mira el `uid`: si lo tiene `player.equipment` llama a `equipment.repair(uid, inventario, costes)`
+   (cobra del inventario y la pieza sigue equipada, [equipment.md](equipment.md)); si no, a
+   `player.inventory.repair(uid, catalog.repair_costs)`, que cobra y pone la durabilidad
    al máximo conservando `uid` y ranura. Si sale bien emite `EventBus.piece_repaired(piece_uid, player_uid)`
    (razón de guardado `piece_repaired`).
 
@@ -55,7 +60,7 @@ pantalla queda sin filas.
 
 | Recurso | Clase | Valores en BALANCE |
 |---|---|---|
-| `resources/pieces/basic_arms.tres`, `basic_legs.tres`, `basic_core.tres` | `PieceData` | [§4.1](../../BALANCE.md) (durabilidad máxima) |
+| `resources/pieces/basic_arms.tres`, `basic_legs.tres`, `basic_core.tres` | `PieceData` | [§4.1](../../BALANCE.md) (durabilidad máxima), [§4.2](../../BALANCE.md) (modificadores) |
 | `resources/recipes/basic_arms.tres`, `basic_legs.tres`, `basic_core.tres` | `RecipeData` | [§4.3.1](../../BALANCE.md), §5.1 |
 | `resources/config/repair_costs.tres` | `RepairCostData` | [§4.3.2](../../BALANCE.md) (tramos), §4.1 |
 
@@ -76,19 +81,21 @@ Iconos SVG de marcador en `assets/textures/icons/items/`, anotados en `assets/CR
 | Reparar rehace sus filas, Construir y Crear solo actualizan botón y aviso | Las piezas dañadas cambian; las recetas no | plan 011 D11 |
 | Guardar tras crear y reparar, en silencio | Igual que construir | R-011-28 |
 | Crear es instantáneo, sin cola ni confirmación | Ningún documento pide tiempo | R-011-15 |
+| `check_repair_stack` sale de `check_repair`; `RepairBench` decide por `uid` entre equipo e inventario | Una sola regla de reparación | R-015-29, R-015-30, [plan 015 D16](../../specs/015-pieces-slots-degradation/plan.md) |
 
 ## Relación con otros sistemas
 
 Usa [inventory.md](inventory.md) (el componente escribe), [data_catalog.md](data_catalog.md), [ui.md](ui.md)
 (`UIManager`, `UIScreen`) y [base.md](base.md) (la base da el banco; Construir sigue siendo de la base). Lo escucha
-[save.md](save.md). La spec 015 añadirá equipo, desgaste y reparar piezas equipadas.
+[save.md](save.md). Usa [equipment.md](equipment.md) (reparar lo equipado) y [stats.md](stats.md) (las piezas dan stats).
 
 ## Trampas y límites
 
-- Una pieza creada no hace nada: no hay equipo, stats ni desgaste hasta la spec 015; por eso reparar solo se prueba con
-  tests que inyectan una pieza dañada ([spec 011 pregunta 7](../../specs/011-crafting-repair/spec.md)).
+- Una pieza solo da stats equipada ([equipment.md](equipment.md)); en el inventario no hace nada.
 - `InventoryComponent` nunca contiene una pieza a 0 (`is_valid_stack`); `ERR_PIECE_BROKEN` solo se alcanza desde el
-  sistema puro. La spec 015 debe quitar las piezas rotas, o se rechazarán al cargar ([plan 011 §7](../../specs/011-crafting-repair/plan.md)).
+  sistema puro: una pieza que llega a 0 se rompe y sale del equipo ([equipment.md](equipment.md)).
+- La fila de una pieza equipada no se puede comprobar con `check_repair` (no la encuentra entre las ranuras): hay que usar
+  `check_repair_stack`.
 - Una pila de pieza sin `uid` o con durabilidad inválida se rechaza: quien las cree (por ejemplo el botín de la spec 016)
   debe usar `CraftingSystem.create_result`.
 - `RepairBench.craft` solo acepta recetas `WORKBENCH`; la comprobación de "tiene `result_item`" está en el inventario.
@@ -101,7 +108,7 @@ Usa [inventory.md](inventory.md) (el componente escribe), [data_catalog.md](data
 - Receta de ítem nueva: `.tres` en `resources/recipes/` con `result_item` (y su ítem en `items`), añadirla a
   `data_catalog.tres`, claves `ITEM_*` en `strings.csv` y números antes en `BALANCE.md`; `BenchCraftSection` la lista sola.
 - Cambiar costes o tramos de reparación: solo `repair_costs.tres` (tramos ascendentes, el último a 100).
-- Pieza nueva: `PieceData` con `stack_max = 1` y su receta; la 015 añade `slot_type` y modificadores.
+- Pieza nueva: `PieceData` con `stack_max = 1`, `slot_type`, `modifiers` y su receta.
 
 ## Tests
 
@@ -109,7 +116,7 @@ Usa [inventory.md](inventory.md) (el componente escribe), [data_catalog.md](data
 |---|---|
 | `tests/unit/test_crafting_system.gd` | `check_craft` (justo, de sobra, falta, lleno, el pago libera ranura, no cambia las ranuras), `create_result`, coste por tramos y bordes, motivos de `check_repair` |
 | `tests/unit/test_inventory_component.gd` | `craft` y `repair`: todo o nada, `uid` nuevo al crear y conservado al reparar, `uid` desconocido, dos Brazos en dos ranuras |
-| `tests/unit/test_repair_bench.gd` | Eventos solo si sale bien, peticiones inválidas, `BaseZone.get_bench()` |
-| `tests/unit/test_bench_screen.gd` | Tres pestañas, filas, avisos, refresco, sigue abierta, textos ES/EN y los casos de construir movidos de la spec 009 |
+| `tests/unit/test_repair_bench.gd` | Eventos solo si sale bien, peticiones inválidas, `BaseZone.get_bench()`; repara una pieza equipada y emite el evento |
+| `tests/unit/test_bench_screen.gd` | Tres pestañas, filas, avisos, refresco, sigue abierta, textos ES/EN, casos de construir de la spec 009; reparar lista lo equipado marcado y refresca con el desgaste |
 | `tests/unit/test_piece_resources.gd`, `test_recipe_resources.gd`, `test_data_catalog.gd` | Piezas, recetas y costes contra BALANCE; un único resultado por receta |
 | `tests/integration/test_save_triggers.gd` | Guardado tras crear y reparar |

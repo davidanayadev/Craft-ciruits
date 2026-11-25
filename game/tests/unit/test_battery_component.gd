@@ -5,31 +5,53 @@ extends GutTest
 ## systems consume and add (R-003-09), rejects negative amounts (R-003-10) and
 ## keeps its state per instance (R-003-14). Spec 010: save and load (R-010-08, 09, 11, 24).
 ## No scene and no physics: the component gets delta and gait by parameter.
-## Values come from the real .tres files (BALANCE §1.1 and §4.2 single source).
+## Values come from the real .tres files (BALANCE §1.1 and §4.2 single source):
+## since spec 015 the maximum and the rates are the stats of the robot with the
+## starting equipment (basic Core and legs), which its entity gives it.
 
 const ROBOT_BATTERY_PATH := "res://resources/battery/robot_battery.tres"
-const BASIC_LEGS_PATH := "res://resources/movement/basic_legs.tres"
+const BASE_STATS_PATH := "res://resources/robot/robot_base_stats.tres"
+const STARTING_PIECES: Array[String] = [
+	"res://resources/pieces/basic_core.tres", "res://resources/pieces/basic_legs.tres",
+]
 ## Float error allowed after adding up many small per-frame drains.
 const TOLERANCE := 0.0001
 
 var _config: BatteryConfigData
-var _legs: MovementStatsData
+## Stats of the robot with the starting equipment.
+var _stats: Dictionary[StringName, float] = {}
+var _maximum: float = 0.0
 var _battery: BatteryComponent
 
 
 func before_each() -> void:
 	_config = load(ROBOT_BATTERY_PATH) as BatteryConfigData
-	_legs = load(BASIC_LEGS_PATH) as MovementStatsData
+	_stats = _starting_stats()
+	_maximum = _stats[StatIds.MAX_BATTERY]
 	_battery = _new_battery()
 	watch_signals(_battery)
 
 
+func _starting_stats() -> Dictionary[StringName, float]:
+	var base: RobotBaseStatsData = load(BASE_STATS_PATH) as RobotBaseStatsData
+	var modifiers: Array[StatModifier] = []
+	for path: String in STARTING_PIECES:
+		var piece: PieceData = load(path) as PieceData
+		modifiers.append_array(piece.modifiers)
+	return StatsCalculator.compute(base.to_stats(), modifiers)
+
+
+## Given its stats and filled, as its entity does (spec 015, plan D5).
 func _new_battery() -> BatteryComponent:
 	var battery: BatteryComponent = BatteryComponent.new()
 	battery.config = _config
-	battery.legs = _legs
 	battery.name = "Battery"
 	add_child_autofree(battery)
+	battery.set_drain_rates(
+		_stats[StatIds.PASSIVE_DRAIN], _stats[StatIds.WALK_DRAIN], _stats[StatIds.RUN_DRAIN]
+	)
+	battery.set_base_maximum(_maximum)
+	battery.recharge_full()
 	return battery
 
 
@@ -42,11 +64,11 @@ func _drained_after_one_second(step: float, gait: LocomotionSystem.Gait) -> floa
 
 
 func _low_threshold() -> float:
-	return _config.maximum * _config.low_threshold_ratio
+	return _maximum * _config.low_threshold_ratio
 
 
 func test_r_003_01_starts_full() -> void:
-	assert_eq(_battery.get_maximum(), 100.0, "maximum from robot_battery.tres")
+	assert_eq(_battery.get_maximum(), 100.0, "maximum of the basic Core (BALANCE §4.2), given by its entity")
 	assert_eq(_battery.get_current(), _battery.get_maximum(), "starts full")
 	assert_false(_battery.is_depleted(), "a full battery is not depleted")
 
@@ -209,7 +231,7 @@ func test_r_003_14_two_components_do_not_share_state() -> void:
 	_battery.tick(10.0, LocomotionSystem.Gait.RUN)
 	assert_lt(_battery.get_current(), _battery.get_maximum(), "the ticked component drained")
 	assert_eq(other.get_current(), other.get_maximum(), "the other one is untouched")
-	assert_eq(_config.maximum, 100.0, "the shared resource is not modified")
+	assert_eq(_config.low_threshold_ratio, 0.2, "the shared resource is not modified")
 
 
 ## Spec 009: the station recharges through this method, which reports like any
@@ -285,8 +307,8 @@ func test_r_010_09_load_below_threshold_does_not_rearm_the_warning() -> void:
 
 func test_r_010_09_load_above_threshold_rearms_the_warning() -> void:
 	_battery.from_save_data({"current": _low_threshold() * 0.5})
-	_battery.from_save_data({"current": _config.maximum * 0.9})
-	_battery.consume(_config.maximum)
+	_battery.from_save_data({"current": _maximum * 0.9})
+	_battery.consume(_maximum)
 	assert_signal_emit_count(_battery, "battery_low", 1, "armed again by the load above")
 
 
@@ -352,25 +374,25 @@ const BONUS := 20.0
 
 func test_r_012_11_maximum_with_bonus() -> void:
 	_battery.set_maximum_bonus(BONUS)
-	assert_eq(_battery.get_maximum(), _config.maximum + BONUS, "the maximum without bonus plus the bonus")
+	assert_eq(_battery.get_maximum(), _maximum + BONUS, "the maximum without bonus plus the bonus")
 	_battery.set_maximum_bonus(0.0)
-	assert_eq(_battery.get_maximum(), _config.maximum, "back without bonus")
+	assert_eq(_battery.get_maximum(), _maximum, "back without bonus")
 
 
 func test_r_012_11_negative_bonus_rejected() -> void:
 	_battery.set_maximum_bonus(-1.0)
 	assert_push_error("Battery")
-	assert_eq(_battery.get_maximum(), _config.maximum, "no change")
+	assert_eq(_battery.get_maximum(), _maximum, "no change")
 	assert_signal_not_emitted(_battery, "battery_changed")
 
 
 func test_r_012_11_bonus_set_before_ready_kept() -> void:
 	var battery: BatteryComponent = BatteryComponent.new()
 	battery.config = _config
-	battery.legs = _legs
+	battery.set_base_maximum(_maximum)
 	battery.set_maximum_bonus(BONUS)
 	add_child_autofree(battery)
-	assert_eq(battery.get_maximum(), _config.maximum + BONUS, "the bonus survives _ready()")
+	assert_eq(battery.get_maximum(), _maximum + BONUS, "the bonus and the stat survive _ready()")
 
 
 func test_r_012_12_bonus_keeps_charge_emits_once() -> void:
@@ -381,13 +403,13 @@ func test_r_012_12_bonus_keeps_charge_emits_once() -> void:
 	_battery.set_maximum_bonus(BONUS)
 	assert_eq(_battery.get_current(), before, "the charge stays")
 	assert_signal_emit_count(_battery, "battery_changed", 1, "one change")
-	assert_signal_emitted_with_parameters(_battery, "battery_changed", [before, _config.maximum + BONUS])
+	assert_signal_emitted_with_parameters(_battery, "battery_changed", [before, _maximum + BONUS])
 	_battery.set_maximum_bonus(BONUS)
 	assert_signal_emit_count(_battery, "battery_changed", 1, "the same bonus again changes nothing")
 
 
 func test_r_012_12_bonus_emits_no_fact() -> void:
-	_battery.consume(_config.maximum - 21.0)
+	_battery.consume(_maximum - 21.0)
 	clear_signal_watcher()
 	watch_signals(_battery)
 	_battery.set_maximum_bonus(BONUS)
@@ -403,13 +425,13 @@ func test_r_012_12_bonus_removed_lowers_charge_above_it() -> void:
 	clear_signal_watcher()
 	watch_signals(_battery)
 	_battery.set_maximum_bonus(0.0)
-	assert_eq(_battery.get_current(), _config.maximum, "lowered to the new maximum")
+	assert_eq(_battery.get_current(), _maximum, "lowered to the new maximum")
 	assert_signal_emit_count(_battery, "battery_changed", 1)
 
 
 func test_r_012_13_low_threshold_uses_new_maximum() -> void:
 	_battery.set_maximum_bonus(BONUS)
-	var threshold: float = (_config.maximum + BONUS) * _config.low_threshold_ratio
+	var threshold: float = (_maximum + BONUS) * _config.low_threshold_ratio
 	_battery.consume(_battery.get_current() - threshold - 0.5)
 	assert_signal_not_emitted(_battery, "battery_low", "still above the threshold of the new maximum")
 	_battery.consume(1.0)
@@ -419,39 +441,39 @@ func test_r_012_13_low_threshold_uses_new_maximum() -> void:
 func test_r_012_13_recharge_full_to_new_maximum() -> void:
 	_battery.set_maximum_bonus(BONUS)
 	_battery.recharge_full()
-	assert_eq(_battery.get_current(), _config.maximum + BONUS, "a station fills to the new maximum")
+	assert_eq(_battery.get_current(), _maximum + BONUS, "a station fills to the new maximum")
 
 
 func test_r_012_14_charge_loaded_before_bonus() -> void:
-	var saved: float = _config.maximum + BONUS - 5.0
+	var saved: float = _maximum + BONUS - 5.0
 	_battery.from_save_data({"current": saved})
-	assert_eq(_battery.get_current(), _config.maximum, "held at the maximum while the bonus is unknown")
+	assert_eq(_battery.get_current(), _maximum, "held at the maximum while the bonus is unknown")
 	_battery.set_maximum_bonus(BONUS)
 	assert_eq(_battery.get_current(), saved, "the saved charge once the bonus arrives")
-	assert_eq(_battery.get_maximum(), _config.maximum + BONUS)
+	assert_eq(_battery.get_maximum(), _maximum + BONUS)
 	assert_push_error_count(0, "nothing to report")
 	assert_signal_not_emitted(_battery, "battery_low")
 
 
 func test_r_012_14_bonus_before_charge() -> void:
 	_battery.set_maximum_bonus(BONUS)
-	var saved: float = _config.maximum + BONUS - 5.0
+	var saved: float = _maximum + BONUS - 5.0
 	_battery.from_save_data({"current": saved})
 	assert_eq(_battery.get_current(), saved, "accepted up to the new maximum")
 	assert_push_error_count(0)
 
 
 func test_r_012_14_pending_dropped_by_other_change() -> void:
-	_battery.from_save_data({"current": _config.maximum + 10.0})
+	_battery.from_save_data({"current": _maximum + 10.0})
 	_battery.consume(1.0)
 	assert_push_error("Battery")
-	assert_eq(_battery.get_current(), _config.maximum - 1.0, "the pending charge is gone")
+	assert_eq(_battery.get_current(), _maximum - 1.0, "the pending charge is gone")
 	_battery.set_maximum_bonus(BONUS)
-	assert_eq(_battery.get_current(), _config.maximum - 1.0, "a later bonus does not bring it back")
+	assert_eq(_battery.get_current(), _maximum - 1.0, "a later bonus does not bring it back")
 
 
 func test_r_012_14_pending_dropped_by_new_load() -> void:
-	_battery.from_save_data({"current": _config.maximum + 10.0})
+	_battery.from_save_data({"current": _maximum + 10.0})
 	_battery.from_save_data({"current": 50.0})
 	assert_push_error("Battery")
 	assert_eq(_battery.get_current(), 50.0, "the new load wins")
@@ -460,7 +482,94 @@ func test_r_012_14_pending_dropped_by_new_load() -> void:
 
 
 func test_r_012_14_bonus_too_small_reports() -> void:
-	_battery.from_save_data({"current": _config.maximum + BONUS + 10.0})
+	_battery.from_save_data({"current": _maximum + BONUS + 10.0})
 	_battery.set_maximum_bonus(BONUS)
 	assert_push_error("Battery")
-	assert_eq(_battery.get_current(), _config.maximum + BONUS, "at the new maximum")
+	assert_eq(_battery.get_current(), _maximum + BONUS, "at the new maximum")
+
+
+# --- Stats from StatsComponent (spec 015) ------------------------------------
+# R-015-15, R-015-18, R-015-19, R-015-43, R-015-44. The numbers are made-up
+# inputs: the real ones come from StatsComponent (test_robot_equipment.gd).
+
+
+func test_r_015_15_drain_rates_by_gait() -> void:
+	_battery.set_drain_rates(0.5, 0.25, 1.0)
+	assert_eq(_battery.drain_per_second(LocomotionSystem.Gait.IDLE), 0.5, "passive while standing")
+	assert_eq(_battery.drain_per_second(LocomotionSystem.Gait.WALK), 0.75, "passive + walk")
+	assert_eq(_battery.drain_per_second(LocomotionSystem.Gait.RUN), 1.5, "passive + run, never walk")
+
+
+func test_r_015_15_negative_rate_rejected() -> void:
+	var before: float = _battery.drain_per_second(LocomotionSystem.Gait.WALK)
+	_battery.set_drain_rates(0.5, -0.25, 1.0)
+	assert_push_error("Battery")
+	assert_eq(_battery.drain_per_second(LocomotionSystem.Gait.WALK), before, "no change")
+
+
+func test_r_015_44_passive_rate_from_stats() -> void:
+	_battery.set_drain_rates(0.25, 0.0, 0.0)
+	_battery.tick(2.0, LocomotionSystem.Gait.IDLE)
+	assert_almost_eq(_battery.get_current(), _battery.get_maximum() - 0.5, TOLERANCE, "the rate it was given")
+
+
+func test_r_015_18_maximum_is_stat_plus_bonus() -> void:
+	_battery.set_base_maximum(80.0)
+	assert_eq(_battery.get_maximum(), 80.0, "the stat")
+	_battery.set_maximum_bonus(BONUS)
+	assert_eq(_battery.get_maximum(), 80.0 + BONUS, "the stat plus the generator")
+	_battery.set_base_maximum(90.0)
+	assert_eq(_battery.get_maximum(), 90.0 + BONUS, "a new stat keeps the bonus")
+
+
+func test_r_015_18_negative_base_maximum_rejected() -> void:
+	var before: float = _battery.get_maximum()
+	_battery.set_base_maximum(-1.0)
+	assert_push_error("Battery")
+	assert_eq(_battery.get_maximum(), before, "no change")
+
+
+func test_r_015_19_base_maximum_keeps_or_lowers_charge() -> void:
+	_battery.consume(50.0)
+	var half: float = _battery.get_current()
+	clear_signal_watcher()
+	watch_signals(_battery)
+	_battery.set_base_maximum(_battery.get_maximum() + 20.0)
+	assert_eq(_battery.get_current(), half, "a higher maximum keeps the charge")
+	assert_signal_emit_count(_battery, "battery_changed", 1, "one change")
+	_battery.set_base_maximum(30.0)
+	assert_eq(_battery.get_current(), 30.0, "a lower maximum lowers a charge above it")
+	assert_signal_emit_count(_battery, "battery_changed", 2, "one change each")
+	_battery.set_base_maximum(30.0)
+	assert_signal_emit_count(_battery, "battery_changed", 2, "the same maximum changes nothing")
+
+
+func test_r_015_19_no_low_nor_depleted_signal() -> void:
+	_battery.consume(_battery.get_maximum() - 21.0)
+	clear_signal_watcher()
+	watch_signals(_battery)
+	_battery.set_base_maximum(200.0)
+	assert_signal_not_emitted(_battery, "battery_low", "21 is below 20 % of 200 but nothing was consumed")
+	_battery.set_base_maximum(0.0)
+	assert_signal_not_emitted(_battery, "battery_depleted", "a maximum of 0 consumes nothing")
+
+
+func test_r_015_19_loaded_charge_waits_for_base_maximum() -> void:
+	var saved: float = _battery.get_maximum() + 10.0
+	_battery.from_save_data({"current": saved})
+	_battery.set_base_maximum(saved + 5.0)
+	assert_eq(_battery.get_current(), saved, "same pending rule as the bonus (plan 015 D6)")
+	assert_push_error_count(0, "nothing to report")
+
+
+func test_r_015_43_is_low() -> void:
+	var threshold: float = _battery.get_maximum() * _config.low_threshold_ratio
+	assert_false(_battery.is_low(), "a full battery is not low")
+	_battery.consume(_battery.get_current() - threshold)
+	assert_false(_battery.is_low(), "at the threshold it is not low yet")
+	_battery.consume(0.5)
+	assert_true(_battery.is_low(), "below the threshold")
+	_battery.set_maximum_bonus(BONUS)
+	assert_true(_battery.is_low(), "still below the threshold of the larger maximum")
+	_battery.recharge_full()
+	assert_false(_battery.is_low(), "a recharge ends it")

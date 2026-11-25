@@ -511,3 +511,257 @@ func test_r_014_14_last_level_slots_fit_screen() -> void:
 	var screen_rect: Rect2 = Rect2(Vector2.ZERO, host.size)
 	assert_true(screen_rect.encloses((screen.get_node("Center/Panel") as Control).get_global_rect()), "the panel fits")
 	_assert_cells_fit(cells, screen_rect, "inventory")
+
+
+# --- Spec 015: equipment panel ------------------------------------------------
+# The robot's own inventory is the screen's, as when Main opens it.
+
+const EQUIPMENT_KEYS: Array[StringName] = [
+	&"EQUIPMENT_TITLE", &"EQUIPMENT_SLOT_ARMS", &"EQUIPMENT_SLOT_LEGS", &"EQUIPMENT_SLOT_CORE",
+	&"EQUIPMENT_NO_ARMS", &"EQUIPMENT_NO_LEGS", &"EQUIPMENT_NO_CORE", &"EQUIPMENT_EQUIP",
+	&"EQUIPMENT_UNEQUIP", &"STAT_ATTACK_DAMAGE", &"STAT_ATTACKS_PER_SECOND", &"STAT_BATTERY_PER_SWING",
+	&"STAT_WALK_SPEED", &"STAT_RUN_SPEED", &"STAT_CANNOT_RUN", &"STAT_WALK_DRAIN", &"STAT_PASSIVE_DRAIN",
+	&"STAT_MAX_BATTERY", &"ERR_NOT_A_PIECE", &"ERR_NO_FREE_SLOT", &"ERR_SLOT_EMPTY",
+]
+
+var _robot: Robot = null
+
+
+func _setup_robot() -> void:
+	_robot = _new_thrower()
+	_screen.setup(
+		{InventoryScreen.CONTEXT_INVENTORY: _robot.inventory, InventoryScreen.CONTEXT_THROWER: _robot}
+	)
+
+
+func _equipment_panel() -> EquipmentPanel:
+	return _screen.get_node("%EquipmentPanel") as EquipmentPanel
+
+
+func _slot_button(slot_name: String) -> Button:
+	return _equipment_panel().get_node("%" + slot_name + "Button") as Button
+
+
+func _slot_bar(slot_name: String) -> ProgressBar:
+	return _equipment_panel().get_node("%" + slot_name + "Bar") as ProgressBar
+
+
+func _equip_button() -> Button:
+	return _screen.get_node("%EquipButton") as Button
+
+
+func _stat_line(key: StringName) -> Label:
+	return _equipment_panel().get_node("%StatsList").get_node_or_null(String(key)) as Label
+
+
+func _give_robot(piece_id: StringName, durability: int) -> int:
+	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(piece_id))
+	piece.durability = durability
+	var offered: Array[ItemStack] = [piece]
+	assert_true(_robot.inventory.add_stacks(offered).ok, "test setup: the piece fits")
+	return InventoryRules.index_of_uid(_robot.inventory.get_slots(), piece.uid)
+
+
+func _press_cell(index: int) -> void:
+	_cells()[index].pressed.emit()
+
+
+func test_r_015_31_three_slots_icon_and_name() -> void:
+	_setup_robot()
+	assert_true(_equipment_panel().visible, "the panel is shown with the robot")
+	var legs: PieceData = DataRegistry.get_item(&"basic_legs") as PieceData
+	assert_eq(_slot_button("Legs").text, String(legs.name_key), "the name of the legs")
+	assert_same(_slot_button("Legs").icon, legs.icon, "the icon of the legs")
+	var core: PieceData = DataRegistry.get_item(&"basic_core") as PieceData
+	assert_eq(_slot_button("Core").text, String(core.name_key), "the name of the Core")
+	assert_eq((_equipment_panel().get_node("%ArmsTitle") as Label).text, "EQUIPMENT_SLOT_ARMS", "slot titles are keys")
+
+
+func test_r_015_31_no_piece_states() -> void:
+	_setup_robot()
+	assert_eq(_slot_button("Arms").text, "EQUIPMENT_NO_ARMS", "one arm")
+	assert_null(_slot_button("Arms").icon, "no icon")
+	assert_false(_slot_bar("Arms").visible, "no bar")
+	assert_true(_robot.unequip(PieceData.SlotType.LEGS).ok, "legs off")
+	assert_true(_robot.unequip(PieceData.SlotType.CORE).ok, "Core off")
+	assert_eq(_slot_button("Legs").text, "EQUIPMENT_NO_LEGS", "no legs")
+	assert_eq(_slot_button("Core").text, "EQUIPMENT_NO_CORE", "no Core")
+
+
+func test_r_015_31_panel_hidden_without_robot() -> void:
+	_setup()
+	assert_false(_equipment_panel().visible, "no robot, no equipment")
+	assert_false(_equip_button().visible, "no Equip button")
+
+
+func test_r_015_32_bar_color_follows_band() -> void:
+	_setup_robot()
+	var panel: EquipmentPanel = _equipment_panel()
+	assert_eq(panel.get_band(PieceData.SlotType.LEGS), DurabilityDisplayData.Band.GREEN, "new legs: green")
+	var fill: StyleBoxFlat = _slot_bar("Legs").get_theme_stylebox(&"fill") as StyleBoxFlat
+	assert_eq(fill.bg_color, panel.band_colors[DurabilityDisplayData.Band.GREEN], "painted green")
+	for i: int in 10:
+		_robot.receive_hit(0.0, null)
+	assert_eq(panel.get_band(PieceData.SlotType.LEGS), DurabilityDisplayData.Band.YELLOW, "50: yellow")
+	fill = _slot_bar("Legs").get_theme_stylebox(&"fill") as StyleBoxFlat
+	assert_eq(fill.bg_color, panel.band_colors[DurabilityDisplayData.Band.YELLOW], "painted yellow")
+	for i: int in 5:
+		_robot.receive_hit(0.0, null)
+	assert_eq(panel.get_band(PieceData.SlotType.LEGS), DurabilityDisplayData.Band.RED, "25: red")
+
+
+func test_r_015_33_shows_stats_and_follows() -> void:
+	_setup_robot()
+	assert_not_null(_stat_line(&"STAT_ATTACK_DAMAGE"), "damage line")
+	var one_arm: String = tr(&"STAT_ATTACK_DAMAGE") % roundi(_robot.stats.get_stat(StatIds.ATTACK_DAMAGE))
+	assert_eq(_stat_line(&"STAT_ATTACK_DAMAGE").text, one_arm, "the damage of one arm")
+	var keys: Array[StringName] = [
+		&"STAT_ATTACKS_PER_SECOND", &"STAT_BATTERY_PER_SWING", &"STAT_WALK_SPEED", &"STAT_RUN_SPEED",
+		&"STAT_WALK_DRAIN", &"STAT_PASSIVE_DRAIN", &"STAT_MAX_BATTERY",
+	]
+	for key: StringName in keys:
+		assert_not_null(_stat_line(key), "a line for %s" % key)
+	var slot: int = _give_robot(&"basic_arms", 100)
+	assert_true(_robot.equip(slot).ok, "arms on while open")
+	await wait_process_frames(1)
+	var arms: String = tr(&"STAT_ATTACK_DAMAGE") % roundi(_robot.stats.get_stat(StatIds.ATTACK_DAMAGE))
+	assert_eq(_stat_line(&"STAT_ATTACK_DAMAGE").text, arms, "the damage follows stats_changed")
+
+
+func test_r_015_33_no_legs_cannot_run_text() -> void:
+	_setup_robot()
+	assert_true(_robot.unequip(PieceData.SlotType.LEGS).ok, "legs off")
+	await wait_process_frames(1)
+	assert_false(_stat_line(&"STAT_RUN_SPEED").visible, "no running speed")
+	var line: Label = _equipment_panel().get_node("%StatsList").get_node_or_null("StatCannotRun") as Label
+	assert_not_null(line, "a cannot-run line")
+	if line != null:
+		assert_true(line.visible, "shown")
+		assert_eq(line.text, tr(&"STAT_CANNOT_RUN"), "its text")
+	assert_true(_robot.equip(0).ok, "legs on again")
+	assert_true(_stat_line(&"STAT_RUN_SPEED").visible, "the running speed is back")
+	assert_false(line.visible, "and the cannot-run line hides")
+
+
+func test_r_015_34_piece_offers_equip() -> void:
+	_setup_robot()
+	var slot: int = _give_robot(&"basic_arms", 100)
+	assert_true(_equip_button().disabled, "nothing selected: disabled")
+	_press_cell(slot)
+	assert_false(_equip_button().disabled, "a piece selected: enabled")
+	assert_eq(_equip_button().text, "EQUIPMENT_EQUIP", "it says Equip")
+	_equip_button().pressed.emit()
+	assert_not_null(_robot.equipment.get_piece(PieceData.SlotType.ARMS), "the robot equipped it")
+	assert_true(_robot.inventory.is_empty(), "it left the inventory")
+
+
+func test_r_015_34_material_does_not_offer_equip() -> void:
+	_setup_robot()
+	_robot.inventory.add(&"scrap", 3)
+	_press_cell(0)
+	assert_true(_equip_button().disabled, "a material cannot be equipped")
+
+
+func test_r_015_34_slot_offers_unequip() -> void:
+	_setup_robot()
+	_slot_button("Legs").pressed.emit()
+	assert_eq(_equip_button().text, "EQUIPMENT_UNEQUIP", "it says Unequip")
+	assert_false(_equip_button().disabled, "enabled")
+	assert_true(_slot_button("Legs").button_pressed, "the slot is shown selected")
+	_equip_button().pressed.emit()
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.LEGS), "the legs came off")
+	assert_eq(_robot.inventory.count(&"basic_legs"), 1, "into the inventory")
+	_slot_button("Arms").pressed.emit()
+	assert_true(_equip_button().disabled, "an empty slot offers nothing")
+
+
+func test_r_015_34_one_selection_at_a_time() -> void:
+	_setup_robot()
+	var slot: int = _give_robot(&"basic_arms", 100)
+	_press_cell(slot)
+	_slot_button("Core").pressed.emit()
+	var selection: Control = _cells()[slot].get_node("%Selection") as Control
+	assert_false(selection.visible, "the inventory selection is cleared")
+	_press_cell(slot)
+	assert_false(_slot_button("Core").button_pressed, "the equipment selection is cleared")
+
+
+func test_r_015_34_refusal_shows_reason() -> void:
+	_setup_robot()
+	for i: int in _robot.inventory.get_slot_count():
+		_robot.inventory.add(&"scrap", DataRegistry.get_item(&"scrap").stack_max)
+	_slot_button("Legs").pressed.emit()
+	_equip_button().pressed.emit()
+	var notice: Label = _screen.get_node("%Notice") as Label
+	assert_true(notice.visible, "a notice")
+	assert_eq(notice.text, String(EquipmentComponent.ERR_NO_FREE_SLOT), "with the reason key")
+	assert_not_null(_robot.equipment.get_piece(PieceData.SlotType.LEGS), "nothing changed")
+
+
+func test_r_015_35_panel_fits_screen() -> void:
+	var host: Control = _design_host()
+	var screen: InventoryScreen = SCREEN_SCENE.instantiate() as InventoryScreen
+	host.add_child(screen)
+	_robot = _new_thrower()
+	_robot.inventory.set_slot_count(_last_level_slots())
+	screen.setup({InventoryScreen.CONTEXT_INVENTORY: _robot.inventory, InventoryScreen.CONTEXT_THROWER: _robot})
+	await wait_process_frames(2)
+	var screen_rect: Rect2 = Rect2(Vector2.ZERO, host.size)
+	var panel: Control = screen.get_node("Center/Panel") as Control
+	assert_true(screen_rect.encloses(panel.get_global_rect()), "the panel fits: %s" % panel.get_global_rect())
+	var equipment: EquipmentPanel = screen.get_node("%EquipmentPanel") as EquipmentPanel
+	assert_true(panel.get_global_rect().encloses(equipment.get_global_rect()), "the equipment is inside the one panel")
+	for slot_name: String in ["Arms", "Legs", "Core"]:
+		var button: Button = equipment.get_node("%" + slot_name + "Button") as Button
+		assert_eq(button.mouse_filter, Control.MOUSE_FILTER_STOP, "%s takes taps and clicks" % slot_name)
+		assert_true(button.size.y > 0.0, "%s is laid out" % slot_name)
+
+
+func test_r_015_36_keys_translated_es_en() -> void:
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for %s" % locale)
+		if translations.size() != 1:
+			continue
+		for key: StringName in EQUIPMENT_KEYS:
+			assert_ne(translations[0].get_message(key), "", "%s has a text for %s" % [locale, key])
+
+
+func test_r_015_52_card_shows_durability() -> void:
+	_setup_robot()
+	var slot: int = _give_robot(&"basic_arms", 72)
+	_press_cell(slot)
+	var detail: Label = _screen.get_node("%SelectedDetail") as Label
+	assert_true(detail.visible, "the card shows the durability")
+	var maximum: int = (DataRegistry.get_item(&"basic_arms") as PieceData).durability_max
+	assert_eq(detail.text, tr(&"BENCH_DURABILITY") % [72, maximum], "as current/maximum")
+	_robot.inventory.add(&"scrap", 1)
+	_press_cell(slot + 1)
+	assert_false(detail.visible, "a material shows none")
+
+
+func test_r_015_52_grid_has_no_bars() -> void:
+	_setup_robot()
+	var _slot: int = _give_robot(&"basic_arms", 50)
+	for cell: InventorySlotView in _cells():
+		assert_eq(cell.find_children("*", "ProgressBar", true, false).size(), 0, "no durability bar in the grid")
+
+
+func test_r_015_53_bar_updates_while_open() -> void:
+	_setup_robot()
+	var before: float = _slot_bar("Legs").value
+	_robot.receive_hit(0.0, null)
+	assert_lt(_slot_bar("Legs").value, before, "the bar went down without reopening")
+	var durability: int = _robot.equipment.get_piece(PieceData.SlotType.LEGS).durability
+	assert_eq(_slot_bar("Legs").value, float(durability), "to the durability")
+
+
+func test_r_015_53_broken_shows_no_piece_state() -> void:
+	_setup_robot()
+	_slot_button("Legs").pressed.emit()
+	for i: int in 20:
+		_robot.receive_hit(0.0, null)
+	assert_null(_robot.equipment.get_piece(PieceData.SlotType.LEGS), "the legs broke")
+	assert_eq(_slot_button("Legs").text, "EQUIPMENT_NO_LEGS", "the no-piece state")
+	assert_false(_slot_bar("Legs").visible, "no bar")
+	assert_true(_equip_button().disabled, "the broken slot is no longer offered")

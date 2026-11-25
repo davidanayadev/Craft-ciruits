@@ -37,6 +37,8 @@ const SELECTED_KEY := &"CONTAINER_SELECTED"
 const HEADER_BOX_KEY := &"CONTAINER_HEADER_BOX"
 const HEADER_CHEST_KEY := &"CONTAINER_HEADER_CHEST"
 const HEADER_INVENTORY_KEY := &"CONTAINER_HEADER_INVENTORY"
+const HEADER_DROPPED_KEY := &"CONTAINER_HEADER_DROPPED"
+const LEAVE_IN_DROPPED_KEY := &"CONTAINER_LEAVE_IN_DROPPED"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "es"]
 const KEYS: Array[StringName] = [
 	&"LOOT_TITLE",
@@ -346,6 +348,32 @@ func test_r_013_12_headers_by_kind() -> void:
 	_open(5, ContainerScreen.Kind.CHEST)
 	assert_eq(_label("ContainerHeader").text, _header(HEADER_CHEST_KEY, _source), "a chest says so")
 	assert_eq((_screen.get_node("%Title") as Label).text, String(ContainerScreen.CHEST_TITLE_KEY), "titled as a chest")
+
+
+func test_r_015_45_dropped_kind_texts() -> void:
+	_open(5, ContainerScreen.Kind.DROPPED)
+	assert_eq((_screen.get_node("%Title") as Label).text, String(ContainerScreen.DROPPED_TITLE_KEY), "titled as dropped items")
+	assert_eq(ContainerScreen.DROPPED_TITLE_KEY, &"DROPPED_TITLE", "the title key")
+	assert_eq(_label("ContainerHeader").text, tr(HEADER_DROPPED_KEY) % [3, 4], "used over total slots")
+	assert_eq(_label("ContainerHeader").text, _header(HEADER_DROPPED_KEY, _source), "the dropped header")
+	assert_true(_player.add(&"iron", 1).ok)
+	_tap(_player_grid, 0)
+	assert_eq(_move.text, String(LEAVE_IN_DROPPED_KEY), "an inventory stack is left in the dropped item")
+	_tap(_source_grid, SCRAP_SLOT)
+	assert_eq(_move.text, String(MOVE_TO_INVENTORY_KEY), "a dropped stack goes to the inventory")
+
+
+func test_r_015_45_dropped_keys_translated() -> void:
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
+		if translations.size() != 1:
+			continue
+		for key: StringName in [&"DROPPED_TITLE", HEADER_DROPPED_KEY, LEAVE_IN_DROPPED_KEY]:
+			var text: String = translations[0].get_message(key)
+			assert_ne(text, "", "'%s' has a text for %s" % [locale, key])
+		var header: String = translations[0].get_message(HEADER_DROPPED_KEY)
+		assert_true(header.contains("%d/%d"), "the header of '%s' has used/total" % locale)
 
 
 func test_r_013_12_headers_follow_changes() -> void:
