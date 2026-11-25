@@ -352,9 +352,9 @@ hecho; `item_removed` también. Ninguna va al `EventBus`.
 
 | # | Qué | Por qué |
 |---|---|---|
-| 1 | `roundi()` en Godot 4.7.2 redondea los medios lejos de 0 (`roundi(2.5) == 3`) **(verificar)** | D9, pregunta 18: el desgaste con decimales |
-| 2 | `ProgressBar` usa el estilo de tema `fill` y `add_theme_stylebox_override(&"fill", …)` / `remove_theme_stylebox_override(&"fill")` lo cambian en ejecución **(verificar)** | D18, R-015-43 |
-| 3 | Un `@export var x: SomeEnum` declarado en otra clase (`PieceData.SlotType`) se guarda y carga en `.tres`, y `Array[StatModifier]` exportado con subrecursos en un `.tres` (ya se hace con `Array[RepairTierData]`) **(verificar el primero)** | D1, D3 |
+| 1 | `roundi()` en Godot 4.7.2 redondea los medios lejos de 0 (`roundi(2.5) == 3`). **Verificado (T-015-01)**: `roundi(2.5) == 3`, `roundi(-2.5) == -3`, `roundi(0.5) == 1` | D9, pregunta 18: el desgaste con decimales |
+| 2 | `ProgressBar` usa el estilo de tema `fill` y `add_theme_stylebox_override(&"fill", …)` / `remove_theme_stylebox_override(&"fill")` lo cambian en ejecución. **Verificado (T-015-01)**: el tema por defecto tiene `fill` (`StyleBoxFlat`); el override lo sustituye y al quitarlo vuelve el del tema | D18, R-015-43 |
+| 3 | Un `@export var x: SomeEnum` declarado en otra clase (`PieceData.SlotType`) se guarda y carga en `.tres`, y `Array[StatModifier]` exportado con subrecursos en un `.tres` (ya se hace con `Array[RepairTierData]`). **Verificado (T-015-01)**: `slot_type = 2` en `basic_core.tres` carga como `PieceData.SlotType.CORE`, y los `StatModifier` en subrecursos cargan con su `stat`, `op` y `value` | D1, D3 |
 
 ### 5.2 Requisitos
 
@@ -394,7 +394,7 @@ hecho; `item_removed` también. Ninguna va al `EventBus`.
 | R-015-32 | `unit/test_durability_display_data.gd::test_r_015_32_bands` (51 → verde, 50 → amarillo, 26 → amarillo, 25 → rojo, con máximas distintas de 100), `::test_r_015_32_red_comes_from_first_repair_tier` (tramos hechos a mano) · `unit/test_inventory_screen.gd::test_r_015_32_bar_color_follows_band` · manual M2 |
 | R-015-33 | `unit/test_inventory_screen.gd::test_r_015_33_shows_stats_and_follows`, `::test_r_015_33_no_legs_cannot_run_text` |
 | R-015-34 | `unit/test_inventory_screen.gd::test_r_015_34_piece_offers_equip`, `::test_r_015_34_slot_offers_unequip`, `::test_r_015_34_refusal_shows_reason` |
-| R-015-35 | `unit/test_inventory_screen.gd::test_r_015_35_panel_fits_screen` (con las ranuras del último nivel, dentro de 1920×1080 como R-014-14, celdas con `mouse_filter = STOP`) · los tests existentes de `UIManager` y de cerrar tocando fuera siguen cubriendo bloqueo y cierre · manual M6 (táctil y ratón) |
+| R-015-35 | `unit/test_inventory_screen.gd::test_r_015_35_panel_fits_screen` (con las ranuras del último nivel, dentro de 1920×1080 como R-014-14, celdas con `mouse_filter = STOP`) · `integration/test_main_scene.gd::test_r_015_35_inventory_panel_leaves_storage_button_free` (con el equipo, el panel deja libre el botón de almacenamiento del HUD, que se dibuja encima de las pantallas) · los tests existentes de `UIManager` y de cerrar tocando fuera siguen cubriendo bloqueo y cierre · manual M6 (táctil y ratón) |
 | R-015-36 | `unit/test_inventory_screen.gd` y `unit/test_hud.gd` comprueban claves, no textos · `i18n-auditor` |
 | R-015-37 | `unit/test_equipment_component.gd::test_r_015_37_save_data_per_slot`, `::test_r_015_37_round_trip` · revisión: sin stats en el guardado |
 | R-015-38 | `integration/test_save_load.gd::test_r_015_38_equipment_loads_before_battery` (orden en `get_nodes_in_group(&"persistent")` con `Main` arrancado) · `::test_r_015_38_saved_charge_up_to_core_maximum_kept` |
@@ -404,7 +404,7 @@ hecho; `item_removed` también. Ninguna va al `EventBus`.
 | R-015-42 | `integration/test_save_load.gd::test_r_015_42_world_without_equipment_part`, `::test_r_015_42_empty_slots_load_empty` (sin cambiar `SaveMigrations.WORLD_VERSION`) |
 | R-015-43 | `unit/test_hud.gd::test_r_015_43_bar_orange_below_threshold`, `::test_r_015_43_follows_load_and_bonus` · `unit/test_battery_component.gd::test_r_015_43_is_low` · manual M7 |
 | R-015-44 | `unit/test_battery_component.gd::test_r_015_44_passive_rate_from_stats` · `integration/test_robot_equipment.gd::test_r_015_44_no_core_double_drain` · manual M3 |
-| R-015-45 | `unit/test_dropped_item.gd::test_r_015_45_interact_opens_never_takes`, `::test_r_015_45_prompt_is_open` (`PROMPT_OPEN`, D14) · `integration/test_dropped_item_flow.gd::test_r_015_45_opens_container_screen_with_header` · `unit/test_container_screen.gd::test_r_015_45_dropped_kind_texts` |
+| R-015-45 | `unit/test_dropped_item.gd::test_r_015_45_interact_opens_never_takes`, `integration/test_dropped_item_flow.gd::test_r_015_45_opens_container_screen_with_header` · `unit/test_container_screen.gd::test_r_015_45_dropped_kind_texts` |
 | R-015-46 | `integration/test_dropped_item_flow.gd::test_r_015_46_take_all_choose_and_leave` (incluye una pieza con `uid` y durabilidad) |
 | R-015-47 | `integration/test_dropped_item_spawner.gd::test_r_015_47_one_slot_per_received_stack`, `::test_r_015_47_emptied_slot_accepts_player_stack` |
 | R-015-48 | `integration/test_dropped_item_spawner.gd::test_r_015_48_taking_or_leaving_keeps_drop_time`, `::test_r_015_48_expiry_removes_left_stacks` |
@@ -437,6 +437,20 @@ hecho; `item_removed` también. Ninguna va al `EventBus`.
 - **M7** Al bajar del 20 % de la máxima la barra se pone naranja; vuelve a su color al recargar o usar una batería
   portátil, y con el generador colocado el cambio llega en 24.
 
+Ajustes tras la primera prueba en teléfono (2026-11-25):
+- El panel del inventario medía 1022 px de alto en 1920×1080 por el equipo en una sola columna y tapaba el botón de
+  almacenamiento del HUD, que va encima de las pantallas (plan 005). El `EquipmentPanel` pasa a dos columnas
+  (ranuras y stats): el panel mide 1340×676 y el botón queda libre; lo comprueba el test de R-015-35 en
+  `test_main_scene.gd`.
+- El texto del botón de almacenamiento (`HUD_STORAGE`) pasa de "Almacén" / "Storage" a "Inventario" / "Inventory",
+  como el título de la pantalla que abre. La clave no cambia.
+- El `DebugHud` (solo builds de depuración, `CanvasLayer` 10) tapaba la derecha de las pantallas: sus datos y botones
+  van en una lista tras un botón "•••" en la esquina superior derecha, cerrada al empezar. La fuente por defecto no
+  tiene el carácter "⋮", por eso son tres puntos en horizontal.
+
+Resultado (2026-11-25): el usuario hizo M1-M7 en PC y en Android (APK debug), con los ajustes anteriores, y todos
+dieron el resultado esperado.
+
 ### 5.3 Tests existentes que cambian
 
 | Test | Cambio | Por qué |
@@ -448,7 +462,7 @@ hecho; `item_removed` también. Ninguna va al `EventBus`.
 | `integration/test_robot_combat.gd` | `test_r_007_02_robot_attacks_with_one_arm` compara con los stats de la base en vez de `assert_same(one_arm.tres)`; `walk_speed` sale de `stats.get_movement()` | D4 (R-007-02 se cumple con datos nuevos) |
 | `integration/test_save_load.gd`, `test_base_loop.gd`, `test_save_fixtures.gd`, `test_death_controller.gd` | La máxima esperada sale de `robot.stats.get_stat(StatIds.MAX_BATTERY)` en vez de `config.maximum` | D4 |
 | `integration/test_death_controller.gd` | Las aserciones sobre el objeto caído cuentan también las Piernas del equipo inicial y el número de ranuras por pila (R-015-47); `test_r_008_27_*` quita antes las piezas equipadas | R-015-25, R-015-47, R-015-51 |
-| `unit/test_dropped_item.gd` | `test_r_008_13_*`, `test_r_008_14_emptied_once` y `test_r_008_15_*` se sustituyen por los tests de R-015-45, R-015-48 y R-015-50; `PROMPT_KEY` pasa a `PROMPT_OPEN` | La spec sustituye R-008-13 y R-008-15 y ajusta R-008-14 (§3.10): cambia el requisito, no se debilita el test. El texto lo cambia D14 |
+| `unit/test_dropped_item.gd` | `test_r_008_13_*`, `test_r_008_14_emptied_once` y `test_r_008_15_*` se sustituyen por los tests de R-015-45, R-015-48 y R-015-50; `PROMPT_KEY` pasa a `PROMPT_OPEN` y los dos tests de R-008-12 pasan a `test_r_008_12_prompt_is_open` y `test_r_008_12_prompt_translated_es_en` | La spec sustituye R-008-13 y R-008-15 y ajusta R-008-12 y R-008-14 (§3.10): cambia el requisito, no se debilita el test. El texto lo cambia D14 |
 | `unit/test_hud.gd` | Los dos casos que usan `PROMPT_PICK_UP` como clave de un objetivo cualquiera usan otra clave existente; mismas aserciones | D14: la clave se borra |
 | `integration/test_dropped_item_spawner.gd` | `test_r_008_14_emptied_goes_back_to_pool` pasa a `release_if_empty`; el helper `_pick_up` (que recogía interactuando) pasa a mover con `take_from` y llamar a `release_if_empty`, como hace la pantalla al cerrarse; lo usan `test_r_008_18_reused_item_is_clean`, `test_r_011_09_throw_and_pick_up_keep_piece` y los otros dos casos que lo llaman, con las mismas aserciones | R-015-45 (interactuar ya no coge), R-015-50, D13 |
 | `integration/test_death_controller.gd::test_r_011_09_death_drops_and_recovers_piece` | Recupera la pieza con `take_from` sobre el contenido del objeto caído en vez de interactuar; mismas aserciones de `uid` y durabilidad | R-015-45 sustituye a R-008-13 |

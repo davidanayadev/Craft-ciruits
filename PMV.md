@@ -176,7 +176,7 @@ res://
 │   └── entities/          # Robot jugador, zombies, robots hostiles (modelos 3D)
 ├── scripts/
 │   ├── autoload/          # Singletons: GameManager, SaveManager, AudioManager
-│   ├── components/        # Componentes reutilizables: HealthComponent, BatteryComponent, InventoryComponent, DegradationComponent
+│   ├── components/        # Componentes reutilizables: HealthComponent, BatteryComponent, InventoryComponent, EquipmentComponent, StatsComponent
 │   ├── data/              # Recursos: PieceData, EnemyData, MaterialData, RecipeData, RulesetData, ChassisLevelData (.tres)
 │   ├── systems/           # Lógica pura: CraftingSystem, CombatSystem, DegradationSystem
 │   └── util/              # Helpers: MathUtils, EncryptionHelper
@@ -195,7 +195,7 @@ res://
 | Patrón | Uso |
 |---|---|
 | **Autoload (Singleton)** | GameManager (estado global de la partida, no del jugador), SaveManager (persistencia) |
-| **Componentes** | BatteryComponent, InventoryComponent, DegradationComponent — attachables a cualquier entidad. El estado de cada jugador (batería, inventario) vive en sus componentes, no en autoloads (§4.5) |
+| **Componentes** | BatteryComponent, InventoryComponent, EquipmentComponent (ranuras y desgaste de las piezas), StatsComponent (stats finales) — attachables a cualquier entidad. El estado de cada jugador (batería, inventario) vive en sus componentes, no en autoloads (§4.5) |
 | **Recursos custom** | `PieceData extends Resource` — definir piezas en el editor, sin hardcodear |
 | **Señales** | Comunicación entre sistemas sin acoplamiento directo |
 | **Object Pool** | Enemigos, proyectiles, partículas de recolección |

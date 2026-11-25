@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Planificado (2026-11-24) |
+| **Estado** | Hecho (2026-11-25) |
 | **Tarea(s) ACTION_PLAN** | 3.1, 3.2 (y el punto pendiente de 1.5: "Limpiar piezas equipadas (conservar solo core)") |
 | **Fuentes** | ACTION_PLAN.md Tareas 3.1, 3.2 (y 1.4, 1.5, 2.4, 2.5, 3.3, 3.4, 4.1, 4.3, 4.4, 5.1 para los límites) · PMV.md §2.1, §2.2, §2.3, §2.4, §4.5 gancho 7, §10 ("Muerte y objetos caídos", "Crafteo y reparación", "Progresión y recuerdos") · BALANCE.md §1.1, §4.1, §4.2, §4.3.2, §5.2, §6.3, §9.3, §11 · SPECS.md §6, §15 · architecture.md §6, §7, §9.2, §9.3, §9.4, §9.5, §10.2 · README §6 (pendientes para la 015) · specs 002 (R-002-18), 003, 006 (R-006-17, R-006-18), 007 (R-007-02), 008 (pregunta 4, R-008-11), 010, 011 (R-011-09, preguntas 6 y 8), 012 (pregunta 11), 014 (R-014-16) · Constitución P2, P3, P4, P5, P6, P11, P13, P14 |
 | **Depende de** | 002 (movimiento, `LocomotionSystem`), 003 (`BatteryComponent`), 006 (`hit_received`), 007 (`MeleeAttackComponent`, `AttackStatsData`), 008 (`RulesetData.keeps_core`, objeto caído), 010 (contrato `persistent`, señales de estado y de hecho), 011 (`PieceData`, piezas únicas con `uid` y durabilidad, pestaña Reparar), 012 (bonificación de batería máxima del generador), 013 (pantalla de contenedor), 014 (orden de carga de las partes del robot) |
@@ -134,6 +134,8 @@ Los valores numéricos se citan por su fuente (`BALANCE.md §x`); el spec no los
 ### 3.10 Objeto caído como contenedor
 
 Cambia la recogida de la spec 008: sustituye a R-008-13 y R-008-15 y ajusta R-008-14 y R-008-27 (pregunta 15).
+Ajusta también R-008-12: el texto del objeto caído pasa de "Recoger" a "Abrir", porque interactuar abre la
+pantalla en vez de coger (R-015-45); sigue saliendo solo de claves de traducción en ES y EN.
 
 | ID | Requisito | Fuente |
 |---|---|---|
