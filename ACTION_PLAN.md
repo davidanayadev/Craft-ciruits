@@ -464,19 +464,18 @@ Decisión nov 2026 (PMV.md §2.1): el jugador decide dónde va cada estructura q
   - [ ] Modelo 3D: robot hostil (diferente de jugador)
   - [ ] AnimationPlayer: idle, walk, attack
 - [ ] IA de robot hostil:
-  - [ ] State machine: Patrol, Chase, Attack
-  - [ ] Detección de jugador (Area3D)
+  - [ ] State machine: Patrol, Chase, Attack (`EnemyBrain` de los zombies, con sus propios valores de IA en un `.tres` aparte, BALANCE.md §3.2)
+  - [ ] Detección de jugador por distancia en el suelo, como los zombies (decisión nov 2026, spec 016: sin `Area3D` de detección)
   - [ ] Pathfinding (NavigationAgent3D)
-  - [ ] Ataque: cada 2s, daño 8
+  - [ ] Ataque: cada 2s, daño 8 (BALANCE.md §3.2)
 - [ ] Sistema de drops:
   - [ ] Al morir:
     - [ ] 100% probabilidad: drop 2-4 chatarra + 1-2 cables + 1-2 hierro
-    - [ ] 15% probabilidad: drop pieza dañada (50% durabilidad)
+    - [ ] 15% probabilidad: drop pieza dañada (50% durabilidad), cualquiera de las tres básicas (BALANCE.md §3.2)
     - [ ] Otorgar 10 XP directa al jugador (no es un item)
-  - [ ] Crear escena `DroppedPiece.tscn` (Area3D + MeshInstance)
-  - [ ] Interacción: recoger pieza la añade a inventario
+  - [ ] Materiales y pieza caen en un solo objeto caído, que se abre en la pantalla de contenedor (decisión nov 2026, spec 015 y 016: sin escena `DroppedPiece.tscn`)
 - [ ] Spawner de robots hostiles:
-  - [ ] Zona verde: 0-1 robot básico
+  - [ ] Zona verde: 0-1 robot básico, aparte de los zombies y en marcadores propios (BALANCE.md §7.1)
 - [ ] Test: robot hostil suelta piezas y materiales al morir
 
 **Entregable**: robot hostil básico funcional con drops de piezas.
