@@ -17,10 +17,10 @@ const GLOBAL_RNG_PATTERN := (
 
 ## Scripts that decide where zombies appear and what they do (spec 006).
 const SPAWN_SCRIPTS: PackedStringArray = [
-	"res://scenes/farm_zone/zombie_spawner.gd",
+	"res://scenes/farm_zone/enemy_spawner.gd",
 	"res://scripts/systems/zone_population.gd",
 	"res://scripts/systems/enemy_brain.gd",
-	"res://scenes/entities/zombie.gd",
+	"res://scenes/entities/enemy.gd",
 ]
 
 var _regex: RegEx

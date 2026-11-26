@@ -53,7 +53,7 @@ func _spawned_zone(world_seed: int, visit: int, pool: ObjectPool) -> FarmZone:
 	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
 	zone.get_node("%Navigation").free()
 	add_child_autofree(zone)
-	zone.spawn_enemies(world_seed, visit, pool)
+	zone.spawn_zombies(world_seed, visit, pool)
 	return zone
 
 
@@ -67,7 +67,7 @@ func _marker_positions(zone: FarmZone) -> Array[Vector3]:
 ## One "id @ position" line per zombie, in spawn order.
 func _describe(zone: FarmZone) -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
-	for zombie: Zombie in zone.get_enemies():
+	for zombie: Enemy in zone.get_zombies():
 		lines.append("%s @ %s" % [zombie.get_data().id, zombie.global_position])
 	return lines
 
@@ -119,9 +119,9 @@ func _find_visit_leaving_free(world_seed: int, marker: Vector3) -> int:
 	var pool: ObjectPool = _new_pool()
 	var probe: FarmZone = _new_zone()
 	for visit: int in range(1, SEEDS):
-		probe.spawn_enemies(world_seed, visit, pool)
+		probe.spawn_zombies(world_seed, visit, pool)
 		var free: bool = true
-		for zombie: Zombie in probe.get_enemies():
+		for zombie: Enemy in probe.get_zombies():
 			if zombie.global_position == marker:
 				free = false
 		probe.despawn_enemies()
@@ -138,7 +138,7 @@ func _assert_patrol_ends(zone: FarmZone, home: Vector3, target: Vector3, reach: 
 	assert_ne(brain_seed, -1, "a brain seed sends the zombie to %s" % target)
 	if brain_seed == -1:
 		return
-	var zombie: Zombie = ZOMBIE_SCENE.instantiate() as Zombie
+	var zombie: Enemy = ZOMBIE_SCENE.instantiate() as Enemy
 	add_child_autofree(zombie)
 	zombie.activate(data, home, brain_seed, DROP_SEED)
 	var seconds: float = (
@@ -271,8 +271,8 @@ func test_r_006_23_green_zone_spawns_in_range() -> void:
 	var enemies_root: Node = zone.get_node("%Enemies")
 	var counts_seen: Dictionary[int, bool] = {}
 	for world_seed: int in SEEDS:
-		zone.spawn_enemies(world_seed, ZonePopulation.FIRST_VISIT, pool)
-		var zombies: Array[Zombie] = zone.get_enemies()
+		zone.spawn_zombies(world_seed, ZonePopulation.FIRST_VISIT, pool)
+		var zombies: Array[Enemy] = zone.get_zombies()
 		counts_seen[zombies.size()] = true
 		assert_between(
 			zombies.size(),
@@ -283,7 +283,7 @@ func test_r_006_23_green_zone_spawns_in_range() -> void:
 		var kinds: Dictionary[StringName, bool] = {}
 		var used: Dictionary[Vector3, bool] = {}
 		var misplaced: int = 0
-		for zombie: Zombie in zombies:
+		for zombie: Enemy in zombies:
 			kinds[zombie.get_data().id] = true
 			used[zombie.global_position] = true
 			if not markers.has(zombie.global_position) or zombie.get_parent() != enemies_root:
@@ -307,12 +307,12 @@ func test_r_006_23_spawning_does_not_drag_bodies_along() -> void:
 	var start: Vector3 = zone.get_spawn_position()
 	robot.global_position = start
 	await wait_physics_frames(2)
-	zone.spawn_enemies(SEED_A, ZonePopulation.FIRST_VISIT, pool)
+	zone.spawn_zombies(SEED_A, ZonePopulation.FIRST_VISIT, pool)
 	await wait_physics_frames(5)
 	assert_eq(robot.global_position, start, "first spawn: the robot stays where it was")
 	# Pooled zombies keep the position of their previous life: the robot now
 	# stands where one was, on a marker the next spawn leaves free.
-	var first_marker: Vector3 = zone.get_enemies()[0].global_position
+	var first_marker: Vector3 = zone.get_zombies()[0].global_position
 	var next_visit: int = _find_visit_leaving_free(SEED_A, first_marker)
 	assert_ne(next_visit, -1, "some visit leaves the marker at %s free" % first_marker)
 	if next_visit == -1:
@@ -320,7 +320,7 @@ func test_r_006_23_spawning_does_not_drag_bodies_along() -> void:
 	zone.despawn_enemies()
 	robot.global_position = first_marker
 	await wait_physics_frames(2)
-	zone.spawn_enemies(SEED_A, next_visit, pool)
+	zone.spawn_zombies(SEED_A, next_visit, pool)
 	await wait_physics_frames(5)
 	assert_eq(robot.global_position, first_marker, "reused zombies do not drag it either")
 
@@ -329,16 +329,16 @@ func test_r_006_23_spawn_twice_reports_error() -> void:
 	var pool: ObjectPool = _new_pool()
 	var zone: FarmZone = _spawned_zone(SEED_A, ZonePopulation.FIRST_VISIT, pool)
 	var before: PackedStringArray = _describe(zone)
-	zone.spawn_enemies(SEED_A + 1, ZonePopulation.FIRST_VISIT, pool)
+	zone.spawn_zombies(SEED_A + 1, ZonePopulation.FIRST_VISIT, pool)
 	assert_push_error("already")
 	assert_eq(_describe(zone), before, "the second call changes nothing")
 
 
 func test_r_006_23_spawn_without_pool_reports_error() -> void:
 	var zone: FarmZone = _new_zone()
-	zone.spawn_enemies(SEED_A, ZonePopulation.FIRST_VISIT, null)
+	zone.spawn_zombies(SEED_A, ZonePopulation.FIRST_VISIT, null)
 	assert_push_error("pool")
-	assert_eq(zone.get_enemies().size(), 0, "no pool, no zombies")
+	assert_eq(zone.get_zombies().size(), 0, "no pool, no zombies")
 
 
 func test_r_006_25_same_seed_and_visit_same_zombies() -> void:
@@ -346,7 +346,7 @@ func test_r_006_25_same_seed_and_visit_same_zombies() -> void:
 	for world_seed: int in [SEED_A, SEED_A + 1, SEED_A + 2]:
 		var first: FarmZone = _spawned_zone(world_seed, 3, pool)
 		var second: FarmZone = _spawned_zone(world_seed, 3, pool)
-		assert_gt(first.get_enemies().size(), 0, "the zone has zombies")
+		assert_gt(first.get_zombies().size(), 0, "the zone has zombies")
 		assert_eq(_describe(first), _describe(second), "same number, kinds and positions")
 
 
@@ -362,7 +362,7 @@ func test_r_006_25_other_seed_other_zombies() -> void:
 func test_r_006_25_spawn_does_not_move_the_boxes() -> void:
 	var pool: ObjectPool = _new_pool()
 	var with_enemies: FarmZone = _new_zone()
-	with_enemies.spawn_enemies(SEED_A, ZonePopulation.FIRST_VISIT, pool)
+	with_enemies.spawn_zombies(SEED_A, ZonePopulation.FIRST_VISIT, pool)
 	with_enemies.generate(SEED_A, ZonePopulation.FIRST_VISIT)
 	var without: FarmZone = _new_zone()
 	without.generate(SEED_A, ZonePopulation.FIRST_VISIT)
@@ -394,12 +394,12 @@ func test_r_006_26_visit_changes_spawns() -> void:
 func test_r_006_21_death_returns_to_pool() -> void:
 	var pool: ObjectPool = _new_pool()
 	var zone: FarmZone = _spawned_zone(SEED_A, ZonePopulation.FIRST_VISIT, pool)
-	var spawned: int = zone.get_enemies().size()
-	var victim: Zombie = zone.get_enemies()[0]
+	var spawned: int = zone.get_zombies().size()
+	var victim: Enemy = zone.get_zombies()[0]
 	victim.get_health().take_damage(victim.get_data().hp_max)
 	await wait_physics_frames(2)
-	assert_false(zone.get_enemies().has(victim), "a dead zombie leaves the active set")
-	assert_eq(zone.get_enemies().size(), spawned - 1, "the others stay")
+	assert_false(zone.get_zombies().has(victim), "a dead zombie leaves the active set")
+	assert_eq(zone.get_zombies().size(), spawned - 1, "the others stay")
 	assert_false(victim.is_inside_tree(), "it leaves the scene")
 	assert_eq(pool.get_free_count(), 1, "and waits in the pool")
 	zone.despawn_enemies()
@@ -410,17 +410,17 @@ func test_r_006_21_death_returns_to_pool() -> void:
 func test_r_006_27_despawn_returns_all_to_pool() -> void:
 	var pool: ObjectPool = _new_pool()
 	var zone: FarmZone = _spawned_zone(SEED_A, ZonePopulation.FIRST_VISIT, pool)
-	var zombies: Array[Zombie] = zone.get_enemies().duplicate()
+	var zombies: Array[Enemy] = zone.get_zombies().duplicate()
 	assert_gt(zombies.size(), 0, "the zone has zombies")
 	assert_eq(pool.get_free_count(), 0, "all of them in use")
 	zone.despawn_enemies()
-	assert_eq(zone.get_enemies().size(), 0, "no active zombie left")
+	assert_eq(zone.get_zombies().size(), 0, "no active zombie left")
 	assert_eq(zone.get_node("%Enemies").get_child_count(), 0, "none left in the zone")
 	assert_eq(pool.get_free_count(), zombies.size(), "every zombie is back in the pool")
-	for zombie: Zombie in zombies:
+	for zombie: Enemy in zombies:
 		assert_false(zombie.is_inside_tree(), "%s left the tree" % zombie.name)
-	zone.spawn_enemies(SEED_A, ZonePopulation.FIRST_VISIT, pool)
-	assert_eq(zone.get_enemies().size(), zombies.size(), "the same visit spawns them again")
+	zone.spawn_zombies(SEED_A, ZonePopulation.FIRST_VISIT, pool)
+	assert_eq(zone.get_zombies().size(), zombies.size(), "the same visit spawns them again")
 	assert_eq(pool.get_free_count(), 0, "reusing the pooled instances")
 
 
@@ -437,7 +437,7 @@ func _spawn_order(count: int, reversed: bool) -> Array[int]:
 	return order
 
 
-func _dropped_text(zombie: Zombie) -> String:
+func _dropped_text(zombie: Enemy) -> String:
 	if get_signal_emit_count(zombie, "loot_dropped") == 0:
 		return ""
 	var parameters: Array = get_signal_parameters(zombie, "loot_dropped")
@@ -450,10 +450,10 @@ func _dropped_text(zombie: Zombie) -> String:
 
 ## Kills the zombies in the given order of spawn indices as a player and returns
 ## what each one dropped, by spawn index.
-func _kill_in_order(zombies: Array[Zombie], order: Array[int]) -> PackedStringArray:
+func _kill_in_order(zombies: Array[Enemy], order: Array[int]) -> PackedStringArray:
 	var loot: PackedStringArray = PackedStringArray()
 	loot.resize(zombies.size())
-	for zombie: Zombie in zombies:
+	for zombie: Enemy in zombies:
 		watch_signals(zombie)
 	for i: int in order:
 		zombies[i].get_hurtbox().receive_attack(zombies[i].get_data().hp_max, KILLER_UID)
@@ -462,7 +462,7 @@ func _kill_in_order(zombies: Array[Zombie], order: Array[int]) -> PackedStringAr
 
 
 func _loot_by_index(zone: FarmZone, reversed: bool) -> PackedStringArray:
-	var zombies: Array[Zombie] = zone.get_enemies().duplicate()
+	var zombies: Array[Enemy] = zone.get_zombies().duplicate()
 	return _kill_in_order(zombies, _spawn_order(zombies.size(), reversed))
 
 
@@ -520,7 +520,7 @@ func test_r_008_36_relay_carries_stacks_and_position() -> void:
 	for world_seed: int in DROP_SEEDS:
 		var zone: FarmZone = _spawned_zone(world_seed, 1, pool)
 		watch_signals(zone)
-		var zombies: Array[Zombie] = zone.get_enemies().duplicate()
+		var zombies: Array[Enemy] = zone.get_zombies().duplicate()
 		var loot: PackedStringArray = _kill_in_order(zombies, _spawn_order(zombies.size(), false))
 		var seen: int = 0
 		for i: int in zombies.size():
@@ -542,7 +542,7 @@ func test_r_008_36_reused_zombie_drops_once_per_death() -> void:
 	var pool: ObjectPool = _new_pool()
 	var zone: FarmZone = _spawned_zone(SEED_A, 1, pool)
 	zone.despawn_enemies()
-	zone.spawn_enemies(SEED_A, 2, pool)
+	zone.spawn_zombies(SEED_A, 2, pool)
 	watch_signals(zone)
 	var loot: PackedStringArray = _loot_by_index(zone, false)
 	await wait_physics_frames(2)
@@ -561,11 +561,11 @@ const SKIPPED: Array[int] = [0, 2]
 const SEED_VISIT := 1
 
 
-func _spawner_of(zone: FarmZone) -> ZombieSpawner:
-	return zone.get_node("%ZombieSpawner") as ZombieSpawner
+func _spawner_of(zone: FarmZone) -> EnemySpawner:
+	return zone.get_node("%ZombieSpawner") as EnemySpawner
 
 
-func _kill(zombie: Zombie) -> void:
+func _kill(zombie: Enemy) -> void:
 	zombie.get_hurtbox().receive_attack(zombie.get_data().hp_max, KILLER_UID)
 
 
@@ -573,7 +573,7 @@ func _zone_skipping(world_seed: int, visit: int, pool: ObjectPool, dead: Array[i
 	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
 	zone.get_node("%Navigation").free()
 	add_child_autofree(zone)
-	zone.spawn_enemies(world_seed, visit, pool, dead)
+	zone.spawn_zombies(world_seed, visit, pool, dead)
 	return zone
 
 
@@ -582,7 +582,7 @@ func test_r_010_32_skipped_keep_other_seeds() -> void:
 	var dead: Array[int] = SKIPPED.duplicate()
 	for world_seed: int in DROP_SEEDS:
 		var full: FarmZone = _spawned_zone(world_seed, SEED_VISIT, pool)
-		var full_zombies: Array[Zombie] = full.get_enemies().duplicate()
+		var full_zombies: Array[Enemy] = full.get_zombies().duplicate()
 		var highest_skipped: int = SKIPPED.max()
 		assert_gt(full_zombies.size(), highest_skipped, "seed %d: enough zombies" % world_seed)
 		var kept_indices: Array[int] = []
@@ -597,7 +597,7 @@ func test_r_010_32_skipped_keep_other_seeds() -> void:
 		)
 		var partial: FarmZone = _zone_skipping(world_seed, SEED_VISIT, pool, dead)
 		assert_eq(_describe(partial), expected_lines, "seed %d: same zombies minus skipped" % world_seed)
-		var partial_zombies: Array[Zombie] = partial.get_enemies().duplicate()
+		var partial_zombies: Array[Enemy] = partial.get_zombies().duplicate()
 		var partial_loot: PackedStringArray = _kill_in_order(
 			partial_zombies, _spawn_order(partial_zombies.size(), false)
 		)
@@ -612,13 +612,13 @@ func test_r_010_32_dead_indices_are_skipped_plus_killed() -> void:
 	var pool: ObjectPool = _new_pool()
 	var dead: Array[int] = [2]
 	var zone: FarmZone = _zone_skipping(SEED_A, SEED_VISIT, pool, dead)
-	var spawner: ZombieSpawner = _spawner_of(zone)
+	var spawner: EnemySpawner = _spawner_of(zone)
 	assert_eq(spawner.get_dead_indices(), [2] as Array[int], "only the skipped one at first")
 	var full: FarmZone = _spawned_zone(SEED_A, SEED_VISIT, pool)
 	var full_lines: PackedStringArray = _describe(full)
 	full.despawn_enemies()
 	# Spawn index 2 was skipped, so the placed zombies are 0, 1, 3 and 4.
-	var placed: Array[Zombie] = zone.get_enemies().duplicate()
+	var placed: Array[Enemy] = zone.get_zombies().duplicate()
 	assert_eq(placed.size(), full_lines.size() - 1, "one zombie less")
 	_kill(placed[3])
 	_kill(placed[0])
@@ -632,10 +632,10 @@ func test_r_010_32_despawn_clears_dead_indices() -> void:
 	var pool: ObjectPool = _new_pool()
 	var dead: Array[int] = [1]
 	var zone: FarmZone = _zone_skipping(SEED_A, SEED_VISIT, pool, dead)
-	var spawner: ZombieSpawner = _spawner_of(zone)
+	var spawner: EnemySpawner = _spawner_of(zone)
 	zone.despawn_enemies()
 	assert_eq(spawner.get_dead_indices(), [] as Array[int], "nothing remembered after despawn")
-	zone.spawn_enemies(SEED_A, SEED_VISIT, pool)
+	zone.spawn_zombies(SEED_A, SEED_VISIT, pool)
 	assert_eq(spawner.get_dead_indices(), [] as Array[int], "a clean spawn has none dead")
 
 
@@ -665,7 +665,7 @@ func test_r_010_32_visit_state_lists_dead_and_no_closed_boxes() -> void:
 	var no_dead: Array = closed_state["dead_enemies"]
 	assert_eq(no_boxes.size(), 0, "closed boxes are not saved")
 	assert_eq(no_dead.size(), 0, "nobody dead yet")
-	var victim: Zombie = zone.get_enemies()[1]
+	var victim: Enemy = zone.get_zombies()[1]
 	_kill(victim)
 	await wait_physics_frames(2)
 	var state: Dictionary = zone.get_visit_state()
@@ -678,8 +678,147 @@ func test_r_010_32_populate_without_state_equals_generate_and_spawn() -> void:
 	var plain: FarmZone = _new_zone()
 	plain.get_node("%Navigation").free()
 	plain.generate(SEED_A, 2)
-	plain.spawn_enemies(SEED_A, 2, pool)
+	plain.spawn_zombies(SEED_A, 2, pool)
 	var populated: FarmZone = _populated_zone(SEED_A, 2, pool, {})
 	assert_eq(_describe(populated), _describe(plain), "same zombies")
 	assert_eq(populated.get_boxes().size(), plain.get_boxes().size(), "same boxes")
 	assert_eq(populated.get_visit(), 2, "populate gives the visit")
+
+
+## Spec 016 (R-016-22): the zombies of a visit, and what each one drops when a
+## player kills it, captured with the code of main before the hostile robot
+## existed. If this fails, the zombies of saved worlds have moved.
+const PINNED_SEEDS: Array[int] = [1001, 2024, 77777]
+const PINNED_VISITS := 4
+## "seed/visit": "id @ position => drop" per zombie, in spawn order.
+const PINNED_ZOMBIES: Dictionary = {
+	"1001/0": [
+		"zombie_slow @ (-21.0, 0.0, -10.0) => ",
+		"zombie_slow @ (-14.0, 0.0, -22.0) => ",
+		"zombie_slow @ (16.0, 0.0, -20.0) => ",
+		"zombie_fast @ (22.0, 0.0, -8.0) => ",
+		"zombie_fast @ (22.0, 0.0, 8.0) => scrap x1",
+		"zombie_fast @ (15.0, 0.0, 16.0) => ",
+		"zombie_slow @ (-23.0, 0.0, 12.0) => scrap x1",
+	],
+	"1001/1": [
+		"zombie_fast @ (-21.0, 0.0, -10.0) => scrap x1",
+		"zombie_slow @ (-14.0, 0.0, -22.0) => scrap x1",
+		"zombie_slow @ (2.0, 0.0, -22.0) => ",
+		"zombie_slow @ (16.0, 0.0, -20.0) => ",
+		"zombie_fast @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_fast @ (15.0, 0.0, 16.0) => ",
+		"zombie_fast @ (-2.0, 0.0, 21.0) => ",
+	],
+	"1001/2": [
+		"zombie_slow @ (-14.0, 0.0, -22.0) => scrap x1",
+		"zombie_slow @ (16.0, 0.0, -20.0) => ",
+		"zombie_fast @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_fast @ (-20.0, 0.0, 19.0) => scrap x1",
+		"zombie_fast @ (-23.0, 0.0, 12.0) => ",
+	],
+	"1001/3": [
+		"zombie_slow @ (-21.0, 0.0, -10.0) => ",
+		"zombie_slow @ (2.0, 0.0, -22.0) => ",
+		"zombie_slow @ (16.0, 0.0, -20.0) => ",
+		"zombie_fast @ (22.0, 0.0, -8.0) => ",
+		"zombie_slow @ (15.0, 0.0, 16.0) => ",
+		"zombie_fast @ (-2.0, 0.0, 21.0) => ",
+		"zombie_slow @ (-20.0, 0.0, 19.0) => ",
+		"zombie_fast @ (-23.0, 0.0, 12.0) => ",
+	],
+	"2024/0": [
+		"zombie_slow @ (-21.0, 0.0, -10.0) => scrap x1",
+		"zombie_fast @ (-14.0, 0.0, -22.0) => scrap x1",
+		"zombie_slow @ (2.0, 0.0, -22.0) => scrap x1",
+		"zombie_fast @ (22.0, 0.0, 8.0) => ",
+		"zombie_slow @ (15.0, 0.0, 16.0) => scrap x1",
+		"zombie_slow @ (-2.0, 0.0, 21.0) => scrap x1",
+		"zombie_fast @ (-20.0, 0.0, 19.0) => scrap x1",
+	],
+	"2024/1": [
+		"zombie_fast @ (2.0, 0.0, -22.0) => scrap x1",
+		"zombie_slow @ (16.0, 0.0, -20.0) => scrap x1",
+		"zombie_fast @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_slow @ (22.0, 0.0, 8.0) => ",
+		"zombie_slow @ (15.0, 0.0, 16.0) => ",
+		"zombie_fast @ (-23.0, 0.0, 12.0) => scrap x1",
+	],
+	"2024/2": [
+		"zombie_fast @ (-21.0, 0.0, -10.0) => ",
+		"zombie_slow @ (-14.0, 0.0, -22.0) => scrap x1",
+		"zombie_fast @ (2.0, 0.0, -22.0) => scrap x1",
+		"zombie_fast @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_slow @ (-2.0, 0.0, 21.0) => scrap x1",
+		"zombie_fast @ (-20.0, 0.0, 19.0) => ",
+		"zombie_fast @ (-23.0, 0.0, 12.0) => scrap x1",
+	],
+	"2024/3": [
+		"zombie_slow @ (-14.0, 0.0, -22.0) => ",
+		"zombie_slow @ (16.0, 0.0, -20.0) => scrap x1",
+		"zombie_fast @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_fast @ (22.0, 0.0, 8.0) => ",
+		"zombie_fast @ (15.0, 0.0, 16.0) => ",
+		"zombie_fast @ (-2.0, 0.0, 21.0) => scrap x1",
+		"zombie_fast @ (-20.0, 0.0, 19.0) => scrap x1",
+		"zombie_slow @ (-23.0, 0.0, 12.0) => scrap x1",
+	],
+	"77777/0": [
+		"zombie_slow @ (-21.0, 0.0, -10.0) => ",
+		"zombie_fast @ (2.0, 0.0, -22.0) => scrap x1",
+		"zombie_fast @ (16.0, 0.0, -20.0) => ",
+		"zombie_fast @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_fast @ (15.0, 0.0, 16.0) => ",
+		"zombie_slow @ (-2.0, 0.0, 21.0) => ",
+	],
+	"77777/1": [
+		"zombie_fast @ (-21.0, 0.0, -10.0) => scrap x1",
+		"zombie_slow @ (-14.0, 0.0, -22.0) => scrap x1",
+		"zombie_slow @ (2.0, 0.0, -22.0) => ",
+		"zombie_fast @ (16.0, 0.0, -20.0) => ",
+		"zombie_slow @ (22.0, 0.0, -8.0) => scrap x1",
+		"zombie_slow @ (-2.0, 0.0, 21.0) => ",
+	],
+	"77777/2": [
+		"zombie_fast @ (-14.0, 0.0, -22.0) => scrap x1",
+		"zombie_fast @ (16.0, 0.0, -20.0) => ",
+		"zombie_slow @ (22.0, 0.0, -8.0) => ",
+		"zombie_fast @ (22.0, 0.0, 8.0) => scrap x1",
+		"zombie_fast @ (15.0, 0.0, 16.0) => ",
+		"zombie_fast @ (-20.0, 0.0, 19.0) => scrap x1",
+	],
+	"77777/3": [
+		"zombie_slow @ (-14.0, 0.0, -22.0) => ",
+		"zombie_slow @ (2.0, 0.0, -22.0) => ",
+		"zombie_slow @ (22.0, 0.0, -8.0) => ",
+		"zombie_slow @ (22.0, 0.0, 8.0) => scrap x1",
+		"zombie_fast @ (15.0, 0.0, 16.0) => scrap x1",
+		"zombie_slow @ (-2.0, 0.0, 21.0) => scrap x1",
+		"zombie_slow @ (-23.0, 0.0, 12.0) => scrap x1",
+	],
+}
+
+
+## "id @ position => drop" per zombie, in spawn order, killing them in that order.
+func _pinned_lines(world_seed: int, visit: int, pool: ObjectPool) -> PackedStringArray:
+	var zone: FarmZone = _spawned_zone(world_seed, visit, pool)
+	var described: PackedStringArray = _describe(zone)
+	var loot: PackedStringArray = _loot_by_index(zone, false)
+	var lines: PackedStringArray = PackedStringArray()
+	for i: int in described.size():
+		lines.append("%s => %s" % [described[i], loot[i]])
+	return lines
+
+
+func test_r_016_22_zombies_pinned() -> void:
+	var pool: ObjectPool = _new_pool()
+	for world_seed: int in PINNED_SEEDS:
+		for visit: int in PINNED_VISITS:
+			var key: String = "%d/%d" % [world_seed, visit]
+			var expected: Array = PINNED_ZOMBIES[key]
+			assert_eq(
+				_pinned_lines(world_seed, visit, pool),
+				PackedStringArray(expected),
+				"seed %d, visit %d: same zombies, places and drops" % [world_seed, visit]
+			)
+	await wait_physics_frames(2)

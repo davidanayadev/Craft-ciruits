@@ -366,7 +366,7 @@ func _new_zombie_pool() -> ObjectPool:
 ## One "id @ position" line per zombie, in spawn order.
 func _describe_enemies(zone: FarmZone) -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
-	for zombie: Zombie in zone.get_enemies():
+	for zombie: Enemy in zone.get_zombies():
 		lines.append("%s @ %s" % [zombie.get_data().id, zombie.global_position])
 	return lines
 
@@ -446,16 +446,16 @@ func test_r_008_09_repopulate_discards_leftovers() -> void:
 func test_r_008_09_repopulate_places_enemies_of_the_visit() -> void:
 	var pool: ObjectPool = _new_zombie_pool()
 	var zone: FarmZone = _visit_zone(SEED_A, 0)
-	zone.spawn_enemies(SEED_A, 0, pool)
-	var before: int = zone.get_enemies().size()
+	zone.spawn_zombies(SEED_A, 0, pool)
+	var before: int = zone.get_zombies().size()
 	zone.repopulate(SEED_A, 1, pool)
 	await wait_process_frames(1)
 	var fresh_pool: ObjectPool = _new_zombie_pool()
 	var fresh: FarmZone = _new_zone()
-	fresh.spawn_enemies(SEED_A, 1, fresh_pool)
-	assert_gt(zone.get_enemies().size(), 0, "the zone has zombies again")
+	fresh.spawn_zombies(SEED_A, 1, fresh_pool)
+	assert_gt(zone.get_zombies().size(), 0, "the zone has zombies again")
 	assert_eq(_describe_enemies(zone), _describe_enemies(fresh), "the zombies of visit 1")
-	var after: int = zone.get_enemies().size()
+	var after: int = zone.get_zombies().size()
 	assert_eq(
 		pool.get_free_count(), maxi(before - after, 0), "the zombies of visit 0 were reused, none leaked"
 	)
@@ -467,7 +467,7 @@ func test_r_008_09_repopulate_before_generate_reports_error() -> void:
 	zone.repopulate(SEED_A, 1, pool)
 	assert_push_error("generate")
 	assert_eq(zone.get_boxes().size(), 0, "no boxes were placed")
-	assert_eq(zone.get_enemies().size(), 0, "no zombies were placed")
+	assert_eq(zone.get_zombies().size(), 0, "no zombies were placed")
 
 
 func test_r_009_10_has_one_exit_point() -> void:

@@ -236,7 +236,7 @@ func _take_everything(main: Node, box: LootBox) -> void:
 
 
 func _kill_first_zombie(main: Node) -> void:
-	var zombie: Zombie = _farm_of(main).get_enemies()[0]
+	var zombie: Enemy = _farm_of(main).get_zombies()[0]
 	zombie.get_hurtbox().receive_attack(zombie.get_data().hp_max, _robot_of(main).player_uid)
 	await wait_process_frames(2)
 
@@ -580,7 +580,7 @@ func test_r_010_33_no_elapsed_time() -> void:
 	await _kill_first_zombie(a)
 	var battery: float = robot.battery.get_current()
 	var visit_state: Dictionary = _farm_of(a).get_visit_state()
-	var enemy_count: int = _farm_of(a).get_enemies().size()
+	var enemy_count: int = _farm_of(a).get_zombies().size()
 	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
 	# The clock of the game is the real one: the time that "passes" is a World
 	# saved a week ago.
@@ -595,7 +595,7 @@ func test_r_010_33_no_elapsed_time() -> void:
 	if farm == null:
 		return
 	assert_eq(farm.get_visit_state(), visit_state, "boxes and dead enemies as saved")
-	assert_eq(farm.get_enemies().size(), enemy_count, "the living enemies are the same")
+	assert_eq(farm.get_zombies().size(), enemy_count, "the living enemies are the same")
 
 
 func test_r_010_34_loads_saved_zone_and_position() -> void:

@@ -20,7 +20,7 @@ const EXPECTED_XP: Dictionary[StringName, int] = {&"zombie_slow": 2, &"zombie_fa
 ## Scripts that run the AI: none may assign a number to an AI tuning field.
 const AI_SCRIPTS: PackedStringArray = [
 	"res://scripts/systems/enemy_brain.gd",
-	"res://scenes/entities/zombie.gd",
+	"res://scenes/entities/enemy.gd",
 ]
 const AI_FIELDS_PATTERN := (
 	"(vision_radius|attack_range|patrol_radius|patrol_pause_min|patrol_pause_max"

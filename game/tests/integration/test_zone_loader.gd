@@ -139,7 +139,7 @@ func test_r_009_03_zone_changed_once() -> void:
 
 func test_r_009_04_enemies_back_in_pool() -> void:
 	assert_true(await _travel(GREEN_ZONE_ID))
-	var enemies: int = _farm().get_enemies().size()
+	var enemies: int = _farm().get_zombies().size()
 	assert_gt(enemies, 0, "the green zone has zombies")
 	var free_before: int = _zombie_pool.get_free_count()
 	assert_true(await _travel(_base_id()))
@@ -213,7 +213,7 @@ func test_r_009_06_load_failure_keeps_zone_and_visit() -> void:
 	assert_same(_loader.get_current_zone(), zone, "the zone stays")
 	assert_eq(_slot.get_child_count(), 1, "alone in the slot")
 	assert_eq(GameManager.get_visit_count(GREEN_ZONE_ID), ZonePopulation.FIRST_VISIT, "no visit counted")
-	assert_gt(_farm().get_enemies().size(), 0, "its zombies are still there")
+	assert_gt(_farm().get_zombies().size(), 0, "its zombies are still there")
 
 
 func test_r_009_13_travel_to_callers() -> void:
@@ -275,7 +275,7 @@ func test_r_009_16_farm_populated_with_current_visit() -> void:
 	reference_pool.scene = ZOMBIE_SCENE
 	add_child_autofree(reference_pool)
 	reference.generate(GameManager.get_world_seed(), 2)
-	reference.spawn_enemies(GameManager.get_world_seed(), 2, reference_pool)
+	reference.spawn_zombies(GameManager.get_world_seed(), 2, reference_pool)
 	assert_eq(_describe_enemies(_farm()), _describe_enemies(reference), "the zombies of visit 2")
 	var loaded_boxes: Array[LootBox] = _farm().get_boxes()
 	var reference_boxes: Array[LootBox] = reference.get_boxes()
@@ -285,7 +285,7 @@ func test_r_009_16_farm_populated_with_current_visit() -> void:
 
 func _describe_enemies(zone: FarmZone) -> PackedStringArray:
 	var described: PackedStringArray = PackedStringArray()
-	for zombie: Zombie in zone.get_enemies():
+	for zombie: Enemy in zone.get_zombies():
 		described.append("%s @ %s" % [zombie.get_data().id, zone.to_local(zombie.global_position)])
 	described.sort()
 	return described
@@ -319,7 +319,7 @@ func test_r_009_18_no_enemies_in_base() -> void:
 	assert_eq(_loader.get_current_zone().find_children("*", "CharacterBody3D", true, false).size(), 0, "no enemy")
 	var active: int = 0
 	for node: Node in _world.find_children("*", "CharacterBody3D", true, false):
-		if node is Zombie:
+		if node is Enemy:
 			active += 1
 	assert_eq(active, 0, "no zombie anywhere in the world")
 

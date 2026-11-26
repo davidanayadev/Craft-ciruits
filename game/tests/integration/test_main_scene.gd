@@ -575,7 +575,7 @@ func _zombie_pool() -> ObjectPool:
 
 func _describe_enemies(zone: FarmZone) -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
-	for zombie: Zombie in zone.get_enemies():
+	for zombie: Enemy in zone.get_zombies():
 		lines.append("%s @ %s" % [zombie.get_data().id, zombie.global_position])
 	return lines
 
@@ -586,7 +586,7 @@ func test_r_006_26_main_passes_first_visit() -> void:
 	assert_not_null(pool, "the zombie pool lives under World, outside the zone")
 	if pool == null:
 		return
-	var zombies: Array[Zombie] = zone.get_enemies()
+	var zombies: Array[Enemy] = zone.get_zombies()
 	assert_between(
 		zombies.size(), zone.data.enemy_count_min, zone.data.enemy_count_max, "zombies at start"
 	)
@@ -600,7 +600,7 @@ func test_r_006_26_main_passes_first_visit() -> void:
 	var expected_pool: ObjectPool = ObjectPool.new()
 	expected_pool.scene = pool.scene
 	add_child_autofree(expected_pool)
-	expected.spawn_enemies(GameManager.get_world_seed(), ZonePopulation.FIRST_VISIT, expected_pool)
+	expected.spawn_zombies(GameManager.get_world_seed(), ZonePopulation.FIRST_VISIT, expected_pool)
 	assert_eq(_describe_enemies(zone), _describe_enemies(expected), "world seed and visit 0")
 
 
@@ -610,14 +610,14 @@ func test_r_006_23_no_zombie_sees_the_robot_at_start() -> void:
 	# Zombies must enter the scene on their markers: one that enters on top of
 	# the robot and jumps away drags it along.
 	assert_eq(_robot().global_position, zone.get_spawn_position(), "the robot stays on its spawn")
-	for zombie: Zombie in zone.get_enemies():
+	for zombie: Enemy in zone.get_zombies():
 		assert_eq(zombie.get_state(), EnemyBrain.State.IDLE, "zombie at %s is idle at start" % zombie.global_position)
 
 
 func test_r_006_19_zombies_act_with_screen_open() -> void:
 	var zone: FarmZone = _zone()
 	var robot: Robot = _robot()
-	var zombie: Zombie = zone.get_enemies()[0]
+	var zombie: Enemy = zone.get_zombies()[0]
 	# The navigation map needs a few physics frames before it gives paths.
 	await wait_physics_frames(10)
 	_storage_button().pressed.emit()
@@ -671,9 +671,9 @@ func test_r_007_28_main_wires_combat() -> void:
 func test_r_007_28_robot_kills_a_zone_zombie() -> void:
 	var robot: Robot = _robot()
 	var zone: FarmZone = _zone()
-	var zombie: Zombie = zone.get_enemies()[0]
+	var zombie: Enemy = zone.get_zombies()[0]
 	var enemy: EnemyData = zombie.get_data()
-	var enemies_before: int = zone.get_enemies().size()
+	var enemies_before: int = zone.get_zombies().size()
 	# In front of the zombie, facing it, inside the reach of the swing.
 	robot.global_position = zombie.global_position + Vector3(0.0, 0.0, enemy.ai.attack_range * 0.9)
 	await wait_physics_frames(4)
@@ -684,7 +684,7 @@ func test_r_007_28_robot_kills_a_zone_zombie() -> void:
 	_hud().attack_held_changed.emit(false)
 	assert_eq(robot.experience.get_total(), enemy.xp_reward, "the kill gave its XP")
 	await wait_physics_frames(2)
-	assert_eq(zone.get_enemies().size(), enemies_before - 1, "and the zombie left the zone")
+	assert_eq(zone.get_zombies().size(), enemies_before - 1, "and the zombie left the zone")
 	assert_false(robot.battery.is_depleted(), "the robot survived the fight")
 
 
@@ -729,7 +729,7 @@ func _reference_zone_of_visit(visit: int) -> FarmZone:
 	var expected_pool: ObjectPool = ObjectPool.new()
 	expected_pool.scene = _zombie_pool().scene
 	add_child_autofree(expected_pool)
-	expected.spawn_enemies(GameManager.get_world_seed(), visit, expected_pool)
+	expected.spawn_zombies(GameManager.get_world_seed(), visit, expected_pool)
 	return expected
 
 
@@ -760,11 +760,11 @@ func test_r_008_09_visit_change_repopulates_loaded_zone() -> void:
 func test_r_008_09_other_zone_visit_does_nothing() -> void:
 	var zone: FarmZone = _zone()
 	var boxes: Array[LootBox] = zone.get_boxes().duplicate()
-	var enemies: Array[Zombie] = zone.get_enemies().duplicate()
+	var enemies: Array[Enemy] = zone.get_zombies().duplicate()
 	GameManager.increment_visit_count(OTHER_ZONE_ID)
 	await wait_process_frames(2)
 	assert_eq(zone.get_boxes(), boxes, "the same boxes")
-	assert_eq(zone.get_enemies(), enemies, "the same enemies")
+	assert_eq(zone.get_zombies(), enemies, "the same enemies")
 
 
 ## R-008-15 is replaced by R-015-45/R-015-46: what does not fit stays in the

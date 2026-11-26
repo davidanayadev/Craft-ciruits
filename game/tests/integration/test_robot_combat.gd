@@ -292,7 +292,7 @@ func test_r_007_20_kill_adds_xp() -> void:
 	var slow: EnemyData = load(SLOW_PATH) as EnemyData
 	var bystander: Robot = _new_robot(FAR + Vector3(30.0, 0.0, 0.0))
 	_robot.global_position = FAR
-	var zombie: Zombie = ZOMBIE_SCENE.instantiate() as Zombie
+	var zombie: Enemy = ZOMBIE_SCENE.instantiate() as Enemy
 	add_child_autofree(zombie)
 	# Inside its attack range, so it stands still in front of the robot.
 	zombie.activate(slow, FAR + Vector3(0.0, 0.0, -slow.ai.attack_range * 0.9), BRAIN_SEED, DROP_SEED)

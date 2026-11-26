@@ -1,16 +1,18 @@
-class_name Zombie
+class_name Enemy
 extends CharacterBody3D
-## Zombie (spec 006): asks its EnemyBrain what to do, walks with its
+## An enemy (spec 006): asks its EnemyBrain what to do, walks with its
 ## NavigationAgent3D, animates and hits. Presentation and wiring only (P3):
 ## the rules live in EnemyBrain and every number comes from its EnemyData.
 ## Instances are pooled: activate() starts a new life from scratch, so the
-## same instance can come back as another kind of zombie.
+## same instance can come back as another kind of enemy of the same scene.
+## One script for every enemy scene (zombies, the hostile robot of spec 016):
+## each scene brings its model and animations, each EnemyData its numbers.
 ## Players hit it through its HurtboxComponent; it flashes white and, when a
 ## player's hit kills it, announces it on the EventBus (spec 007) and rolls
 ## its drop table once, with the seed it was given (spec 008).
 
 ## Its HealthComponent reached 0. Whoever placed it returns it to the pool.
-signal defeated(zombie: Zombie)
+signal defeated(enemy: Enemy)
 ## A player killed it and its drop table gave something (R-008-35).
 signal loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
@@ -58,14 +60,14 @@ func _physics_process(delta: float) -> void:
 
 
 ## Starts a new life as the given kind of enemy, standing at home (global
-## coordinates). Call it once the zombie is inside the tree; whoever adds it
+## coordinates). Call it once the enemy is inside the tree; whoever adds it
 ## should place it at home first, so its body does not jump there from where it
 ## entered. brain_seed seeds its pauses and patrol points and drop_seed the
 ## roll of its drop table, so the loot depends on neither the order of the
 ## kills nor a reload. Missing data → push_error and it stays inactive.
 func activate(data: EnemyData, home: Vector3, brain_seed: int, drop_seed: int) -> void:
 	if data == null or data.ai == null or not is_inside_tree():
-		push_error("Zombie '%s': activate() needs an EnemyData with ai, inside the tree." % name)
+		push_error("Enemy '%s': activate() needs an EnemyData with ai, inside the tree." % name)
 		return
 	_data = data
 	_drop_seed = drop_seed

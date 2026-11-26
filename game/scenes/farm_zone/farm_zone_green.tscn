@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/entities/loot_box.tscn" id="3_hnidp"]
 [ext_resource type="MeshLibrary" path="res://resources/zones/green_zone_tiles.tres" id="4_f3aqh"]
 [ext_resource type="NavigationMesh" path="res://resources/zones/green_zone_navmesh.tres" id="5_navmesh"]
-[ext_resource type="Script" path="res://scenes/farm_zone/zombie_spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scenes/farm_zone/enemy_spawner.gd" id="6_spawner"]
 [ext_resource type="PackedScene" path="res://scenes/zones/exit_point.tscn" id="7_exit"]
 [ext_resource type="Resource" path="res://resources/zones/base.tres" id="8_base"]
 

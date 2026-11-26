@@ -42,7 +42,7 @@ var _visit: int = ZonePopulation.FIRST_VISIT
 @onready var _box_markers: Node3D = %BoxMarkers
 @onready var _boxes_root: Node3D = %Boxes
 @onready var _enemy_markers: Node3D = %EnemyMarkers
-@onready var _zombie_spawner: ZombieSpawner = %ZombieSpawner
+@onready var _zombie_spawner: EnemySpawner = %ZombieSpawner
 
 
 func _ready() -> void:
@@ -76,7 +76,7 @@ func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
 		push_error("FarmZone '%s': repopulate() needs generate() first." % name)
 		return
 	despawn_enemies()
-	spawn_enemies(world_seed, visit, pool)
+	spawn_zombies(world_seed, visit, pool)
 	# Replaced, not reset: a new box is cheaper to get right than undoing the
 	# roll of an old one, and this runs once per death, behind the transfer screen.
 	for box: LootBox in _boxes:
@@ -95,7 +95,7 @@ func populate(world_seed: int, visit: int, pool: ObjectPool, saved_state: Dictio
 	if not _generated:
 		return
 	_restore_boxes(saved_state.get(_BOXES_KEY, []))
-	spawn_enemies(world_seed, visit, pool, _saved_dead_enemies(saved_state))
+	spawn_zombies(world_seed, visit, pool, _saved_dead_enemies(saved_state))
 
 
 ## The visit given to generate() or repopulate().
@@ -124,7 +124,7 @@ func get_boxes() -> Array[LootBox]:
 ## Places the zombies of the given visit, taken from the pool, but the dead
 ## ones (spec 010). Calling it again without despawn_enemies() → push_error,
 ## no change.
-func spawn_enemies(
+func spawn_zombies(
 	world_seed: int, visit: int, pool: ObjectPool, dead_indices: Array[int] = []
 ) -> void:
 	if data == null:
@@ -141,7 +141,7 @@ func despawn_enemies() -> void:
 	_zombie_spawner.despawn_all()
 
 
-func get_enemies() -> Array[Zombie]:
+func get_zombies() -> Array[Enemy]:
 	return _zombie_spawner.get_active()
 
 

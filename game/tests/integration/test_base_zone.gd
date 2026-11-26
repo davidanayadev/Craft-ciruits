@@ -101,7 +101,7 @@ func test_r_009_19_bounds_stop_robot() -> void:
 func test_r_009_18_no_navigation_region_nor_spawner() -> void:
 	assert_eq(_base.find_children("*", "NavigationRegion3D", true, false).size(), 0, "no navmesh")
 	var spawners: Array[Node] = _base.find_children("*", "", true, false).filter(
-		func(node: Node) -> bool: return node is ZombieSpawner
+		func(node: Node) -> bool: return node is EnemySpawner
 	)
 	assert_eq(spawners.size(), 0, "no zombie spawner")
 
