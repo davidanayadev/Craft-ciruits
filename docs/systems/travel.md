@@ -2,7 +2,7 @@
 
 > `ZoneLoader` mantiene exactamente una zona cargada en `ZoneSlot`, viaja entre zonas con una pantalla de carga y
 > hace que el estado del mundo (objetos caídos, estructuras, contador de visitas) sobreviva a cada descarga.
-> Specs: [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · Última actualización: spec 010
+> Specs: [009](../../specs/009-base-placement-charging/spec.md), [010](../../specs/010-save-profile-world/spec.md) · [016](../../specs/016-hostile-robot/spec.md) · Última actualización: spec 016 (pool y precalentado del robot hostil)
 
 ## Piezas
 
@@ -40,7 +40,7 @@
    devuelve al pool), `BaseStructures.unbind_base()` si era la base, `remove_child` + `queue_free`. Solo entonces,
    si el viaje es una salida y la zona `counts_visits()`, sube su contador de visitas.
 7. **Carga.** `_load`: añade la zona a `ZoneSlot`, `GameManager.set_current_zone`, puebla una `FarmZone`
-   (precalienta `ZombiePool`, `ImpactPool` y `DroppedItemPool`; `populate` con la visita actual y el estado de `ZoneMemory.take_state`, y luego `bind_farm`) o
+   (precalienta `ZombiePool`, `HostileRobotPool` (`hostile_robot_pool`; sin asignar es `push_error` y la zona queda sin robots), `ImpactPool` y `DroppedItemPool`, contando también los robots; `populate` con la visita actual y el estado de `ZoneMemory.take_state`, y luego `bind_farm`) o
    enlaza la base con `BaseStructures.bind_base`, y `DroppedItemSpawner.bind_zone` restaura y caduca los objetos de
    esa zona. Conecta `exit_requested`.
 8. **Fin.** `_finish`: cada `Robot` de `Players` va a `enter_zone(zone_id, zona, llegada)` quieto (la llegada es el

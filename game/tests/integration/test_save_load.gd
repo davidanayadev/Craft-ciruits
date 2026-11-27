@@ -22,10 +22,13 @@ extends GutTest
 ## (R-014-15); Experience loads before the inventory, so stacks beyond the
 ## level-1 slots survive (R-014-16); loading never emits level_up (R-014-17);
 ## a new World starts at level 1 (R-014-18).
+## Spec 016 (R-016-19): the piece a hostile robot dropped keeps its durability
+## and uid on the ground across a close and reopen.
 ## Manual: nothing here (the real files and the window are M1..M4 of plan 010
 ## §5.3).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const DROP_SEARCH := preload("res://tests/support/hostile_drop_search.gd")
 const FIXTURE_WORLD_PATH := "res://tests/fixtures/saves/world_v1.json"
 const BATTERY_CONFIG_PATH := "res://resources/battery/robot_battery.tres"
 const CHASSIS_LEVELS_PATH := "res://resources/progression/chassis_levels.tres"
@@ -236,7 +239,7 @@ func _take_everything(main: Node, box: LootBox) -> void:
 
 
 func _kill_first_zombie(main: Node) -> void:
-	var zombie: Zombie = _farm_of(main).get_enemies()[0]
+	var zombie: Enemy = _farm_of(main).get_zombies()[0]
 	zombie.get_hurtbox().receive_attack(zombie.get_data().hp_max, _robot_of(main).player_uid)
 	await wait_process_frames(2)
 
@@ -580,7 +583,7 @@ func test_r_010_33_no_elapsed_time() -> void:
 	await _kill_first_zombie(a)
 	var battery: float = robot.battery.get_current()
 	var visit_state: Dictionary = _farm_of(a).get_visit_state()
-	var enemy_count: int = _farm_of(a).get_enemies().size()
+	var enemy_count: int = _farm_of(a).get_zombies().size()
 	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
 	# The clock of the game is the real one: the time that "passes" is a World
 	# saved a week ago.
@@ -595,7 +598,7 @@ func test_r_010_33_no_elapsed_time() -> void:
 	if farm == null:
 		return
 	assert_eq(farm.get_visit_state(), visit_state, "boxes and dead enemies as saved")
-	assert_eq(farm.get_enemies().size(), enemy_count, "the living enemies are the same")
+	assert_eq(farm.get_zombies().size(), enemy_count, "the living enemies are the same")
 
 
 func test_r_010_34_loads_saved_zone_and_position() -> void:
@@ -868,6 +871,52 @@ func test_r_011_10_piece_survives_close_and_reopen() -> void:
 	assert_not_null(on_ground, "the thrown piece is back on the ground with its uid")
 	if on_ground != null:
 		assert_eq(on_ground.durability, 70, "with its durability")
+
+
+func test_r_016_19_dropped_piece_survives_save() -> void:
+	var a: Node = await _open_main()
+	await _travel_to(a, GREEN_ZONE_ID)
+	var farm: FarmZone = _farm_of(a)
+	var pool: ObjectPool = a.get_node("World/HostileRobotPool") as ObjectPool
+	var found: DROP_SEARCH.Found = DROP_SEARCH.place_robot_with_piece(
+		farm, pool, GameManager.get_world_seed()
+	)
+	assert_not_null(found, "test setup: a visit with a hostile robot that drops a piece")
+	if found == null:
+		return
+	found.robot.get_hurtbox().receive_attack(found.robot.get_data().hp_max, _robot_of(a).player_uid)
+	var items: Array[DroppedItem] = _spawner_of(a).get_items()
+	assert_eq(items.size(), 1, "the kill left one dropped item")
+	if items.size() != 1:
+		return
+	var dropped: ItemStack = _first_piece(items[0].get_contents())
+	assert_not_null(dropped, "it holds the robot's piece")
+	if dropped == null:
+		return
+	var piece_uid: String = dropped.uid
+	var durability: int = dropped.durability
+	var piece_id: StringName = dropped.item.id
+	assert_false(piece_uid.is_empty(), "with a uid")
+	_robot_of(a).global_position = farm.to_global(GREEN_LOCAL_POSITION)
+	assert_true(SaveManager.save_game(SaveManager.REASON_CLOSE).ok, "saved")
+	await _close_main(a)
+	var b: Node = await _open_main()
+	var reloaded: Array[DroppedItem] = _spawner_of(b).get_items()
+	assert_eq(reloaded.size(), 1, "the dropped item is back")
+	if reloaded.size() != 1:
+		return
+	var loaded: ItemStack = _piece_in(reloaded[0].get_contents(), piece_uid)
+	assert_not_null(loaded, "the piece is back with its uid")
+	if loaded != null:
+		assert_eq(loaded.item.id, piece_id, "the same piece")
+		assert_eq(loaded.durability, durability, "with its durability")
+
+
+func _first_piece(inventory: InventoryComponent) -> ItemStack:
+	for stack: ItemStack in inventory.get_slots():
+		if stack != null and stack.item is PieceData:
+			return stack
+	return null
 
 
 # --- Spec 012: generators and chests (R-012-14, 16, 36, 39) -------------------

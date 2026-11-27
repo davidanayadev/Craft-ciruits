@@ -49,7 +49,7 @@
    ([travel.md](travel.md)). `get_store()` devuelve el `IStore` (siempre `LocalStore`, [save.md](save.md)).
    `GameManager` es también dueño de guardado (`zone_visits`).
 6. **`EventBus`** (autoload, el primero de la lista, sin `class_name`) solo declara señales tipadas; emiten sus
-   dueños. Hoy: `enemy_killed(enemy_id, killer_uid)` (007, lo emite el `Zombie`, [combat.md](combat.md)),
+   dueños. Hoy: `enemy_killed(enemy_id, killer_uid)` (007, lo emite el `Enemy`, [combat.md](combat.md)),
    `player_died(player_uid)` y `player_respawned(player_uid)` (008, las emite `DeathController`,
    [death.md](death.md)); y, de la 009, `zone_changed(zone_id)` (`ZoneLoader`, [travel.md](travel.md)),
    `structure_built(structure_uid)` (`BaseStructures`) y `player_recharged(player_uid)` (`ChargingStation`,

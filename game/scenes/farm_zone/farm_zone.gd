@@ -14,6 +14,8 @@ extends Zone
 ## and markers in scene order inside each site; saved open boxes and the
 ## contents of each box use that index, so reordering sites or markers changes
 ## which box is which in saved worlds (plan 013 D1).
+## Enemies are two populations, each with its spawner and markers: the zombies
+## and the hostile robots (spec 016).
 ## populate() brings back a saved visit: its open boxes and its dead enemies
 ## (spec 010).
 
@@ -28,6 +30,8 @@ signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 const _BOXES_KEY := "boxes"
 const _MARKER_KEY := "marker"
 const _DEAD_ENEMIES_KEY := "dead_enemies"
+## Optional: a World saved before spec 016 does not have it.
+const _DEAD_HOSTILE_ROBOTS_KEY := "dead_hostile_robots"
 
 var _boxes: Array[LootBox] = []
 ## Marker of each box, in the same order as _boxes.
@@ -42,12 +46,15 @@ var _visit: int = ZonePopulation.FIRST_VISIT
 @onready var _box_markers: Node3D = %BoxMarkers
 @onready var _boxes_root: Node3D = %Boxes
 @onready var _enemy_markers: Node3D = %EnemyMarkers
-@onready var _zombie_spawner: ZombieSpawner = %ZombieSpawner
+@onready var _zombie_spawner: EnemySpawner = %ZombieSpawner
+@onready var _hostile_robot_markers: Node3D = %HostileRobotMarkers
+@onready var _hostile_robot_spawner: EnemySpawner = %HostileRobotSpawner
 
 
 func _ready() -> void:
 	super()
 	_zombie_spawner.enemy_loot_dropped.connect(_on_enemy_loot_dropped)
+	_hostile_robot_spawner.enemy_loot_dropped.connect(_on_enemy_loot_dropped)
 	_collect_box_sites()
 
 
@@ -71,12 +78,15 @@ func generate(world_seed: int, visit: int) -> void:
 ## of that visit and the boxes by closed ones on the markers of that visit,
 ## with its contents; what was left inside goes with the old boxes. Before
 ## generate() → push_error, no change.
-func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
+func repopulate(
+	world_seed: int, visit: int, zombie_pool: ObjectPool, hostile_robot_pool: ObjectPool
+) -> void:
 	if not _generated:
 		push_error("FarmZone '%s': repopulate() needs generate() first." % name)
 		return
 	despawn_enemies()
-	spawn_enemies(world_seed, visit, pool)
+	spawn_zombies(world_seed, visit, zombie_pool)
+	spawn_hostile_robots(world_seed, visit, hostile_robot_pool)
 	# Replaced, not reset: a new box is cheaper to get right than undoing the
 	# roll of an old one, and this runs once per death, behind the transfer screen.
 	for box: LootBox in _boxes:
@@ -89,13 +99,23 @@ func repopulate(world_seed: int, visit: int, pool: ObjectPool) -> void:
 ## generate() plus the saved state of that visit (get_visit_state(), spec
 ## 010): the boxes that were open come back open with what was left, and the
 ## dead enemies stay dead. Same seed and visit, so the boxes are the same
-## (R-010-35). {} is a visit nothing happened in yet.
-func populate(world_seed: int, visit: int, pool: ObjectPool, saved_state: Dictionary) -> void:
+## (R-010-35). {} is a visit nothing happened in yet; a state saved before
+## spec 016 has no dead hostile robots, which is none (R-016-26).
+func populate(
+	world_seed: int,
+	visit: int,
+	zombie_pool: ObjectPool,
+	hostile_robot_pool: ObjectPool,
+	saved_state: Dictionary
+) -> void:
 	generate(world_seed, visit)
 	if not _generated:
 		return
 	_restore_boxes(saved_state.get(_BOXES_KEY, []))
-	spawn_enemies(world_seed, visit, pool, _saved_dead_enemies(saved_state))
+	spawn_zombies(world_seed, visit, zombie_pool, _saved_dead(saved_state, _DEAD_ENEMIES_KEY))
+	spawn_hostile_robots(
+		world_seed, visit, hostile_robot_pool, _saved_dead(saved_state, _DEAD_HOSTILE_ROBOTS_KEY)
+	)
 
 
 ## The visit given to generate() or repopulate().
@@ -103,8 +123,9 @@ func get_visit() -> int:
 	return _visit
 
 
-## {"boxes": [{"marker": int, "contents": {...}}], "dead_enemies": [int]} of
-## the visit in progress: the open boxes only, by marker.
+## {"boxes": [{"marker": int, "contents": {...}}], "dead_enemies": [int],
+## "dead_hostile_robots": [int]} of the visit in progress: the open boxes only,
+## by marker, and the dead of each population by spawn index.
 func get_visit_state() -> Dictionary:
 	var boxes: Array = []
 	for i: int in _boxes.size():
@@ -114,7 +135,11 @@ func get_visit_state() -> Dictionary:
 		var entry: Dictionary = box_state
 		entry[_MARKER_KEY] = _box_marker_indices[i]
 		boxes.append(entry)
-	return {_BOXES_KEY: boxes, _DEAD_ENEMIES_KEY: _zombie_spawner.get_dead_indices()}
+	return {
+		_BOXES_KEY: boxes,
+		_DEAD_ENEMIES_KEY: _zombie_spawner.get_dead_indices(),
+		_DEAD_HOSTILE_ROBOTS_KEY: _hostile_robot_spawner.get_dead_indices(),
+	}
 
 
 func get_boxes() -> Array[LootBox]:
@@ -124,25 +149,46 @@ func get_boxes() -> Array[LootBox]:
 ## Places the zombies of the given visit, taken from the pool, but the dead
 ## ones (spec 010). Calling it again without despawn_enemies() → push_error,
 ## no change.
-func spawn_enemies(
+func spawn_zombies(
 	world_seed: int, visit: int, pool: ObjectPool, dead_indices: Array[int] = []
+) -> void:
+	_spawn(_zombie_spawner, _enemy_markers, world_seed, visit, pool, dead_indices)
+
+
+## The same for the hostile robots, on their own markers (spec 016).
+func spawn_hostile_robots(
+	world_seed: int, visit: int, pool: ObjectPool, dead_indices: Array[int] = []
+) -> void:
+	_spawn(_hostile_robot_spawner, _hostile_robot_markers, world_seed, visit, pool, dead_indices)
+
+
+## Returns both populations to their pools. Whoever unloads the zone calls it
+## first (ZoneLoader, spec 009), so the pooled instances are not freed with it.
+func despawn_enemies() -> void:
+	_zombie_spawner.despawn_all()
+	_hostile_robot_spawner.despawn_all()
+
+
+func get_zombies() -> Array[Enemy]:
+	return _zombie_spawner.get_active()
+
+
+func get_hostile_robots() -> Array[Enemy]:
+	return _hostile_robot_spawner.get_active()
+
+
+func _spawn(
+	spawner: EnemySpawner,
+	markers: Node3D,
+	world_seed: int,
+	visit: int,
+	pool: ObjectPool,
+	dead_indices: Array[int]
 ) -> void:
 	if data == null:
 		push_error("FarmZone '%s': data must be assigned." % name)
 		return
-	_zombie_spawner.spawn(
-		data, _enemy_markers.get_children(), world_seed, visit, pool, dead_indices
-	)
-
-
-## Returns every zombie to the pool. Whoever unloads the zone calls it first
-## (ZoneLoader, spec 009), so the pooled instances are not freed with it.
-func despawn_enemies() -> void:
-	_zombie_spawner.despawn_all()
-
-
-func get_enemies() -> Array[Zombie]:
-	return _zombie_spawner.get_active()
+	spawner.spawn(data, markers.get_children(), world_seed, visit, pool, dead_indices)
 
 
 ## One pass over the sites, so the flat markers and the count per site never
@@ -207,17 +253,18 @@ func _restore_boxes(saved: Variant) -> void:
 		_boxes[index].restore_opened(fields)
 
 
-func _saved_dead_enemies(saved_state: Dictionary) -> Array[int]:
+## The spawn indices saved under key; missing → none (R-016-26).
+func _saved_dead(saved_state: Dictionary, key: String) -> Array[int]:
 	var dead: Array[int] = []
-	var saved: Variant = saved_state.get(_DEAD_ENEMIES_KEY, [])
+	var saved: Variant = saved_state.get(key, [])
 	if not saved is Array:
-		push_error("FarmZone '%s': saved dead enemies %s are lost." % [name, saved])
+		push_error("FarmZone '%s': saved %s %s are lost." % [name, key, saved])
 		return dead
 	for index: Variant in saved as Array:
 		if SaveFields.is_whole_number(index):
 			dead.append(SaveFields.to_int(index, 0))
 		else:
-			push_error("FarmZone '%s': saved dead enemy %s is lost." % [name, index])
+			push_error("FarmZone '%s': saved %s entry %s is lost." % [name, key, index])
 	return dead
 
 

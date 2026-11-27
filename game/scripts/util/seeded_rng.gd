@@ -13,6 +13,11 @@ const STREAM_BOX_LOOT := &"box_loot"
 const STREAM_ENEMY_SPAWN := &"enemy_spawn"
 const STREAM_ENEMY_BRAIN := &"enemy_brain"
 const STREAM_ENEMY_DROP := &"enemy_drop"
+## The hostile robots of a visit (spec 016), apart from the zombies so they never
+## move what the zombie streams already placed or dropped.
+const STREAM_HOSTILE_ROBOT_SPAWN := &"hostile_robot_spawn"
+const STREAM_HOSTILE_ROBOT_BRAIN := &"hostile_robot_brain"
+const STREAM_HOSTILE_ROBOT_DROP := &"hostile_robot_drop"
 
 const _HEADER_SIZE := 20
 const _ZONE_X_OFFSET := 8

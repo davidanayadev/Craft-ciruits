@@ -24,3 +24,6 @@ enum Faction { INFECTED, MACHINE, HUMAN }
 @export var ai: EnemyAiData
 ## Rolled once when a player kills it (BALANCE §3.1); null drops nothing.
 @export var drop_table: LootTableData
+## Rolled after drop_table, with the same RNG, when a player kills it (spec
+## 016); null drops no piece.
+@export var piece_drop: PieceDropData

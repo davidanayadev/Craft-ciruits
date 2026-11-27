@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/ai/hostile_robot_ai.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/loot/hostile_robot_drop.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/piece_drops/hostile_robot_piece_drop.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+id = &"hostile_robot_basic"
+name_key = &"ENEMY_HOSTILE_ROBOT_BASIC"
+faction = 1
+hp_max = 50
+hit_damage = 8.0
+move_speed = 2.0
+attack_interval = 2.0
+xp_reward = 10
+ai = ExtResource("2")
+drop_table = ExtResource("3")
+piece_drop = ExtResource("4")

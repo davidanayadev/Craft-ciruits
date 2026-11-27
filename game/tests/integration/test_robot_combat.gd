@@ -15,6 +15,8 @@ const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
 const BASE_STATS_PATH := "res://resources/robot/robot_base_stats.tres"
 const COMBAT_CONFIG_PATH := "res://resources/config/combat.tres"
 const SLOW_PATH := "res://resources/enemies/zombie_slow.tres"
+const HOSTILE_SCENE := preload("res://scenes/entities/hostile_robot.tscn")
+const HOSTILE_PATH := "res://resources/enemies/hostile_robot_basic.tres"
 const HEX_PATTERN := "^[0-9a-f]{32}$"
 const TARGET_HP := 1000
 const BRAIN_SEED := 7
@@ -292,7 +294,7 @@ func test_r_007_20_kill_adds_xp() -> void:
 	var slow: EnemyData = load(SLOW_PATH) as EnemyData
 	var bystander: Robot = _new_robot(FAR + Vector3(30.0, 0.0, 0.0))
 	_robot.global_position = FAR
-	var zombie: Zombie = ZOMBIE_SCENE.instantiate() as Zombie
+	var zombie: Enemy = ZOMBIE_SCENE.instantiate() as Enemy
 	add_child_autofree(zombie)
 	# Inside its attack range, so it stands still in front of the robot.
 	zombie.activate(slow, FAR + Vector3(0.0, 0.0, -slow.ai.attack_range * 0.9), BRAIN_SEED, DROP_SEED)
@@ -316,3 +318,31 @@ func test_r_007_20_kill_adds_xp() -> void:
 	assert_signal_emit_count(_robot.experience, "xp_changed", 1)
 	assert_eq(bystander.experience.get_total(), 0, "another player earns nothing from this kill")
 	assert_signal_emit_count(_robot.melee, "hit_dealt", hits_to_kill, "one hit_dealt per hit")
+
+
+func test_r_016_12_killing_hostile_robot_gives_its_xp() -> void:
+	var hostile_data: EnemyData = load(HOSTILE_PATH) as EnemyData
+	_robot.global_position = FAR
+	var hostile: Enemy = HOSTILE_SCENE.instantiate() as Enemy
+	add_child_autofree(hostile)
+	# Inside its attack range, so it stands still in front of the robot.
+	hostile.activate(
+		hostile_data, FAR + Vector3(0.0, 0.0, -hostile_data.ai.attack_range * 0.9), BRAIN_SEED, DROP_SEED
+	)
+	watch_signals(EventBus)
+	watch_signals(_robot.experience)
+	await wait_physics_frames(SETTLE_FRAMES)
+	_robot.player_input.set_attack_button_held(true)
+	var hits_to_kill: int = ceili(float(hostile_data.hp_max) / float(_attack.damage))
+	var seconds: float = (
+		CombatSystem.swing_interval(_attack) * (hits_to_kill - 1) + _config.impact_time_s
+	)
+	await wait_physics_frames(_frames_for(seconds) - SETTLE_FRAMES * 2)
+	assert_false(hostile.get_health().is_dead(), "alive until the last hit lands")
+	assert_eq(_robot.experience.get_total(), 0, "no XP before the kill")
+	await wait_physics_frames(SETTLE_FRAMES * 4)
+	_robot.player_input.set_attack_button_held(false)
+	assert_true(hostile.get_health().is_dead(), "%d hits kill a hostile robot" % hits_to_kill)
+	assert_signal_emit_count(EventBus, "enemy_killed", 1, "the kill is announced once")
+	assert_signal_emitted_with_parameters(EventBus, "enemy_killed", [hostile_data.id, _robot.player_uid])
+	assert_eq(_robot.experience.get_total(), hostile_data.xp_reward, "the robot earns the XP of its data")

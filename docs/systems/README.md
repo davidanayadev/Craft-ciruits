@@ -68,15 +68,15 @@ Si el porqué de algo no está escrito en ninguna fuente, se pone **"Sin documen
 | Catálogo de datos y autoloads | [data_catalog.md](data_catalog.md) | 004, 005, 006, 007, 008, 009, 010, 011, 012 | `EventBus`, `DataRegistry`, `GameManager`, `DataCatalog`, `ActionResult` |
 | Movimiento y cámara | [movement.md](movement.md) | 002, 007, 009, 015 | `Robot`, `PlayerInput`, `LocomotionSystem`, `JoystickLogic`, `FloatingJoystick`, `CameraRig` |
 | Batería | [battery.md](battery.md) | 003, 007, 008, 010, 012, 015 | `BatteryComponent` (`set_base_maximum`, `set_maximum_bonus`, `set_drain_rates`, `is_low`), `BatteryConfigData` |
-| Mundo y zonas | [world_zones.md](world_zones.md) | 004, 006, 008, 009, 010, 013 | `Main`, `FarmZone`, `ZoneData`, `ZonePopulation` (`pick_box_markers`), `SeededRng`, `ZoneMemory`, `GameManager` (Mundo y visitas), `Zone` |
+| Mundo y zonas | [world_zones.md](world_zones.md) | 004, 006, 008, 009, 010, 013, 016 | `Main`, `FarmZone`, `ZoneData`, `ZonePopulation` (`pick_box_markers`), `SeededRng`, `ZoneMemory`, `GameManager` (Mundo y visitas), `Zone` |
 | Interacción | [interaction.md](interaction.md) | 004, 008, 009, 015 | `InteractableComponent`, `InteractorComponent` |
-| Botín | [loot.md](loot.md) | 004, 005, 008, 010, 012, 013 | `LootBox`, `LootSystem`, `LootTableData`, `ItemData` |
+| Botín | [loot.md](loot.md) | 004, 005, 008, 010, 012, 013, 016 | `LootBox`, `LootSystem` (`roll_piece`, `roll_enemy_drop`), `LootTableData`, `PieceDropData`, `ItemData` |
 | Inventario | [inventory.md](inventory.md) | 005, 008, 009, 010, 011, 012, 013, 014, 015 | `InventoryComponent`, `InventoryRules`, `ItemStack`, `QuantitySelector`, `ContainerScreen`, `InventorySlotView`, `InventoryScreen` |
 | Interfaz (UI) | [ui.md](ui.md) | 002, 003, 005, 007, 008, 009, 010, 011, 012, 013, 015 | `UIManager` (`close`), `EquipmentPanel`, `UIScreen`, `ContainerScreen`, `Hud`, `NoticeScreen`, `TransferScreen`, `AttackButton`, `QuantitySelector` |
-| Enemigos | [enemies.md](enemies.md) | 006, 007, 008, 010 | `Zombie`, `HealthComponent`, `HurtboxComponent`, `EnemyBrain`, `ZombieSpawner`, `ObjectPool` |
-| Combate y XP | [combat.md](combat.md) | 007, 008, 009, 010, 014, 015 | `MeleeAttackComponent` (`set_attack`), `CombatSystem`, `HurtboxComponent`, `ExperienceComponent`, `CombatFeedback` |
+| Enemigos (zombies y robot hostil) | [enemies.md](enemies.md) | 006, 007, 008, 010, 016 | `Enemy`, `EnemySpawner` (`Population`, `rules_for`), `HealthComponent`, `HurtboxComponent`, `EnemyBrain`, `PieceDropData`, `ObjectPool` |
+| Combate y XP | [combat.md](combat.md) | 007, 008, 009, 010, 014, 015, 016 | `MeleeAttackComponent` (`set_attack`), `CombatSystem`, `HurtboxComponent`, `ExperienceComponent`, `CombatFeedback` |
 | Muerte y objetos caídos | [death.md](death.md) | 008, 009, 010, 011, 015 | `DeathController`, `RulesetData`, `DroppedItem`, `DroppedItemSpawner`, `DroppedItemFlow`, `DroppedItemRules`, `ITimeService`, `TransferScreen` |
-| Viaje entre zonas | [travel.md](travel.md) | 009, 010 | `ZoneLoader`, `Zone`, `ExitPoint`, `LoadingScreen`, `LocationComponent`, `GameManager` (zona actual) |
+| Viaje entre zonas | [travel.md](travel.md) | 009, 010, 016 | `ZoneLoader`, `Zone`, `ExitPoint`, `LoadingScreen`, `LocationComponent`, `GameManager` (zona actual) |
 | Base, construcción y estación de carga | [base.md](base.md) | 009, 010, 011, 012 | `BaseZone`, `BaseStructures`, `BuildGrid`, `BuildFlow`, `PlacementScreen`, `BenchBuildSection`, `RepairBench`, `ChargingStation` |
 | Crafteo y reparación en el banco | [crafting.md](crafting.md) | 009, 011, 015 | `CraftingSystem` (`check_repair_stack`), `RepairBench`, `BenchScreen`, `BenchEntry`, `PieceData`, `RepairCostData`, `InventoryComponent.craft/repair` |
 | Guardado (Perfil, Mundo y tienda) | [save.md](save.md) | 010, 011, 012, 013, 015 | `SaveManager`, `SaveFlow`, `ISaveStore`, `LocalSaveStore`, `SaveCodec`, `SaveMigrations`, `SaveDocuments`, `ProfileData`, `IStore`, `LocalStore` |

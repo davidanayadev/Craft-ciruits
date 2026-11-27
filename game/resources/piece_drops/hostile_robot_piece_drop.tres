@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PieceDropData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/piece_drop_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/piece_data.gd" id="2"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_arms.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_legs.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/pieces/basic_core.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+chance_percent = 15
+pieces = Array[ExtResource("2")]([ExtResource("3"), ExtResource("4"), ExtResource("5")])
+durability_percent = 50

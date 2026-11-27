@@ -142,3 +142,13 @@ func test_r_008_08_known_answer() -> void:
 func test_r_008_36_enemy_drop_stream_name() -> void:
 	var stream: StringName = SeededRng.STREAM_ENEMY_DROP
 	assert_eq(stream, &"enemy_drop", "the enemy drop stream name is fixed")
+
+
+func test_r_016_17_hostile_robot_stream_names() -> void:
+	# Contract with saved worlds: renaming a stream moves every hostile robot.
+	var spawn: StringName = SeededRng.STREAM_HOSTILE_ROBOT_SPAWN
+	var brain: StringName = SeededRng.STREAM_HOSTILE_ROBOT_BRAIN
+	var drop: StringName = SeededRng.STREAM_HOSTILE_ROBOT_DROP
+	assert_eq(spawn, &"hostile_robot_spawn", "the hostile robot spawn stream name is fixed")
+	assert_eq(brain, &"hostile_robot_brain", "the hostile robot brain stream name is fixed")
+	assert_eq(drop, &"hostile_robot_drop", "the hostile robot drop stream name is fixed")

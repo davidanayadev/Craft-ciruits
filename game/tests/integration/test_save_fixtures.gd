@@ -9,10 +9,15 @@ extends GutTest
 ## of the file (KNOWN_SEED); its dropped item is dated in 2100, so the real
 ## clock never expires it.
 
+## Spec 016 (R-016-26): the same World, saved before hostile robots existed,
+## loads with its dead zombie still dead and the rest of its zombies as the seed
+## places them; a state without "dead_hostile_robots" means none dead.
+
 ## Spec 012 (R-012-43): the version 1 World, saved before chests and generators,
 ## loads with no change in behaviour.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const GREEN_ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const WORLD_PATH := "res://tests/fixtures/saves/world_v1.json"
 const PROFILE_PATH := "res://tests/fixtures/saves/profile_v1.json"
 const PLAYER_UID := "a1b2c3d4e5f60718293a4b5c6d7e8f90"
@@ -161,3 +166,50 @@ func test_r_012_43_world_v1_loads_unchanged() -> void:
 	assert_false(part.has("chests"), "a base without chests saves no chests")
 	assert_false(part.has("generators"), "nor generators")
 	assert_push_error_count(0, "StructureStates reports nothing")
+
+
+func _describe_zombies(zone: FarmZone) -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	for zombie: Enemy in zone.get_zombies():
+		lines.append("%s @ %s" % [zombie.get_data().id, zone.to_local(zombie.global_position)])
+	return lines
+
+
+func test_r_016_26_world_v1_loads_with_its_zombies() -> void:
+	var document: Dictionary = _document(WORLD_PATH)
+	var seed_text: String = str(document.get("seed", ""))
+	var world_seed: int = seed_text.to_int()
+	var store: MemorySaveStore = SaveTestSupport.reset()
+	store.put("profile", ISaveStore.Copy.MAIN, FileAccess.get_file_as_bytes(PROFILE_PATH))
+	store.put("world_" + WORLD_ID, ISaveStore.Copy.MAIN, FileAccess.get_file_as_bytes(WORLD_PATH))
+	var main: Node = MAIN_SCENE.instantiate()
+	add_child_autofree(main)
+	var loader: ZoneLoader = main.get_node("%ZoneLoader") as ZoneLoader
+	if loader.is_travelling():
+		await wait_for_signal(loader.travel_finished, TRAVEL_TIMEOUT_S)
+	var farm: FarmZone = loader.get_current_zone() as FarmZone
+	assert_not_null(farm, "the player's zone is the green zone")
+	if farm == null:
+		return
+	assert_eq(world_seed, SaveTestSupport.KNOWN_SEED, "the seed of the file")
+	var state: Dictionary = farm.get_visit_state()
+	var dead: Array = state["dead_enemies"]
+	assert_eq(dead, [0], "zombie 0 stays dead")
+	var dead_robots: Array = state["dead_hostile_robots"]
+	assert_eq(dead_robots.size(), 0, "no hostile robot is dead: the file has none")
+	var pool: ObjectPool = ObjectPool.new()
+	pool.scene = (main.get_node("World/ZombiePool") as ObjectPool).scene
+	add_child_autofree(pool)
+	var reference: FarmZone = GREEN_ZONE_SCENE.instantiate() as FarmZone
+	add_child_autofree(reference)
+	var no_dead: Array[int] = []
+	reference.spawn_zombies(world_seed, farm.get_visit(), pool, no_dead)
+	var full_count: int = reference.get_zombies().size()
+	reference.despawn_enemies()
+	var only_zero_dead: Array[int] = [0]
+	reference.spawn_zombies(world_seed, farm.get_visit(), pool, only_zero_dead)
+	assert_eq(farm.get_zombies().size(), full_count - 1, "one zombie less than the visit places")
+	assert_eq(
+		_describe_zombies(farm), _describe_zombies(reference), "the others are those of the seed and the visit"
+	)
+	assert_push_error_count(0, "loading it reports nothing")

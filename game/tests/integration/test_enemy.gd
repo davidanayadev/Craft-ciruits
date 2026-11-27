@@ -37,14 +37,14 @@ func before_each() -> void:
 	_fast = load(FAST_PATH) as EnemyData
 
 
-func _new_zombie() -> Zombie:
-	var zombie: Zombie = ZOMBIE_SCENE.instantiate() as Zombie
+func _new_zombie() -> Enemy:
+	var zombie: Enemy = ZOMBIE_SCENE.instantiate() as Enemy
 	add_child_autofree(zombie)
 	return zombie
 
 
-func _active_zombie(data: EnemyData, home: Vector3 = HOME) -> Zombie:
-	var zombie: Zombie = _new_zombie()
+func _active_zombie(data: EnemyData, home: Vector3 = HOME) -> Enemy:
+	var zombie: Enemy = _new_zombie()
 	zombie.activate(data, home, BRAIN_SEED, DROP_SEED)
 	return zombie
 
@@ -90,7 +90,7 @@ func _wait_for_navigation(zone: Node3D) -> bool:
 
 
 func test_r_006_10_scene_structure() -> void:
-	var zombie: Zombie = _new_zombie()
+	var zombie: Enemy = _new_zombie()
 	assert_true(zombie is CharacterBody3D, "the zombie is a CharacterBody3D")
 	var shape: CollisionShape3D = zombie.get_node("CollisionShape3D") as CollisionShape3D
 	assert_not_null(shape, "it has a collision shape")
@@ -110,7 +110,7 @@ func test_r_006_10_scene_structure() -> void:
 
 
 func test_r_006_10_model_within_triangle_budget() -> void:
-	var zombie: Zombie = _new_zombie()
+	var zombie: Enemy = _new_zombie()
 	var triangles: int = _count_triangles(zombie)
 	assert_gt(triangles, 0, "the zombie has a visible model")
 	assert_lte(triangles, MAX_TRIANGLES, "low-poly model (%d triangles)" % triangles)
@@ -118,7 +118,7 @@ func test_r_006_10_model_within_triangle_budget() -> void:
 
 func test_r_006_10_activate_reads_enemy_data() -> void:
 	for data: EnemyData in [_slow, _fast]:
-		var zombie: Zombie = _active_zombie(data)
+		var zombie: Enemy = _active_zombie(data)
 		assert_same(zombie.get_data(), data, "%s: keeps its EnemyData" % data.id)
 		assert_eq(zombie.get_health().get_maximum(), data.hp_max, "%s: max HP from data" % data.id)
 		assert_eq(zombie.get_health().get_current(), data.hp_max, "%s: starts at full HP" % data.id)
@@ -128,14 +128,14 @@ func test_r_006_10_activate_reads_enemy_data() -> void:
 
 
 func test_r_006_10_inactive_until_activated() -> void:
-	var zombie: Zombie = _new_zombie()
+	var zombie: Enemy = _new_zombie()
 	assert_false(zombie.is_physics_processing(), "a zombie without data does not act")
 	assert_null(zombie.get_data(), "it has no data yet")
 	assert_eq(zombie.get_state(), EnemyBrain.State.IDLE, "and reports IDLE")
 
 
 func test_r_006_10_activate_without_data_reports_error() -> void:
-	var zombie: Zombie = _new_zombie()
+	var zombie: Enemy = _new_zombie()
 	zombie.name = "Broken"
 	zombie.activate(null, HOME, BRAIN_SEED, DROP_SEED)
 	assert_push_error("Broken")
@@ -154,7 +154,7 @@ func test_r_006_13_moves_toward_player_at_data_speed() -> void:
 	var robot: Robot = _new_robot(start + Vector3(_fast.ai.vision_radius - 1.0, 0.0, 0.0))
 	# A second life: the speed must be the one of the new data, not of the
 	# slow zombie this instance was before (R-006-22).
-	var zombie: Zombie = _active_zombie(_slow, start)
+	var zombie: Enemy = _active_zombie(_slow, start)
 	zombie.activate(_fast, start, BRAIN_SEED, DROP_SEED)
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_eq(zombie.get_state(), EnemyBrain.State.CHASE, "a player in vision is chased")
@@ -171,7 +171,7 @@ func test_r_006_13_moves_toward_player_at_data_speed() -> void:
 
 
 func test_r_006_15_stops_and_faces_player() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var offset: Vector3 = Vector3(1.0, 0.0, 1.0).normalized() * (_slow.ai.attack_range * 0.9)
 	var robot: Robot = _new_robot(HOME + offset)
 	await wait_physics_frames(SETTLE_FRAMES)
@@ -188,7 +188,7 @@ func test_r_006_15_stops_and_faces_player() -> void:
 
 
 func test_r_006_16_hit_drains_robot_battery() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var robot: Robot = _new_robot(HOME + Vector3(_slow.ai.attack_range * 0.9, 0.0, 0.0))
 	watch_signals(robot)
 	var start: float = robot.battery.get_current()
@@ -202,7 +202,7 @@ func test_r_006_16_hit_drains_robot_battery() -> void:
 
 
 func test_r_006_18_ignores_depleted_robot() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var robot: Robot = _new_robot(HOME + Vector3(_slow.ai.attack_range * 0.9, 0.0, 0.0))
 	robot.battery.consume(robot.battery.get_current())
 	watch_signals(robot)
@@ -212,7 +212,7 @@ func test_r_006_18_ignores_depleted_robot() -> void:
 
 
 func test_r_006_18_stops_attacking_when_battery_runs_out() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var robot: Robot = _new_robot(HOME + Vector3(_slow.ai.attack_range * 0.9, 0.0, 0.0))
 	await wait_physics_frames(SETTLE_FRAMES)
 	assert_eq(zombie.get_state(), EnemyBrain.State.ATTACK, "attacking a living robot")
@@ -223,7 +223,7 @@ func test_r_006_18_stops_attacking_when_battery_runs_out() -> void:
 
 
 func test_r_006_21_death_stops_and_announces() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var robot: Robot = _new_robot(HOME + Vector3(_slow.ai.attack_range * 0.9, 0.0, 0.0))
 	await wait_physics_frames(SETTLE_FRAMES)
 	watch_signals(zombie)
@@ -243,7 +243,7 @@ func test_r_006_22_reused_zombie_is_reset() -> void:
 	add_child_autofree(pool)
 	var holder: Node3D = add_child_autofree(Node3D.new()) as Node3D
 	var robot: Robot = _new_robot(HOME + Vector3(_slow.ai.attack_range * 0.9, 0.0, 0.0))
-	var zombie: Zombie = pool.acquire() as Zombie
+	var zombie: Enemy = pool.acquire() as Enemy
 	holder.add_child(zombie)
 	zombie.activate(_slow, HOME, BRAIN_SEED, DROP_SEED)
 	await wait_physics_frames(SETTLE_FRAMES)
@@ -252,7 +252,7 @@ func test_r_006_22_reused_zombie_is_reset() -> void:
 	pool.release(zombie)
 	robot.global_position = HOME + Vector3(100.0, 0.0, 0.0)
 	var other_home: Vector3 = HOME + Vector3(0.0, 0.0, 10.0)
-	var reused: Zombie = pool.acquire() as Zombie
+	var reused: Enemy = pool.acquire() as Enemy
 	assert_same(reused, zombie, "the pool gives the same instance back")
 	holder.add_child(reused)
 	reused.activate(_fast, other_home, BRAIN_SEED + 1, DROP_SEED)
@@ -268,7 +268,7 @@ func test_r_006_22_reused_zombie_is_reset() -> void:
 
 
 func test_r_007_17_scene_has_hurtbox_and_flash() -> void:
-	var zombie: Zombie = _new_zombie()
+	var zombie: Enemy = _new_zombie()
 	var hurtbox: HurtboxComponent = zombie.get_node("%Hurtbox") as HurtboxComponent
 	assert_not_null(hurtbox, "%Hurtbox is a HurtboxComponent")
 	assert_not_null(zombie.get_node("%HitFlash") as HitFlashComponent, "%HitFlash is a HitFlashComponent")
@@ -287,7 +287,7 @@ func test_r_007_17_scene_has_hurtbox_and_flash() -> void:
 
 
 func test_r_007_17_enemy_killed_once_with_last_hitter() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var hurtbox: HurtboxComponent = zombie.get_hurtbox()
 	watch_signals(EventBus)
 	watch_signals(zombie)
@@ -302,14 +302,14 @@ func test_r_007_17_enemy_killed_once_with_last_hitter() -> void:
 
 
 func test_r_007_17_death_without_attacker_is_not_a_kill() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	watch_signals(EventBus)
 	zombie.get_health().take_damage(_slow.hp_max)
 	assert_signal_not_emitted(EventBus, "enemy_killed", "nobody killed it")
 
 
 func test_r_007_24_hurt_flashes() -> void:
-	var zombie: Zombie = _active_zombie(_slow)
+	var zombie: Enemy = _active_zombie(_slow)
 	var flash: HitFlashComponent = zombie.get_node("%HitFlash") as HitFlashComponent
 	var body: MeshInstance3D = zombie.get_node("Model/Body") as MeshInstance3D
 	assert_false(flash.is_flashing(), "no flash before a hit")
@@ -327,13 +327,13 @@ func test_r_007_23_reused_zombie_is_clean() -> void:
 	pool.scene = ZOMBIE_SCENE
 	add_child_autofree(pool)
 	var holder: Node3D = add_child_autofree(Node3D.new()) as Node3D
-	var zombie: Zombie = pool.acquire() as Zombie
+	var zombie: Enemy = pool.acquire() as Enemy
 	holder.add_child(zombie)
 	zombie.activate(_slow, HOME, BRAIN_SEED, DROP_SEED)
 	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	assert_true(zombie.get_health().is_dead(), "first life: killed")
 	pool.release(zombie)
-	var reused: Zombie = pool.acquire() as Zombie
+	var reused: Enemy = pool.acquire() as Enemy
 	assert_same(reused, zombie, "the pool gives the same instance back")
 	holder.add_child(reused)
 	reused.activate(_fast, HOME, BRAIN_SEED + 1, DROP_SEED)
@@ -367,8 +367,8 @@ func _find_drop_seed(data: EnemyData, gives_loot: bool) -> int:
 	return -1
 
 
-func _seeded_zombie(data: EnemyData, drop_seed: int) -> Zombie:
-	var zombie: Zombie = _new_zombie()
+func _seeded_zombie(data: EnemyData, drop_seed: int) -> Enemy:
+	var zombie: Enemy = _new_zombie()
 	zombie.activate(data, HOME, BRAIN_SEED, drop_seed)
 	return zombie
 
@@ -381,7 +381,7 @@ func test_r_008_35_killed_zombie_rolls_once() -> void:
 	if loot_seed == -1 or empty_seed == -1:
 		return
 	var expected: Array[ItemStack] = _rolled(_slow, loot_seed)
-	var zombie: Zombie = _seeded_zombie(_slow, loot_seed)
+	var zombie: Enemy = _seeded_zombie(_slow, loot_seed)
 	watch_signals(zombie)
 	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	zombie.get_hurtbox().receive_attack(1, UID_B)
@@ -394,7 +394,7 @@ func test_r_008_35_killed_zombie_rolls_once() -> void:
 		assert_eq(stacks[i].item.id, expected[i].item.id, "same item")
 		assert_eq(stacks[i].quantity, expected[i].quantity, "same quantity")
 	assert_eq(at, zombie.global_position, "where the zombie died")
-	var quiet: Zombie = _seeded_zombie(_slow, empty_seed)
+	var quiet: Enemy = _seeded_zombie(_slow, empty_seed)
 	watch_signals(quiet)
 	quiet.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	assert_signal_not_emitted(quiet, "loot_dropped", "a roll that gives nothing creates nothing")
@@ -406,7 +406,7 @@ func test_r_008_35_no_killer_no_loot() -> void:
 	assert_ne(loot_seed, -1, "a seed rolls loot")
 	if loot_seed == -1:
 		return
-	var zombie: Zombie = _seeded_zombie(_slow, loot_seed)
+	var zombie: Enemy = _seeded_zombie(_slow, loot_seed)
 	watch_signals(zombie)
 	zombie.get_health().take_damage(_slow.hp_max)
 	assert_signal_emit_count(zombie, "defeated", 1, "it died")
@@ -420,7 +420,7 @@ func test_r_008_35_no_table_no_loot() -> void:
 		return
 	var bare: EnemyData = _slow.duplicate() as EnemyData
 	bare.drop_table = null
-	var zombie: Zombie = _seeded_zombie(bare, loot_seed)
+	var zombie: Enemy = _seeded_zombie(bare, loot_seed)
 	watch_signals(zombie)
 	zombie.get_hurtbox().receive_attack(bare.hp_max, UID_A)
 	assert_signal_emit_count(zombie, "defeated", 1, "it died")
@@ -439,16 +439,42 @@ func test_r_008_35_reused_zombie_rolls_with_new_seed() -> void:
 	pool.scene = ZOMBIE_SCENE
 	add_child_autofree(pool)
 	var holder: Node3D = add_child_autofree(Node3D.new()) as Node3D
-	var zombie: Zombie = pool.acquire() as Zombie
+	var zombie: Enemy = pool.acquire() as Enemy
 	holder.add_child(zombie)
 	watch_signals(zombie)
 	zombie.activate(_slow, HOME, BRAIN_SEED, empty_seed)
 	zombie.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	assert_signal_not_emitted(zombie, "loot_dropped", "first life: its seed rolls nothing")
 	pool.release(zombie)
-	var reused: Zombie = pool.acquire() as Zombie
+	var reused: Enemy = pool.acquire() as Enemy
 	assert_same(reused, zombie, "the pool gives the same instance back")
 	holder.add_child(reused)
 	reused.activate(_slow, HOME, BRAIN_SEED, loot_seed)
 	reused.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	assert_signal_emit_count(reused, "loot_dropped", 1, "second life: rolls with its new seed")
+
+
+## Spec 016: the piece drop is rolled after the table with the same seed, and
+## everything leaves in one loot_dropped (R-016-17, R-016-18).
+func test_r_016_17_enemy_rolls_its_piece_after_the_table() -> void:
+	var with_piece: EnemyData = _slow.duplicate() as EnemyData
+	var drop: PieceDropData = PieceDropData.new()
+	drop.chance_percent = CraftingSystem.PERCENT
+	drop.pieces = [DataRegistry.get_item(&"basic_core") as PieceData] as Array[PieceData]
+	drop.durability_percent = CraftingSystem.PERCENT
+	with_piece.piece_drop = drop
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = DROP_SEED
+	var expected: Array[ItemStack] = LootSystem.roll_enemy_drop(with_piece.drop_table, drop, rng)
+	var zombie: Enemy = _seeded_zombie(with_piece, DROP_SEED)
+	watch_signals(zombie)
+	zombie.get_hurtbox().receive_attack(with_piece.hp_max, UID_A)
+	assert_signal_emit_count(zombie, "loot_dropped", 1, "one signal with everything")
+	var parameters: Array = get_signal_parameters(zombie, "loot_dropped")
+	var stacks: Array[ItemStack] = parameters[0]
+	assert_eq(stacks.size(), expected.size(), "the stacks of roll_enemy_drop with its drop seed")
+	for i: int in mini(stacks.size(), expected.size()):
+		assert_eq(stacks[i].item.id, expected[i].item.id, "same item")
+		assert_eq(stacks[i].quantity, expected[i].quantity, "same quantity")
+		assert_eq(stacks[i].durability, expected[i].durability, "same durability")
+	assert_eq(stacks[-1].item.id, &"basic_core", "the piece goes last")

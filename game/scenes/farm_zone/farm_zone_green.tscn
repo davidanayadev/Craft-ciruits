@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/entities/loot_box.tscn" id="3_hnidp"]
 [ext_resource type="MeshLibrary" path="res://resources/zones/green_zone_tiles.tres" id="4_f3aqh"]
 [ext_resource type="NavigationMesh" path="res://resources/zones/green_zone_navmesh.tres" id="5_navmesh"]
-[ext_resource type="Script" path="res://scenes/farm_zone/zombie_spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scenes/farm_zone/enemy_spawner.gd" id="6_spawner"]
 [ext_resource type="PackedScene" path="res://scenes/zones/exit_point.tscn" id="7_exit"]
 [ext_resource type="Resource" path="res://resources/zones/base.tres" id="8_base"]
 
@@ -570,6 +570,27 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 script = ExtResource("6_spawner")
 enemies_root = NodePath("../Enemies")
+
+[node name="HostileRobotMarkers" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="HostileRobotMarkerNorth" type="Marker3D" parent="HostileRobotMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -23)
+
+[node name="HostileRobotMarkerEast" type="Marker3D" parent="HostileRobotMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23, 0, 0)
+
+[node name="HostileRobotMarkerSouth" type="Marker3D" parent="HostileRobotMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 23)
+
+[node name="HostileRobotMarkerWest" type="Marker3D" parent="HostileRobotMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23, 0, -3)
+
+[node name="HostileRobotSpawner" type="Node3D" parent="." node_paths=PackedStringArray("enemies_root")]
+unique_name_in_owner = true
+script = ExtResource("6_spawner")
+enemies_root = NodePath("../Enemies")
+population = 1
 
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=1254085871]
 transform = Transform3D(0.707, 0.5417, -0.4546, 0, 0.643, 0.766, 0.707, -0.5417, 0.4546, 0, 10, 0)

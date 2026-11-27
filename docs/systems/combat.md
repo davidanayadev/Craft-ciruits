@@ -1,9 +1,9 @@
 # Combate cuerpo a cuerpo y XP
 
-> El robot golpea con un brazo en la dirección que mira, cada golpe cuesta batería, los zombies mueren y el robot
+> El robot golpea con un brazo en la dirección que mira, cada golpe cuesta batería, los enemigos (zombies y robot hostil) mueren y el robot
 > suma XP. Incluye el feedback del golpe (destello, sacudida, chispas, borde rojo).
 > Specs: [007](../../specs/007-melee-combat/spec.md), [008](../../specs/008-death-recovery/spec.md) (solo
-> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada), [014](../../specs/014-chassis-level/spec.md) (nivel en `ExperienceComponent`), [015](../../specs/015-pieces-slots-degradation/spec.md) (el ataque sale de los brazos equipados) · Última actualización: spec 015
+> `cancel_swing` y `ExperienceComponent.reset`), [009](../../specs/009-base-placement-charging/spec.md) (`release_all`) · [010](../../specs/010-save-profile-world/spec.md) (XP guardada), [014](../../specs/014-chassis-level/spec.md) (nivel en `ExperienceComponent`), [015](../../specs/015-pieces-slots-degradation/spec.md) (el ataque sale de los brazos equipados), [016](../../specs/016-hostile-robot/spec.md) (el robot hostil también da XP) · Última actualización: spec 016
 
 ## Piezas
 
@@ -44,7 +44,7 @@
    abra una pantalla o se agote la batería.
 5. **Daño.** `apply_impact()` llama a `receive_attack(damage, attacker_uid)` una vez por hurtbox distinto y vivo y
    emite `hit_dealt(target)`. El hurtbox guarda el uid, llama a `HealthComponent.take_damage()` y emite `hurt`.
-6. **Muerte y XP.** `HealthComponent.died` llega al `Zombie` ([enemies.md](enemies.md)): si el hurtbox recuerda un
+6. **Muerte y XP.** `HealthComponent.died` llega al `Enemy` ([enemies.md](enemies.md)): si el hurtbox recuerda un
    atacante, emite `EventBus.enemy_killed(enemy_id, killer_uid)`. Cada `Robot` escucha el bus y llama a
    `experience.reward_kill(id, killer_uid, player_uid, DataRegistry.get_catalog())`: solo suma si el asesino es él;
    suma `EnemyData.xp_reward` y emite `xp_changed`. El total solo se ve en `DebugHud`.
@@ -52,7 +52,7 @@
    - `melee.hit_dealt` → `CameraRig.shake` con los valores de "golpe dado" y chispas en el hurtbox (de `%ImpactPool`;
      vuelven al pool, en diferido, con `finished`).
    - `robot.hit_received` → sacudida de "golpe recibido" y `Hud.flash_damage()`.
-   El destello blanco del enemigo lo dispara el propio zombie con `hurtbox.hurt` → `HitFlashComponent.flash()`.
+   El destello blanco del enemigo lo dispara el propio enemigo con `hurtbox.hurt` → `HitFlashComponent.flash()`.
    `CombatFeedback.release_all()` (spec 009) devuelve al pool todas las chispas que siguen activas; `Main` la llama al
    empezar un viaje, porque las chispas cuelgan de `World` y no de la zona que se descarga ([travel.md](travel.md)).
 
@@ -60,7 +60,7 @@
 Botón/Espacio/clic -> PlayerInput.poll_attack -> MeleeAttack.tick -> swing_started -> battery.consume
                                                        | (impacto)
                               intersect_shape (capa hurtbox) -> HurtboxComponent -> HealthComponent.died
-                                      -> Zombie -> EventBus.enemy_killed -> ExperienceComponent.reward_kill
+                                      -> Enemy -> EventBus.enemy_killed -> ExperienceComponent.reward_kill
 ```
 
 ## Datos
@@ -70,7 +70,7 @@ Botón/Espacio/clic -> PlayerInput.poll_attack -> MeleeAttack.tick -> swing_star
 | `robot_base_stats.tres` y `PieceData.modifiers` de los brazos | `RobotBaseStatsData`, `StatModifier` | [BALANCE.md §4.2](../../BALANCE.md), coste por golpe en §1.1 ([stats.md](stats.md)) |
 | `combat.tres` | `CombatConfigData` | BALANCE.md §11 ("Combate") |
 | `combat_feedback.tres` | `CombatFeedbackData` | BALANCE.md §11 ("Combate") |
-| `zombie_slow.tres`, `zombie_fast.tres` (`xp_reward`) | `EnemyData` | BALANCE.md §3.1 y §6.2 |
+| `zombie_slow.tres`, `zombie_fast.tres`, `hostile_robot_basic.tres` (`xp_reward`) | `EnemyData` | BALANCE.md §3.1, §3.2 y §6.2 |
 
 `AttackStatsData` es un objeto de valor que construye `StatsComponent`; ya no hay `.tres` de ataque. Sin brazos equipados
 el robot pega con los valores de un brazo de la base. El alto de la caja del hitbox y su altura son geometría de colisión en `robot.tscn`, no balance.
@@ -96,14 +96,14 @@ el robot pega con los valores de un brazo de la base. El alto de la caja del hit
 
 ## Relación con otros sistemas
 
-- Usa: [battery.md](battery.md) (coste), [enemies.md](enemies.md) (`HealthComponent`, `Zombie`),
+- Usa: [battery.md](battery.md) (coste), [enemies.md](enemies.md) (`HealthComponent`, `Enemy`),
   [data_catalog.md](data_catalog.md) (`EventBus`, `DataRegistry`), [movement.md](movement.md) (entrada, `CameraRig`),
   [ui.md](ui.md) (botón de atacar, borde rojo).
 - Lo usa: [death.md](death.md) (`cancel_swing`, `ExperienceComponent.reset` según el ruleset).
 
 ## Trampas y límites
 
-- El impacto ve la posición del hurtbox del zombie un paso de física atrás (≤ 6 cm a su velocidad): aceptado.
+- El impacto ve la posición del hurtbox del enemigo un paso de física atrás (≤ 6 cm a su velocidad): aceptado.
 - No hay armas, retroceso, hit stop, SFX ni HUD de XP (ACTION_PLAN 4.x). El desgaste lo aplica `Robot.receive_hit`
   ([equipment.md](equipment.md)), no este componente. Desde la spec 014 la XP sube el nivel de chasis ([chassis_level.md](chassis_level.md)); `ExperienceComponent` ya no solo acumula.
 - `player_uid` es aleatorio hasta que `Robot.set_player_uid` le da el `player_uuid` del Perfil (también al ataque, `melee.attacker_uid`). `ExperienceComponent` es dueño de guardado (`experience`: el total) y cargar emite `xp_changed` y `level_changed` pero nunca `level_up` ([save.md](save.md), [chassis_level.md](chassis_level.md)).
@@ -116,7 +116,7 @@ el robot pega con los valores de un brazo de la base. El alto de la caja del hit
 
 - Otro ataque: los modificadores de la pieza de brazos (`attack_damage`, `attacks_per_second`, `battery_per_swing`) con su
   sección en BALANCE §4.2; ver [stats.md](stats.md). Nunca asignar `attack` a mano: usar `set_attack()`.
-- Otra entidad que reciba golpes: `HurtboxComponent` con su `HealthComponent` y forma, como en `zombie.tscn`.
+- Otra entidad que reciba golpes: `HurtboxComponent` con su `HealthComponent` y forma, como en `zombie.tscn` y `hostile_robot.tscn`.
 - Otro feedback: conectarlo en `CombatFeedback.bind`, nunca en la lógica del golpe.
 
 ## Tests

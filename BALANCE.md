@@ -105,9 +105,22 @@
 | **Básico** | 50 | 8 | 2.0 m/s | Daño físico normal | 10 | Pieza dañada (50% durabilidad), 15% probabilidad |
 
 **Notas**:
-- Robot hostil tiene un 15% de probabilidad de soltar 1 pieza al morir (aleatoria entre las equipadas en el robot).
-- La pieza suelta está **dañada** (50% durabilidad). Requiere reparación en banco.
+- Robot hostil tiene un 15% de probabilidad de soltar 1 pieza al morir, **cualquiera de las tres piezas básicas** (Brazos, Piernas o Core) con la misma probabilidad, 1/3 cada una. El robot hostil no tiene equipo real (ni piezas visibles ni desgaste propio): las piezas que puede soltar son un dato de su drop. Así también da Cores de repuesto (decisión nov 2026, spec 016).
+- La pieza suelta está **dañada** (50% durabilidad). Requiere reparación en banco: con 50 de 100 cae en el tramo "pieza dañada" de §4.3.2.
+- Siempre suelta además los materiales de su fila de §2.1 (2-4 chatarra, 1-2 cables, 1-2 hierro). Materiales y pieza caen en un solo objeto caído, que caduca como el material de cualquier enemigo (§7.2; decisión nov 2026, spec 016).
+- **Intervalo de ataque: 2 s** (decisión nov 2026, spec 016). Misma regla que los zombies (§3.1): el primer golpe llega tras un intervalo completo en rango; salir y volver a entrar reinicia la espera. El daño son puntos de batería, 1:1, y cada golpe desgasta las piezas como cualquier golpe recibido (§4.1). Con 8 de daño son 4 puntos por segundo, frente a 3.3 del zombie lento.
+- Andando con Piernas básicas (3.0 m/s, §4.2) se le escapa; sin piernas (0.5 m/s), no.
 - XP se otorga al jugador al matar.
+
+**IA del robot hostil** (valores iniciales, decisión nov 2026, spec 016). Empiezan iguales que los de los zombies (§3.1), pero son **valores propios**, en un recurso aparte, para ajustarlos por separado en las pruebas:
+
+| Parámetro | Valor | Notas |
+|---|---|---|
+| **Radio de visión** | 8 m | Al entrar el jugador, pasa a perseguir |
+| **Rango de ataque** | 1.5 m | Dentro, se para y golpea cada intervalo |
+| **Radio de patrulla** | 5 m | Alrededor de su punto de aparición |
+| **Pausa entre patrullas** | 2-4 s | Rango uniforme, con el RNG de la zona |
+| **Distancia de abandono** | 12 m | Más lejos, deja de perseguir y vuelve a patrullar. Si la enmienda pendiente de la spec 006 (persecución sin abandono) llega, decide si vale también para el robot |
 
 ---
 
@@ -328,7 +341,7 @@ Mejoras pasivas fijas por nivel en el PMV (PMV.md §6.3). Cada recuerdo son uno 
 |---|---|
 | **Tamaño** | Pequeño (50x50m) |
 | **Zombies** | 5-8 (lentos y rápidos). Primero uno de cada tipo; cada uno de los demás es lento o rápido al 50 %. Número, tipo y posición salen de semilla del mundo + `zone_id` + número de visita, así que cambian en cada visita (decisión nov 2026, spec 006) |
-| **Robots hostiles** | 0-1 (básico) |
+| **Robots hostiles** | 0-1 (básico), aparte de los zombies (5-8 zombies más 0-1 robot). Se tira con la regla de rangos de §2.1, así que sale en la mitad de las visitas. Número y marcador salen de semilla del mundo + `zone_id` + número de visita, entre marcadores propios del robot colocados lejos del punto de aparición del jugador, distintos de los de los zombies (decisión nov 2026, spec 016) |
 | **Cajas** | 5-7 (básicas) |
 | **Sitios de cajas** | 6, repartidos por toda la zona, con 3-4 marcadores cada uno. Cada visita elige cuántas cajas y en qué marcadores (§7.2), así que el recorrido cambia de una visita a otra (decisión nov 2026, spec 013) |
 | **Máximo de cajas por sitio** | 2. Con 7 cajas quedan ocupados al menos 4 de los 6 sitios, y cada visita deja algún sitio vacío (spec 013) |

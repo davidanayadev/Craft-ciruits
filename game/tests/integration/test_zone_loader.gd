@@ -11,6 +11,7 @@ extends GutTest
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
+const HOSTILE_ROBOT_SCENE := preload("res://scenes/entities/hostile_robot.tscn")
 const SPARKS_SCENE := preload("res://scenes/effects/impact_sparks.tscn")
 const ITEM_SCENE := preload("res://scenes/entities/dropped_item.tscn")
 const DROPPED_CONFIG_PATH := "res://resources/config/dropped_items.tres"
@@ -30,6 +31,7 @@ var _slot: Node3D
 var _players: Node3D
 var _robot: Robot
 var _zombie_pool: ObjectPool
+var _robot_pool: ObjectPool
 var _impact_pool: ObjectPool
 var _item_pool: ObjectPool
 var _dropped: DroppedItemSpawner
@@ -47,6 +49,7 @@ func before_each() -> void:
 	_slot = Node3D.new()
 	_world.add_child(_slot)
 	_zombie_pool = _new_pool(ZOMBIE_SCENE)
+	_robot_pool = _new_pool(HOSTILE_ROBOT_SCENE)
 	_impact_pool = _new_pool(SPARKS_SCENE)
 	_item_pool = _new_pool(ITEM_SCENE)
 	_dropped = DroppedItemSpawner.new()
@@ -66,6 +69,7 @@ func before_each() -> void:
 	_loader.zone_slot = _slot
 	_loader.players_root = _players
 	_loader.zombie_pool = _zombie_pool
+	_loader.hostile_robot_pool = _robot_pool
 	_loader.impact_pool = _impact_pool
 	_loader.dropped_item_pool = _item_pool
 	_loader.dropped_items = _dropped
@@ -139,7 +143,7 @@ func test_r_009_03_zone_changed_once() -> void:
 
 func test_r_009_04_enemies_back_in_pool() -> void:
 	assert_true(await _travel(GREEN_ZONE_ID))
-	var enemies: int = _farm().get_enemies().size()
+	var enemies: int = _farm().get_zombies().size()
 	assert_gt(enemies, 0, "the green zone has zombies")
 	var free_before: int = _zombie_pool.get_free_count()
 	assert_true(await _travel(_base_id()))
@@ -213,7 +217,7 @@ func test_r_009_06_load_failure_keeps_zone_and_visit() -> void:
 	assert_same(_loader.get_current_zone(), zone, "the zone stays")
 	assert_eq(_slot.get_child_count(), 1, "alone in the slot")
 	assert_eq(GameManager.get_visit_count(GREEN_ZONE_ID), ZonePopulation.FIRST_VISIT, "no visit counted")
-	assert_gt(_farm().get_enemies().size(), 0, "its zombies are still there")
+	assert_gt(_farm().get_zombies().size(), 0, "its zombies are still there")
 
 
 func test_r_009_13_travel_to_callers() -> void:
@@ -275,7 +279,7 @@ func test_r_009_16_farm_populated_with_current_visit() -> void:
 	reference_pool.scene = ZOMBIE_SCENE
 	add_child_autofree(reference_pool)
 	reference.generate(GameManager.get_world_seed(), 2)
-	reference.spawn_enemies(GameManager.get_world_seed(), 2, reference_pool)
+	reference.spawn_zombies(GameManager.get_world_seed(), 2, reference_pool)
 	assert_eq(_describe_enemies(_farm()), _describe_enemies(reference), "the zombies of visit 2")
 	var loaded_boxes: Array[LootBox] = _farm().get_boxes()
 	var reference_boxes: Array[LootBox] = reference.get_boxes()
@@ -285,7 +289,7 @@ func test_r_009_16_farm_populated_with_current_visit() -> void:
 
 func _describe_enemies(zone: FarmZone) -> PackedStringArray:
 	var described: PackedStringArray = PackedStringArray()
-	for zombie: Zombie in zone.get_enemies():
+	for zombie: Enemy in zone.get_zombies():
 		described.append("%s @ %s" % [zombie.get_data().id, zone.to_local(zombie.global_position)])
 	described.sort()
 	return described
@@ -319,7 +323,7 @@ func test_r_009_18_no_enemies_in_base() -> void:
 	assert_eq(_loader.get_current_zone().find_children("*", "CharacterBody3D", true, false).size(), 0, "no enemy")
 	var active: int = 0
 	for node: Node in _world.find_children("*", "CharacterBody3D", true, false):
-		if node is Zombie:
+		if node is Enemy:
 			active += 1
 	assert_eq(active, 0, "no zombie anywhere in the world")
 
@@ -330,3 +334,99 @@ func test_r_009_21_entering_base_does_not_recharge() -> void:
 	var battery: float = _robot.battery.get_current()
 	assert_true(await _travel(_base_id()))
 	assert_eq(_robot.battery.get_current(), battery, "entering the base does not recharge")
+
+
+## Spec 016: the hostile robots have a pool of their own, prewarmed with the
+## zone, and they leave with it (R-016-23, R-016-24).
+const ROBOT_VISIT_SEARCH := 30
+
+
+## Sets the visit counter of the green zone to the first visit with a hostile
+## robot for the world seed of the test; -1 when there is none.
+func _go_to_visit_with_robot() -> int:
+	var probe: FarmZone = (
+		load("res://scenes/farm_zone/farm_zone_green.tscn") as PackedScene
+	).instantiate() as FarmZone
+	probe.get_node("%Navigation").free()
+	add_child_autofree(probe)
+	var pool: ObjectPool = _new_pool(HOSTILE_ROBOT_SCENE)
+	var found: int = -1
+	for visit: int in ROBOT_VISIT_SEARCH:
+		probe.spawn_hostile_robots(GameManager.get_world_seed(), visit, pool)
+		var has_robot: bool = not probe.get_hostile_robots().is_empty()
+		probe.despawn_enemies()
+		if has_robot:
+			found = visit
+			break
+	for i: int in maxi(found, 0):
+		GameManager.increment_visit_count(GREEN_ZONE_ID)
+	return found
+
+
+func test_r_016_23_robot_pool_prewarmed() -> void:
+	assert_true(await _travel(GREEN_ZONE_ID))
+	var zone_data: ZoneData = _farm().data
+	var robots: int = _farm().get_hostile_robots().size()
+	assert_eq(
+		_robot_pool.get_free_count() + robots,
+		zone_data.hostile_robot_count_max,
+		"the robot pool holds the maximum of the zone"
+	)
+	var sparks: int = zone_data.enemy_count_max + zone_data.hostile_robot_count_max
+	assert_eq(_impact_pool.get_free_count(), sparks, "one burst per enemy of both populations")
+
+
+func test_r_016_23_unload_returns_robots() -> void:
+	var visit: int = _go_to_visit_with_robot()
+	assert_ne(visit, -1, "some visit has a hostile robot")
+	if visit == -1:
+		return
+	assert_true(await _travel(GREEN_ZONE_ID))
+	assert_eq(_farm().get_hostile_robots().size(), 1, "the robot of the visit is there")
+	var free_before: int = _robot_pool.get_free_count()
+	assert_true(await _travel(_base_id()))
+	assert_eq(_robot_pool.get_free_count(), free_before + 1, "it went back to its pool")
+	await wait_process_frames(2)
+	assert_eq(_robot_pool.get_free_count(), free_before + 1, "and was not freed with the zone")
+
+
+func test_r_016_24_exit_and_death_replace_robots() -> void:
+	var visit: int = _go_to_visit_with_robot()
+	assert_ne(visit, -1, "some visit has a hostile robot")
+	if visit == -1:
+		return
+	assert_true(await _travel(GREEN_ZONE_ID))
+	var farm: FarmZone = _farm()
+	var old_robot: Enemy = farm.get_hostile_robots()[0]
+	# A death counts a visit of the loaded zone (spec 008), which repopulates it.
+	GameManager.increment_visit_count(GREEN_ZONE_ID)
+	await wait_process_frames(2)
+	var reference: FarmZone = (
+		load("res://scenes/farm_zone/farm_zone_green.tscn") as PackedScene
+	).instantiate() as FarmZone
+	reference.get_node("%Navigation").free()
+	add_child_autofree(reference)
+	reference.spawn_hostile_robots(
+		GameManager.get_world_seed(), visit + 1, _new_pool(HOSTILE_ROBOT_SCENE)
+	)
+	var expected: int = reference.get_hostile_robots().size()
+	assert_eq(farm.get_hostile_robots().size(), expected, "the robots of the new visit")
+	if expected == 0:
+		assert_false(old_robot.is_inside_tree(), "the old robot is gone")
+	else:
+		assert_eq(
+			farm.get_hostile_robots()[0].global_position,
+			reference.get_hostile_robots()[0].global_position,
+			"on the marker of the new visit"
+		)
+	reference.despawn_enemies()
+
+
+func test_r_016_23_missing_robot_pool_reports_error() -> void:
+	_loader.hostile_robot_pool = null
+	assert_true(await _travel(GREEN_ZONE_ID))
+	assert_push_error("hostile_robot_pool")
+	assert_push_error("a pool")
+	assert_gt(_farm().get_zombies().size(), 0, "the zombies are there")
+	assert_gt(_farm().get_boxes().size(), 0, "and the boxes")
+	assert_eq(_farm().get_hostile_robots().size(), 0, "but no hostile robot")
