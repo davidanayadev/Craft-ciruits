@@ -4,7 +4,9 @@ extends GutTest
 ## AI tuning lives in a resource with the values of BALANCE §3.1 "IA de
 ## zombies", not in script literals (R-006-03).
 ## Spec 007: each zombie carries the XP of BALANCE §3.1 and §6.2 (R-007-03).
-## The expected values mirror BALANCE.md §3.1 and §6.2; update both together.
+## Spec 016: the hostile robot matches BALANCE §3.2 with an AI of its own and
+## its drop, materials and piece, as data (R-016-01 to R-016-05).
+## The expected values mirror BALANCE.md §2.1, §3.1, §3.2 and §6.2; update both together.
 
 const ENEMIES_DIR := "res://resources/enemies"
 const ZOMBIE_AI_PATH := "res://resources/ai/zombie_ai.tres"
@@ -83,8 +85,16 @@ func test_r_006_02_zombies_match_balance() -> void:
 
 
 func test_r_006_02_only_the_two_zombies() -> void:
-	var files: PackedStringArray = DirAccess.get_files_at(ENEMIES_DIR)
-	assert_eq(files.size(), EXPECTED_ZOMBIES.size(), "one file per zombie of BALANCE §3.1")
+	# BALANCE §3.1 has two zombies and §3.2 one hostile robot (spec 016).
+	var expected: Array[String] = []
+	for id: StringName in EXPECTED_ZOMBIES:
+		expected.append("%s.tres" % id)
+	expected.append("%s.tres" % HOSTILE_ROBOT_ID)
+	expected.sort()
+	var files: Array[String] = []
+	files.assign(DirAccess.get_files_at(ENEMIES_DIR))
+	files.sort()
+	assert_eq(files, expected, "one file per enemy of BALANCE §3.1 and §3.2")
 
 
 func test_r_006_03_ai_matches_balance() -> void:
@@ -189,3 +199,133 @@ func test_r_008_05_zombies_drop_table_matches_balance() -> void:
 
 func test_r_008_05_drop_table_defaults_to_none() -> void:
 	assert_null(EnemyData.new().drop_table, "an enemy without the field drops nothing")
+
+
+# --- Hostile robot (spec 016) ------------------------------------------------
+
+
+func test_r_016_04_piece_drop_defaults_to_none() -> void:
+	assert_null(EnemyData.new().piece_drop, "an enemy without the field drops no piece")
+	var drop: PieceDropData = PieceDropData.new()
+	assert_eq(drop.chance_percent, 0, "no chance by default")
+	assert_eq(drop.pieces.size(), 0, "no pieces by default")
+	assert_eq(drop.durability_percent, 0, "no durability by default")
+
+
+const HOSTILE_ROBOT_ID := &"hostile_robot_basic"
+const HOSTILE_ROBOT_AI_PATH := "res://resources/ai/hostile_robot_ai.tres"
+const HOSTILE_ROBOT_DROP_PATH := "res://resources/loot/hostile_robot_drop.tres"
+const HOSTILE_ROBOT_PIECE_DROP_PATH := "res://resources/piece_drops/hostile_robot_piece_drop.tres"
+## item id → quantity range: row "Robot hostil básico" of BALANCE §2.1, in table order.
+const EXPECTED_HOSTILE_ROBOT_DROP: Dictionary[StringName, Vector2i] = {
+	&"scrap": Vector2i(2, 4),
+	&"cables": Vector2i(1, 2),
+	&"iron": Vector2i(1, 2),
+}
+## The pieces it may drop, in order (BALANCE §3.2).
+const EXPECTED_DROPPED_PIECES: Array[StringName] = [&"basic_arms", &"basic_legs", &"basic_core"]
+
+
+func test_r_016_01_hostile_robot_matches_balance() -> void:
+	var robot: EnemyData = _load_enemy(HOSTILE_ROBOT_ID)
+	assert_not_null(robot, "hostile_robot_basic.tres exists and is an EnemyData")
+	if robot == null:
+		return
+	assert_eq(robot.id, HOSTILE_ROBOT_ID, "its id is its file name")
+	assert_eq(robot.name_key, &"ENEMY_HOSTILE_ROBOT_BASIC", "translated name key")
+	assert_eq(robot.faction, EnemyData.Faction.MACHINE, "a machine (SPECS §28)")
+	assert_eq(robot.hp_max, 50, "HP (BALANCE §3.2)")
+	assert_eq(robot.hit_damage, 8.0, "damage (BALANCE §3.2)")
+	assert_eq(robot.move_speed, 2.0, "speed (BALANCE §3.2)")
+	assert_eq(robot.xp_reward, 10, "XP (BALANCE §3.2, §6.2)")
+
+
+func test_r_016_02_attack_interval_matches_balance() -> void:
+	var robot: EnemyData = _load_enemy(HOSTILE_ROBOT_ID)
+	if robot == null:
+		fail_test("hostile_robot_basic.tres is missing")
+		return
+	assert_eq(robot.attack_interval, 2.0, "attack interval (BALANCE §3.2)")
+
+
+func test_r_016_03_ai_matches_balance() -> void:
+	var ai: EnemyAiData = load(HOSTILE_ROBOT_AI_PATH) as EnemyAiData
+	assert_not_null(ai, "hostile_robot_ai.tres exists and is an EnemyAiData")
+	if ai == null:
+		return
+	assert_eq(ai.vision_radius, 8.0, "vision radius (BALANCE §3.2)")
+	assert_eq(ai.attack_range, 1.5, "attack range (BALANCE §3.2)")
+	assert_eq(ai.patrol_radius, 5.0, "patrol radius (BALANCE §3.2)")
+	assert_eq(ai.patrol_pause_min, 2.0, "shortest patrol pause (BALANCE §3.2)")
+	assert_eq(ai.patrol_pause_max, 4.0, "longest patrol pause (BALANCE §3.2)")
+	assert_eq(ai.give_up_distance, 12.0, "give-up distance (BALANCE §3.2)")
+
+
+func test_r_016_03_ai_not_shared_with_zombies() -> void:
+	var robot: EnemyData = _load_enemy(HOSTILE_ROBOT_ID)
+	if robot == null:
+		fail_test("hostile_robot_basic.tres is missing")
+		return
+	var robot_ai: EnemyAiData = load(HOSTILE_ROBOT_AI_PATH) as EnemyAiData
+	var zombie_ai: EnemyAiData = load(ZOMBIE_AI_PATH) as EnemyAiData
+	assert_same(robot.ai, robot_ai, "it uses hostile_robot_ai.tres")
+	assert_ne(robot.ai, zombie_ai, "not the zombies' resource: tuned apart")
+
+
+func test_r_016_04_drop_table_matches_balance() -> void:
+	var table: LootTableData = load(HOSTILE_ROBOT_DROP_PATH) as LootTableData
+	assert_not_null(table, "hostile_robot_drop.tres exists and is a LootTableData")
+	if table == null:
+		return
+	var ids: Array[StringName] = []
+	for entry: LootEntryData in table.entries:
+		if entry == null or entry.item == null:
+			fail_test("hostile_robot_drop.tres has an empty entry")
+			continue
+		ids.append(entry.item.id)
+		var expected: Vector2i = EXPECTED_HOSTILE_ROBOT_DROP.get(entry.item.id, Vector2i(-1, -1))
+		assert_eq(
+			Vector2i(entry.min_quantity, entry.max_quantity), expected, "%s (BALANCE §2.1)" % entry.item.id
+		)
+	var expected_ids: Array[StringName] = []
+	expected_ids.assign(EXPECTED_HOSTILE_ROBOT_DROP.keys())
+	assert_eq(ids, expected_ids, "scrap, cables and iron, in that order")
+	var robot: EnemyData = _load_enemy(HOSTILE_ROBOT_ID)
+	if robot != null:
+		assert_same(robot.drop_table, table, "the robot uses hostile_robot_drop.tres")
+
+
+func test_r_016_04_piece_drop_matches_balance() -> void:
+	var drop: PieceDropData = load(HOSTILE_ROBOT_PIECE_DROP_PATH) as PieceDropData
+	assert_not_null(drop, "hostile_robot_piece_drop.tres exists and is a PieceDropData")
+	if drop == null:
+		return
+	assert_eq(drop.chance_percent, 15, "chance of a piece (BALANCE §3.2)")
+	assert_eq(drop.durability_percent, 50, "durability it keeps (BALANCE §3.2)")
+	var ids: Array[StringName] = []
+	for piece: PieceData in drop.pieces:
+		ids.append(piece.id if piece != null else &"")
+	assert_eq(ids, EXPECTED_DROPPED_PIECES, "any of the three basic pieces, in that order")
+	var robot: EnemyData = _load_enemy(HOSTILE_ROBOT_ID)
+	if robot != null:
+		assert_same(robot.piece_drop, drop, "the robot uses hostile_robot_piece_drop.tres")
+
+
+func test_r_016_04_zombies_drop_no_piece() -> void:
+	for id: StringName in EXPECTED_ZOMBIES:
+		var enemy: EnemyData = _load_enemy(id)
+		if enemy == null:
+			fail_test("%s.tres is missing" % id)
+			continue
+		assert_null(enemy.piece_drop, "%s drops no piece" % id)
+
+
+func test_r_016_05_hostile_robot_name_translated_es_en() -> void:
+	var expected: Dictionary[String, String] = {"en": "Hostile robot", "es": "Robot hostil"}
+	for locale: String in SUPPORTED_LOCALES:
+		var translations: Array[Translation] = TranslationServer.find_translations(locale, true)
+		assert_eq(translations.size(), 1, "translation file loaded for '%s'" % locale)
+		if translations.size() != 1:
+			continue
+		var text: String = translations[0].get_message(&"ENEMY_HOSTILE_ROBOT_BASIC")
+		assert_eq(text, expected[locale], "'%s' name of the hostile robot" % locale)

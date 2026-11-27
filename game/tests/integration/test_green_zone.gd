@@ -18,6 +18,7 @@ extends GutTest
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
+const HOSTILE_ROBOT_SCENE := preload("res://scenes/entities/hostile_robot.tscn")
 const WORLD_GRID_PATH := "res://resources/config/world_grid.tres"
 const KNOWN_SEED := 20261115
 const SEED_A := 1001
@@ -356,6 +357,13 @@ func _visit_zone(world_seed: int, visit: int) -> FarmZone:
 	return zone
 
 
+func _new_robot_pool() -> ObjectPool:
+	var pool: ObjectPool = ObjectPool.new()
+	pool.scene = HOSTILE_ROBOT_SCENE
+	add_child_autofree(pool)
+	return pool
+
+
 func _new_zombie_pool() -> ObjectPool:
 	var pool: ObjectPool = ObjectPool.new()
 	pool.scene = ZOMBIE_SCENE
@@ -395,11 +403,11 @@ func test_r_013_01_same_on_every_path() -> void:
 	var expected: Array[Vector3] = _box_positions(_visit_zone(SEED_A, visit))
 	var pool: ObjectPool = _new_zombie_pool()
 	var repopulated: FarmZone = _visit_zone(SEED_A, 0)
-	repopulated.repopulate(SEED_A, visit, pool)
+	repopulated.repopulate(SEED_A, visit, pool, _new_robot_pool())
 	await wait_process_frames(1)
 	assert_eq(_box_positions(repopulated), expected, "repopulate() places the boxes of that visit")
 	var populated: FarmZone = _new_zone()
-	populated.populate(SEED_A, visit, pool, {})
+	populated.populate(SEED_A, visit, pool, _new_robot_pool(), {})
 	assert_eq(_box_positions(populated), expected, "populate() places the boxes of that visit")
 
 
@@ -408,7 +416,7 @@ func test_r_008_09_repopulate_closes_boxes_with_new_contents() -> void:
 	var zone: FarmZone = _visit_zone(SEED_A, 0)
 	var old_boxes: Array[LootBox] = zone.get_boxes().duplicate()
 	_describe_contents(zone)
-	zone.repopulate(SEED_A, 1, pool)
+	zone.repopulate(SEED_A, 1, pool, _new_robot_pool())
 	await wait_process_frames(1)
 	for box: LootBox in zone.get_boxes():
 		assert_false(box.is_opened(), "a new visit closes every box")
@@ -422,7 +430,7 @@ func test_r_008_09_repopulate_discards_leftovers() -> void:
 	var pool: ObjectPool = _new_zombie_pool()
 	var zone: FarmZone = _visit_zone(SEED_A, 0)
 	_describe_contents(zone)
-	zone.repopulate(SEED_A, 1, pool)
+	zone.repopulate(SEED_A, 1, pool, _new_robot_pool())
 	await wait_process_frames(1)
 	for box: LootBox in zone.get_boxes():
 		assert_true(box.get_contents().is_empty(), "nothing left over from the previous visit")
@@ -448,7 +456,7 @@ func test_r_008_09_repopulate_places_enemies_of_the_visit() -> void:
 	var zone: FarmZone = _visit_zone(SEED_A, 0)
 	zone.spawn_zombies(SEED_A, 0, pool)
 	var before: int = zone.get_zombies().size()
-	zone.repopulate(SEED_A, 1, pool)
+	zone.repopulate(SEED_A, 1, pool, _new_robot_pool())
 	await wait_process_frames(1)
 	var fresh_pool: ObjectPool = _new_zombie_pool()
 	var fresh: FarmZone = _new_zone()
@@ -464,7 +472,7 @@ func test_r_008_09_repopulate_places_enemies_of_the_visit() -> void:
 func test_r_008_09_repopulate_before_generate_reports_error() -> void:
 	var pool: ObjectPool = _new_zombie_pool()
 	var zone: FarmZone = _new_zone()
-	zone.repopulate(SEED_A, 1, pool)
+	zone.repopulate(SEED_A, 1, pool, _new_robot_pool())
 	assert_push_error("generate")
 	assert_eq(zone.get_boxes().size(), 0, "no boxes were placed")
 	assert_eq(zone.get_zombies().size(), 0, "no zombies were placed")
@@ -521,7 +529,7 @@ func test_r_012_38_deposited_item_lost_next_visit() -> void:
 	var piece: ItemStack = CraftingSystem.create_result(DataRegistry.get_item(&"basic_core"))
 	var offered: Array[ItemStack] = [piece]
 	assert_true(box.get_contents().add_stacks(offered).ok, "the item is left in the box")
-	zone.repopulate(SEED_A, 1, pool)
+	zone.repopulate(SEED_A, 1, pool, _new_robot_pool())
 	await wait_process_frames(1)
 	var opener: Node3D = Node3D.new()
 	add_child_autofree(opener)
@@ -616,7 +624,7 @@ func test_r_013_07_repopulate_places_new_visit_markers() -> void:
 	var zone: FarmZone = _visit_zone(SEED_A, 0)
 	var before: Array[Vector3] = _box_positions(zone)
 	_describe_contents(zone)
-	zone.repopulate(SEED_A, 1, pool)
+	zone.repopulate(SEED_A, 1, pool, _new_robot_pool())
 	await wait_process_frames(1)
 	var expected: Array[Vector3] = _box_positions(_visit_zone(SEED_A, 1))
 	assert_ne(expected, before, "visits 0 and 1 of this seed place the boxes differently")
@@ -645,7 +653,7 @@ func test_r_013_08_saved_box_without_marker_dropped() -> void:
 	orphan["marker"] = free_marker
 	saved_boxes.append(orphan)
 	var loaded: FarmZone = _new_zone()
-	loaded.populate(SEED_A, 0, pool, state)
+	loaded.populate(SEED_A, 0, pool, _new_robot_pool(), state)
 	assert_push_error("no box on its marker")
 	var opened: int = 0
 	for box: LootBox in loaded.get_boxes():
@@ -719,3 +727,40 @@ func _wait_for_navigation(map: RID) -> bool:
 
 func _ground_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
+
+
+func test_r_016_24_repopulate_places_robots_of_the_visit() -> void:
+	# Spec 016: a new visit replaces the hostile robots of the old one.
+	var zombie_pool: ObjectPool = _new_zombie_pool()
+	var robot_pool: ObjectPool = _new_robot_pool()
+	var layouts: Dictionary[String, bool] = {}
+	for visit: int in range(1, 13):
+		var zone: FarmZone = _zone_without_navigation()
+		zone.generate(SEED_A, 0)
+		zone.spawn_hostile_robots(SEED_A, 0, robot_pool)
+		zone.repopulate(SEED_A, visit, zombie_pool, robot_pool)
+		var fresh: FarmZone = _zone_without_navigation()
+		fresh.spawn_hostile_robots(SEED_A, visit, _new_robot_pool())
+		var got: PackedStringArray = _describe_robots(zone)
+		assert_eq(got, _describe_robots(fresh), "visit %d: the robots of that visit" % visit)
+		layouts[", ".join(got)] = true
+		zone.despawn_enemies()
+		fresh.despawn_enemies()
+	assert_gt(layouts.size(), 1, "the robots change between visits")
+	await wait_process_frames(1)
+
+
+func _describe_robots(zone: FarmZone) -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	for robot: Enemy in zone.get_hostile_robots():
+		lines.append("%s @ %s" % [robot.get_data().id, robot.global_position])
+	return lines
+
+
+## Many zones at the same place in one navigation map raise edge-merge errors
+## when it syncs; these tests only check who spawns where.
+func _zone_without_navigation() -> FarmZone:
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	zone.get_node("%Navigation").free()
+	add_child_autofree(zone)
+	return zone

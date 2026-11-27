@@ -452,3 +452,29 @@ func test_r_008_35_reused_zombie_rolls_with_new_seed() -> void:
 	reused.activate(_slow, HOME, BRAIN_SEED, loot_seed)
 	reused.get_hurtbox().receive_attack(_slow.hp_max, UID_A)
 	assert_signal_emit_count(reused, "loot_dropped", 1, "second life: rolls with its new seed")
+
+
+## Spec 016: the piece drop is rolled after the table with the same seed, and
+## everything leaves in one loot_dropped (R-016-17, R-016-18).
+func test_r_016_17_enemy_rolls_its_piece_after_the_table() -> void:
+	var with_piece: EnemyData = _slow.duplicate() as EnemyData
+	var drop: PieceDropData = PieceDropData.new()
+	drop.chance_percent = CraftingSystem.PERCENT
+	drop.pieces = [DataRegistry.get_item(&"basic_core") as PieceData] as Array[PieceData]
+	drop.durability_percent = CraftingSystem.PERCENT
+	with_piece.piece_drop = drop
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = DROP_SEED
+	var expected: Array[ItemStack] = LootSystem.roll_enemy_drop(with_piece.drop_table, drop, rng)
+	var zombie: Enemy = _seeded_zombie(with_piece, DROP_SEED)
+	watch_signals(zombie)
+	zombie.get_hurtbox().receive_attack(with_piece.hp_max, UID_A)
+	assert_signal_emit_count(zombie, "loot_dropped", 1, "one signal with everything")
+	var parameters: Array = get_signal_parameters(zombie, "loot_dropped")
+	var stacks: Array[ItemStack] = parameters[0]
+	assert_eq(stacks.size(), expected.size(), "the stacks of roll_enemy_drop with its drop seed")
+	for i: int in mini(stacks.size(), expected.size()):
+		assert_eq(stacks[i].item.id, expected[i].item.id, "same item")
+		assert_eq(stacks[i].quantity, expected[i].quantity, "same quantity")
+		assert_eq(stacks[i].durability, expected[i].durability, "same durability")
+	assert_eq(stacks[-1].item.id, &"basic_core", "the piece goes last")

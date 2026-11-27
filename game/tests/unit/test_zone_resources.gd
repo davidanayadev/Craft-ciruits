@@ -160,3 +160,41 @@ func test_r_009_01_scene_root_matches_kind_and_data() -> void:
 			assert_eq(root_zone is BaseZone, not is_farm, "%s: BaseZone for BASE" % zone.scene_path)
 			assert_same(root_zone.data, zone, "%s: its data is the same ZoneData" % zone.scene_path)
 		root.free()
+
+
+func test_r_016_20_hostile_robot_fields_default_to_none() -> void:
+	var zone: ZoneData = ZoneData.new()
+	assert_eq(zone.hostile_robot_count_min, 0, "no hostile robots by default (minimum)")
+	assert_eq(zone.hostile_robot_count_max, 0, "no hostile robots by default (maximum)")
+	assert_eq(zone.hostile_robot_spawns.size(), 0, "no hostile robot entries by default")
+
+
+func test_r_016_20_hostile_robot_counts_match_balance() -> void:
+	if _zone == null:
+		fail_test("green_zone.tres is missing")
+		return
+	assert_eq(_zone.hostile_robot_count_min, 0, "minimum hostile robots (BALANCE §7.1)")
+	assert_eq(_zone.hostile_robot_count_max, 1, "maximum hostile robots (BALANCE §7.1)")
+
+
+func test_r_016_20_hostile_robot_spawns_match_balance() -> void:
+	if _zone == null:
+		fail_test("green_zone.tres is missing")
+		return
+	assert_eq(_zone.hostile_robot_spawns.size(), 1, "one kind of hostile robot (BALANCE §3.2)")
+	if _zone.hostile_robot_spawns.size() != 1:
+		return
+	var entry: EnemySpawnEntryData = _zone.hostile_robot_spawns[0]
+	assert_not_null(entry.enemy, "the entry has an enemy")
+	if entry.enemy == null:
+		return
+	assert_eq(entry.enemy.id, &"hostile_robot_basic", "the basic hostile robot")
+	assert_eq(entry.min_count, 0, "none guaranteed: 0-1 (BALANCE §7.1)")
+	assert_gt(entry.weight, 0, "it takes part in the roll")
+	assert_true(DataRegistry.get_catalog().has_enemy(entry.enemy.id), "catalog enemy")
+
+
+func test_r_016_20_base_has_no_hostile_robots() -> void:
+	var base: ZoneData = load(BASE_ZONE_PATH) as ZoneData
+	assert_eq(base.hostile_robot_count_max, 0, "the base is a safe zone (PMV §2.1)")
+	assert_eq(base.hostile_robot_spawns.size(), 0, "and lists no hostile robot")

@@ -9,7 +9,8 @@ extends CharacterBody3D
 ## each scene brings its model and animations, each EnemyData its numbers.
 ## Players hit it through its HurtboxComponent; it flashes white and, when a
 ## player's hit kills it, announces it on the EventBus (spec 007) and rolls
-## its drop table once, with the seed it was given (spec 008).
+## its drop table once, with the seed it was given (spec 008), then its piece
+## drop with the same RNG (spec 016).
 
 ## Its HealthComponent reached 0. Whoever placed it returns it to the pool.
 signal defeated(enemy: Enemy)
@@ -202,12 +203,13 @@ func _on_died() -> void:
 	defeated.emit(self)
 
 
-## One roll per life, only for a kill (R-008-35).
+## One roll per life, only for a kill (R-008-35); materials and piece leave
+## together, in one signal (R-016-18).
 func _drop_loot() -> void:
-	if _data.drop_table == null:
-		return
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = _drop_seed
-	var stacks: Array[ItemStack] = LootSystem.roll(_data.drop_table, rng)
+	var stacks: Array[ItemStack] = LootSystem.roll_enemy_drop(
+		_data.drop_table, _data.piece_drop, rng
+	)
 	if not stacks.is_empty():
 		loot_dropped.emit(stacks, global_position)

@@ -22,6 +22,7 @@ signal travel_failed(zone_id: Vector2i)
 @export var zone_slot: Node3D
 @export var players_root: Node3D
 @export var zombie_pool: ObjectPool
+@export var hostile_robot_pool: ObjectPool
 @export var impact_pool: ObjectPool
 @export var dropped_item_pool: ObjectPool
 @export var dropped_items: DroppedItemSpawner
@@ -171,13 +172,20 @@ func _load(zone: Zone) -> void:
 
 ## The boxes and enemies of its current visit (R-009-16), with the pools
 ## prewarmed behind the loading screen so nothing is created mid-game (P12).
+## Without hostile_robot_pool → push_error and the zone gets no hostile robots;
+## zombies and boxes as always.
 func _populate(farm: FarmZone) -> void:
-	var enemy_max: int = farm.data.enemy_count_max
-	zombie_pool.prewarm(enemy_max)
+	var zombie_max: int = farm.data.enemy_count_max
+	var robot_max: int = farm.data.hostile_robot_count_max
+	zombie_pool.prewarm(zombie_max)
+	if hostile_robot_pool != null:
+		hostile_robot_pool.prewarm(robot_max)
+	else:
+		push_error("ZoneLoader '%s': hostile_robot_pool is not assigned; no hostile robots." % name)
 	# At most one burst per enemy and swing, and a burst ends before the next.
-	impact_pool.prewarm(enemy_max)
-	# One drop per zombie, one throw per inventory slot and one death per player.
-	var drops: int = enemy_max
+	impact_pool.prewarm(zombie_max + robot_max)
+	# One drop per enemy, one throw per inventory slot and one death per player.
+	var drops: int = zombie_max + robot_max
 	for robot: Robot in _players():
 		drops += robot.inventory.get_slot_count() + 1
 	dropped_item_pool.prewarm(drops)
@@ -185,7 +193,9 @@ func _populate(farm: FarmZone) -> void:
 	var saved_state: Dictionary = {}
 	if zone_memory != null:
 		saved_state = zone_memory.take_state(farm.data.zone_id, visit)
-	farm.populate(GameManager.get_world_seed(), visit, zombie_pool, saved_state)
+	farm.populate(
+		GameManager.get_world_seed(), visit, zombie_pool, hostile_robot_pool, saved_state
+	)
 	if zone_memory != null:
 		zone_memory.bind_farm(farm)
 
@@ -235,7 +245,7 @@ func _repopulate(zone_id: Vector2i, visit: int) -> void:
 	var farm: FarmZone = _loaded_farm(zone_id)
 	if farm == null:
 		return
-	farm.repopulate(GameManager.get_world_seed(), visit, zombie_pool)
+	farm.repopulate(GameManager.get_world_seed(), visit, zombie_pool, hostile_robot_pool)
 	# Before anyone can interact again (R-008-23).
 	dropped_items.discard_expired_now()
 

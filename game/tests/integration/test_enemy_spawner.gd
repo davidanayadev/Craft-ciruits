@@ -644,7 +644,7 @@ func _populated_zone(world_seed: int, visit: int, pool: ObjectPool, state: Dicti
 	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
 	zone.get_node("%Navigation").free()
 	add_child_autofree(zone)
-	zone.populate(world_seed, visit, pool, state)
+	zone.populate(world_seed, visit, pool, _new_robot_pool(), state)
 	return zone
 
 
@@ -653,7 +653,7 @@ func test_r_010_32_zone_exposes_its_visit() -> void:
 	var generated: FarmZone = _new_zone()
 	generated.generate(SEED_A, 3)
 	assert_eq(generated.get_visit(), 3, "the visit given to generate()")
-	generated.repopulate(SEED_A, 5, pool)
+	generated.repopulate(SEED_A, 5, pool, _new_robot_pool())
 	assert_eq(generated.get_visit(), 5, "the visit given to repopulate()")
 
 
@@ -691,7 +691,7 @@ func test_r_010_32_populate_without_state_equals_generate_and_spawn() -> void:
 const PINNED_SEEDS: Array[int] = [1001, 2024, 77777]
 const PINNED_VISITS := 4
 ## "seed/visit": "id @ position => drop" per zombie, in spawn order.
-const PINNED_ZOMBIES: Dictionary = {
+const PINNED_ZOMBIES: Dictionary[String, Array] = {
 	"1001/0": [
 		"zombie_slow @ (-21.0, 0.0, -10.0) => ",
 		"zombie_slow @ (-14.0, 0.0, -22.0) => ",
@@ -822,3 +822,433 @@ func test_r_016_22_zombies_pinned() -> void:
 				"seed %d, visit %d: same zombies, places and drops" % [world_seed, visit]
 			)
 	await wait_physics_frames(2)
+
+
+## Spec 016: the hostile robots are a second population of the zone, with their
+## own spawner, markers, streams and pool (R-016-17, R-016-20 to R-016-22).
+const HOSTILE_ROBOT_SCENE := preload("res://scenes/entities/hostile_robot.tscn")
+const HOSTILE_ROBOT_AI_PATH := "res://resources/ai/hostile_robot_ai.tres"
+const ROBOT_VISITS := 50
+## Two markers closer than this would make two enemies spawn into each other
+## (twice the agent radius of the navmesh).
+const MARKER_SPACING := 2.0 * NAV_AGENT_RADIUS
+
+
+func _new_robot_pool() -> ObjectPool:
+	var pool: ObjectPool = ObjectPool.new()
+	pool.name = "HostileRobotPool"
+	pool.scene = HOSTILE_ROBOT_SCENE
+	add_child_autofree(pool)
+	return pool
+
+
+func _robot_spawner(zone: FarmZone) -> EnemySpawner:
+	return zone.get_node("%HostileRobotSpawner") as EnemySpawner
+
+
+func _robot_marker_nodes(zone: FarmZone) -> Array[Node]:
+	return zone.get_node("%HostileRobotMarkers").get_children()
+
+
+func _robot_marker_positions(zone: FarmZone) -> Array[Vector3]:
+	var positions: Array[Vector3] = []
+	for marker: Node in _robot_marker_nodes(zone):
+		positions.append((marker as Marker3D).global_position)
+	return positions
+
+
+## A zone without navigation (see _spawned_zone) whose robot spawner placed
+## the hostile robots of that visit, nothing else.
+func _robot_zone(world_seed: int, visit: int, pool: ObjectPool) -> FarmZone:
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	zone.get_node("%Navigation").free()
+	add_child_autofree(zone)
+	_robot_spawner(zone).spawn(zone.data, _robot_marker_nodes(zone), world_seed, visit, pool)
+	return zone
+
+
+func _describe_robots(zone: FarmZone) -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	for robot: Enemy in _robot_spawner(zone).get_active():
+		lines.append("%s @ %s" % [robot.get_data().id, robot.global_position])
+	return lines
+
+
+func _box_marker_positions(zone: FarmZone) -> Array[Vector3]:
+	var positions: Array[Vector3] = []
+	for site: Node in zone.get_node("%BoxMarkers").get_children():
+		for marker: Node in site.get_children():
+			positions.append((marker as Marker3D).global_position)
+	return positions
+
+
+func test_r_016_22_zombie_rules_unchanged() -> void:
+	var zone_data: ZoneData = _new_zone().data
+	var zombies: EnemySpawner.Rules = EnemySpawner.rules_for(
+		EnemySpawner.Population.ZOMBIES, zone_data
+	)
+	assert_eq(zombies.count_min, zone_data.enemy_count_min, "zombies: enemy_count_min")
+	assert_eq(zombies.count_max, zone_data.enemy_count_max, "zombies: enemy_count_max")
+	assert_eq(zombies.entries, zone_data.enemy_spawns, "zombies: enemy_spawns")
+	assert_eq(zombies.spawn_stream, SeededRng.STREAM_ENEMY_SPAWN, "zombies: enemy_spawn stream")
+	assert_eq(zombies.brain_stream, SeededRng.STREAM_ENEMY_BRAIN, "zombies: enemy_brain stream")
+	assert_eq(zombies.drop_stream, SeededRng.STREAM_ENEMY_DROP, "zombies: enemy_drop stream")
+	var robots: EnemySpawner.Rules = EnemySpawner.rules_for(
+		EnemySpawner.Population.HOSTILE_ROBOTS, zone_data
+	)
+	assert_eq(robots.count_min, zone_data.hostile_robot_count_min, "robots: their minimum")
+	assert_eq(robots.count_max, zone_data.hostile_robot_count_max, "robots: their maximum")
+	assert_eq(robots.entries, zone_data.hostile_robot_spawns, "robots: their entries")
+	assert_eq(robots.spawn_stream, SeededRng.STREAM_HOSTILE_ROBOT_SPAWN, "robots: their spawn stream")
+	assert_eq(robots.brain_stream, SeededRng.STREAM_HOSTILE_ROBOT_BRAIN, "robots: their brain stream")
+	assert_eq(robots.drop_stream, SeededRng.STREAM_HOSTILE_ROBOT_DROP, "robots: their drop stream")
+
+
+func test_r_016_22_rules_without_zone_report_error() -> void:
+	assert_null(EnemySpawner.rules_for(EnemySpawner.Population.ZOMBIES, null), "no zone, no rules")
+	assert_push_error("EnemySpawner")
+
+
+func test_r_016_22_spawner_populations_in_zone() -> void:
+	var zone: FarmZone = _new_zone()
+	var zombies: EnemySpawner = _spawner_of(zone)
+	var robots: EnemySpawner = _robot_spawner(zone)
+	assert_not_null(robots, "the zone has a %HostileRobotSpawner")
+	if robots == null:
+		return
+	assert_eq(zombies.population, EnemySpawner.Population.ZOMBIES, "%ZombieSpawner places zombies")
+	assert_eq(robots.population, EnemySpawner.Population.HOSTILE_ROBOTS, "the other, hostile robots")
+	assert_same(robots.enemies_root, zombies.enemies_root, "both under %Enemies")
+	# The enum is saved as an int in the scene: new populations only go at the end.
+	assert_eq(EnemySpawner.Population.ZOMBIES, 0, "ZOMBIES keeps its saved value")
+	assert_eq(EnemySpawner.Population.HOSTILE_ROBOTS, 1, "HOSTILE_ROBOTS keeps its saved value")
+
+
+func test_r_016_21_markers_out_of_sight_of_spawn() -> void:
+	var zone: FarmZone = _new_zone()
+	var synced: bool = await _wait_for_navigation(zone)
+	assert_true(synced, "the navigation map synchronised")
+	var ai: EnemyAiData = load(HOSTILE_ROBOT_AI_PATH) as EnemyAiData
+	var map: RID = zone.get_world_3d().navigation_map
+	var spawn: Vector3 = zone.get_spawn_position()
+	var markers: Array[Vector3] = _robot_marker_positions(zone)
+	assert_gt(markers.size(), zone.data.hostile_robot_count_max, "more markers than robots per visit")
+	for marker: Vector3 in markers:
+		assert_gt(
+			_flat_distance(marker, spawn),
+			ai.vision_radius + ai.patrol_radius,
+			"marker %s: a patrolling robot cannot see the spawn point" % marker
+		)
+		assert_true(_is_inside(zone, marker, NAV_AGENT_RADIUS), "marker %s is inside" % marker)
+		if synced:
+			var closest: Vector3 = NavigationServer3D.map_get_closest_point(map, marker)
+			assert_lt(
+				_flat_distance(closest, marker), ON_NAVMESH_TOLERANCE, "marker %s is walkable" % marker
+			)
+
+
+func test_r_016_21_markers_apart_from_zombies_and_boxes() -> void:
+	var zone: FarmZone = _new_zone()
+	var robot_markers: Array[Vector3] = _robot_marker_positions(zone)
+	var others: Array[Vector3] = _marker_positions(zone) + _box_marker_positions(zone)
+	for i: int in robot_markers.size():
+		for other: Vector3 in others:
+			assert_gt(
+				_flat_distance(robot_markers[i], other),
+				MARKER_SPACING,
+				"robot marker %s is apart from %s" % [robot_markers[i], other]
+			)
+		for j: int in range(i + 1, robot_markers.size()):
+			assert_gt(
+				_flat_distance(robot_markers[i], robot_markers[j]), MARKER_SPACING, "robot markers apart"
+			)
+
+
+func test_r_016_21_no_dead_marker() -> void:
+	var pool: ObjectPool = _new_robot_pool()
+	var zone: FarmZone = _new_zone()
+	var markers: Array[Vector3] = _robot_marker_positions(zone)
+	var used: Dictionary[Vector3, bool] = {}
+	for visit: int in ROBOT_VISITS:
+		_robot_spawner(zone).spawn(zone.data, _robot_marker_nodes(zone), SEED_A, visit, pool)
+		for robot: Enemy in _robot_spawner(zone).get_active():
+			used[robot.global_position] = true
+		_robot_spawner(zone).despawn_all()
+	for marker: Vector3 in markers:
+		assert_true(used.has(marker), "some visit puts a robot on %s" % marker)
+
+
+func test_r_016_21_robot_on_its_markers_under_enemies() -> void:
+	var pool: ObjectPool = _new_robot_pool()
+	var zone: FarmZone = _new_zone()
+	var markers: Array[Vector3] = _robot_marker_positions(zone)
+	var enemies_root: Node = zone.get_node("%Enemies")
+	var placed: int = 0
+	for visit: int in ROBOT_VISITS:
+		_robot_spawner(zone).spawn(zone.data, _robot_marker_nodes(zone), SEED_A, visit, pool)
+		for robot: Enemy in _robot_spawner(zone).get_active():
+			placed += 1
+			assert_eq(robot.get_data().id, &"hostile_robot_basic", "a hostile robot")
+			assert_true(markers.has(robot.global_position), "on a hostile robot marker")
+			assert_same(robot.get_parent(), enemies_root, "under %Enemies")
+			assert_eq(robot.get_state(), EnemyBrain.State.IDLE, "idle")
+			assert_false(robot.get_health().is_dead(), "alive")
+		_robot_spawner(zone).despawn_all()
+	assert_gt(placed, 0, "some visit has a robot")
+
+
+func test_r_016_20_zero_and_one_over_visits() -> void:
+	var pool: ObjectPool = _new_robot_pool()
+	var zone: FarmZone = _new_zone()
+	var counts: Dictionary[int, int] = {}
+	for visit: int in ROBOT_VISITS:
+		_robot_spawner(zone).spawn(zone.data, _robot_marker_nodes(zone), SEED_A, visit, pool)
+		var count: int = _robot_spawner(zone).get_active().size()
+		counts[count] = counts.get(count, 0) + 1
+		_robot_spawner(zone).despawn_all()
+	assert_eq(counts.keys().size(), 2, "only two counts over %d visits: %s" % [ROBOT_VISITS, counts])
+	assert_true(counts.has(zone.data.hostile_robot_count_min), "visits without a robot")
+	assert_true(counts.has(zone.data.hostile_robot_count_max), "and visits with one")
+
+
+func test_r_016_20_same_seed_and_visit_same_robots() -> void:
+	var pool: ObjectPool = _new_robot_pool()
+	var with_robot: int = 0
+	for visit: int in 8:
+		var first: FarmZone = _robot_zone(SEED_A, visit, pool)
+		var second: FarmZone = _robot_zone(SEED_A, visit, pool)
+		assert_eq(_describe_robots(first), _describe_robots(second), "visit %d: same robots" % visit)
+		if not _describe_robots(first).is_empty():
+			with_robot += 1
+	assert_gt(with_robot, 0, "some visit has a robot, so the comparison means something")
+
+
+func test_r_016_17_drop_seed_from_stream_visit_and_index() -> void:
+	var pool: ObjectPool = _new_robot_pool()
+	var checked: int = 0
+	for visit: int in 10:
+		var zone: FarmZone = _robot_zone(SEED_A, visit, pool)
+		var robots: Array[Enemy] = _robot_spawner(zone).get_active().duplicate()
+		if robots.is_empty():
+			continue
+		var robot: Enemy = robots[0]
+		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+		rng.seed = SeededRng.derive_seed_for_visit(
+			SEED_A, zone.data.zone_id, SeededRng.STREAM_HOSTILE_ROBOT_DROP, visit, 0
+		)
+		var expected: Array[ItemStack] = LootSystem.roll_enemy_drop(
+			robot.get_data().drop_table, robot.get_data().piece_drop, rng
+		)
+		watch_signals(robot)
+		robot.get_hurtbox().receive_attack(robot.get_data().hp_max, KILLER_UID)
+		var parameters: Array = get_signal_parameters(robot, "loot_dropped")
+		var stacks: Array[ItemStack] = parameters[0]
+		var got: PackedStringArray = PackedStringArray()
+		var want: PackedStringArray = PackedStringArray()
+		for stack: ItemStack in stacks:
+			got.append("%s x%d d%d" % [stack.item.id, stack.quantity, stack.durability])
+		for stack: ItemStack in expected:
+			want.append("%s x%d d%d" % [stack.item.id, stack.quantity, stack.durability])
+		assert_eq(got, want, "visit %d: the drop of hostile_robot_drop, visit and index 0" % visit)
+		checked += 1
+	assert_gt(checked, 0, "some visit has a robot")
+	await wait_physics_frames(2)
+
+
+## Spec 016: the zone places both populations, returns both to their pools and
+## remembers the dead robots of the visit apart (R-016-18, R-016-22 to R-016-26).
+const ROBOT_VISIT_SEARCH := 30
+
+
+## First visit of this world seed that has a hostile robot, or -1.
+func _first_visit_with_robot(world_seed: int) -> int:
+	var pool: ObjectPool = _new_robot_pool()
+	var probe: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	probe.get_node("%Navigation").free()
+	add_child_autofree(probe)
+	for visit: int in ROBOT_VISIT_SEARCH:
+		probe.spawn_hostile_robots(world_seed, visit, pool)
+		var found: bool = not probe.get_hostile_robots().is_empty()
+		probe.despawn_enemies()
+		if found:
+			return visit
+	return -1
+
+
+func _populated_both(
+	world_seed: int, visit: int, zombies: ObjectPool, robots: ObjectPool, state: Dictionary
+) -> FarmZone:
+	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
+	zone.get_node("%Navigation").free()
+	add_child_autofree(zone)
+	zone.populate(world_seed, visit, zombies, robots, state)
+	return zone
+
+
+func test_r_016_22_zombies_same_with_and_without_robots() -> void:
+	for world_seed: int in PINNED_SEEDS:
+		var visit: int = _first_visit_with_robot(world_seed)
+		assert_ne(visit, -1, "seed %d: some visit has a robot" % world_seed)
+		if visit == -1:
+			continue
+		var both: FarmZone = _populated_both(world_seed, visit, _new_pool(), _new_robot_pool(), {})
+		assert_eq(both.get_hostile_robots().size(), 1, "seed %d: the robot is there" % world_seed)
+		var alone: FarmZone = _spawned_zone(world_seed, visit, _new_pool())
+		assert_eq(_describe(both), _describe(alone), "seed %d: the same zombies" % world_seed)
+		var with_robot: PackedStringArray = _loot_by_index(both, false)
+		var without: PackedStringArray = _loot_by_index(alone, false)
+		assert_eq(with_robot, without, "seed %d: the same zombie drops" % world_seed)
+	await wait_physics_frames(2)
+
+
+func test_r_016_23_death_returns_robot_to_its_pool() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var zombie_pool: ObjectPool = _new_pool()
+	var robot_pool: ObjectPool = _new_robot_pool()
+	var zone: FarmZone = _populated_both(SEED_A, visit, zombie_pool, robot_pool, {})
+	var robot: Enemy = zone.get_hostile_robots()[0]
+	_kill(robot)
+	await wait_physics_frames(2)
+	assert_eq(zone.get_hostile_robots().size(), 0, "a dead robot leaves the active set")
+	assert_false(robot.is_inside_tree(), "and the scene")
+	assert_eq(robot_pool.get_free_count(), 1, "it waits in its own pool")
+	assert_eq(zombie_pool.get_free_count(), 0, "not in the zombies' pool")
+	assert_push_error_count(0)
+
+
+func test_r_016_23_despawn_returns_both_populations() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var zombie_pool: ObjectPool = _new_pool()
+	var robot_pool: ObjectPool = _new_robot_pool()
+	var zone: FarmZone = _populated_both(SEED_A, visit, zombie_pool, robot_pool, {})
+	var zombies: int = zone.get_zombies().size()
+	zone.despawn_enemies()
+	assert_eq(zone.get_zombies().size(), 0, "no zombie left")
+	assert_eq(zone.get_hostile_robots().size(), 0, "no robot left")
+	assert_eq(zone.get_node("%Enemies").get_child_count(), 0, "nothing under %Enemies")
+	assert_eq(zombie_pool.get_free_count(), zombies, "every zombie back in its pool")
+	assert_eq(robot_pool.get_free_count(), 1, "the robot back in its pool")
+
+
+func test_r_016_23_reused_robot_is_reset() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var robot_pool: ObjectPool = _new_robot_pool()
+	var zone: FarmZone = _new_zone()
+	zone.spawn_hostile_robots(SEED_A, visit, robot_pool)
+	var robot: Enemy = zone.get_hostile_robots()[0]
+	robot.get_hurtbox().receive_attack(robot.get_data().hp_max - 1, KILLER_UID)
+	zone.despawn_enemies()
+	zone.spawn_hostile_robots(SEED_A, visit, robot_pool)
+	var reused: Enemy = zone.get_hostile_robots()[0]
+	assert_same(reused, robot, "the pool gives the same instance back")
+	assert_eq(reused.get_health().get_current(), reused.get_data().hp_max, "full HP")
+	assert_eq(reused.get_hurtbox().get_last_attacker_uid(), "", "no record of who hit it")
+	assert_false((reused.get_node("%HitFlash") as HitFlashComponent).is_flashing(), "no flash")
+
+
+func test_r_016_18_zone_relays_robot_loot() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var zone: FarmZone = _populated_both(SEED_A, visit, _new_pool(), _new_robot_pool(), {})
+	var robot: Enemy = zone.get_hostile_robots()[0]
+	watch_signals(zone)
+	watch_signals(robot)
+	_kill(robot)
+	assert_signal_emit_count(robot, "loot_dropped", 1, "the robot always drops materials")
+	assert_signal_emit_count(zone, "enemy_loot_dropped", 1, "the zone relays it once")
+	var own: Array = get_signal_parameters(robot, "loot_dropped")
+	var relayed: Array = get_signal_parameters(zone, "enemy_loot_dropped")
+	var own_stacks: Array[ItemStack] = own[0]
+	var relayed_stacks: Array[ItemStack] = relayed[0]
+	assert_same(relayed_stacks, own_stacks, "the same stacks")
+	await wait_physics_frames(2)
+
+
+func test_r_016_25_visit_state_lists_dead_robots() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var zone: FarmZone = _populated_both(SEED_A, visit, _new_pool(), _new_robot_pool(), {})
+	var before: Dictionary = zone.get_visit_state()
+	var none: Array = before["dead_hostile_robots"]
+	assert_eq(none.size(), 0, "nobody dead yet")
+	_kill(zone.get_hostile_robots()[0])
+	await wait_physics_frames(2)
+	var after: Dictionary = zone.get_visit_state()
+	var dead_robots: Array = after["dead_hostile_robots"]
+	var dead_zombies: Array = after["dead_enemies"]
+	assert_eq(dead_robots, [0], "the robot, by its spawn index")
+	assert_eq(dead_zombies.size(), 0, "no zombie counted dead")
+
+
+func test_r_016_25_dead_robot_not_back_and_no_drop() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var zombie_pool: ObjectPool = _new_pool()
+	var robot_pool: ObjectPool = _new_robot_pool()
+	var first: FarmZone = _populated_both(SEED_A, visit, zombie_pool, robot_pool, {})
+	_kill(first.get_hostile_robots()[0])
+	await wait_physics_frames(2)
+	var state: Dictionary = first.get_visit_state()
+	var zombies: PackedStringArray = _describe(first)
+	first.despawn_enemies()
+	var again: FarmZone = _populated_both(SEED_A, visit, zombie_pool, robot_pool, state)
+	watch_signals(again)
+	assert_eq(again.get_hostile_robots().size(), 0, "the dead robot does not come back")
+	assert_eq(_describe(again), zombies, "the zombies are those of the visit")
+	assert_signal_not_emitted(again, "enemy_loot_dropped", "and nothing drops again")
+	var kept: Dictionary = again.get_visit_state()
+	var still_dead: Array = kept["dead_hostile_robots"]
+	assert_eq(still_dead, [0], "still dead in the next save")
+
+
+func test_r_016_25_living_robot_back_on_marker_full_hp() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	var robot_pool: ObjectPool = _new_robot_pool()
+	var first: FarmZone = _populated_both(SEED_A, visit, _new_pool(), robot_pool, {})
+	var robot: Enemy = first.get_hostile_robots()[0]
+	var home: Vector3 = robot.global_position
+	robot.get_hurtbox().receive_attack(1, KILLER_UID)
+	var state: Dictionary = first.get_visit_state()
+	first.despawn_enemies()
+	var again: FarmZone = _populated_both(SEED_A, visit, _new_pool(), robot_pool, state)
+	assert_eq(again.get_hostile_robots().size(), 1, "a living robot comes back")
+	var back: Enemy = again.get_hostile_robots()[0]
+	assert_eq(back.global_position, home, "on its marker")
+	assert_eq(back.get_health().get_current(), back.get_data().hp_max, "with full HP")
+
+
+func test_r_016_26_state_without_robot_key() -> void:
+	var visit: int = _first_visit_with_robot(SEED_A)
+	if visit == -1:
+		fail_test("no visit with a robot")
+		return
+	# A visit saved before spec 016: no "dead_hostile_robots".
+	var old_state: Dictionary = {"boxes": [], "dead_enemies": [1]}
+	var zone: FarmZone = _populated_both(SEED_A, visit, _new_pool(), _new_robot_pool(), old_state)
+	assert_eq(zone.get_hostile_robots().size(), 1, "the robot of the visit is placed")
+	assert_eq(_spawner_of(zone).get_dead_indices(), [1] as Array[int], "the dead zombie stays dead")
+	assert_push_error_count(0)
+
+
+func test_r_016_25_saved_dead_robots_not_a_list_reported() -> void:
+	var state: Dictionary = {"boxes": [], "dead_enemies": [], "dead_hostile_robots": "broken"}
+	_populated_both(SEED_A, 0, _new_pool(), _new_robot_pool(), state)
+	assert_push_error("dead_hostile_robots")

@@ -5,12 +5,15 @@ extends GutTest
 ## edges (R-007-25), none of it changes battery, HP or XP (R-007-26) and the
 ## sparks come from the pool and go back to it (R-007-27).
 ## Spec 009: a travel returns the bursts still playing to the pool (R-009-04).
+## Spec 016: a hit on the hostile robot sparks like a hit on a zombie (R-016-11).
 ## Values come from combat_feedback.tres; the signals are emitted by hand.
 
 const ROBOT_SCENE := preload("res://scenes/entities/robot.tscn")
 const RIG_SCENE := preload("res://scenes/camera/camera_rig.tscn")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const SPARKS_SCENE := preload("res://scenes/effects/impact_sparks.tscn")
+const HOSTILE_ROBOT_SCENE := preload("res://scenes/entities/hostile_robot.tscn")
+const HOSTILE_ROBOT_PATH := "res://resources/enemies/hostile_robot_basic.tres"
 const FEEDBACK_PATH := "res://resources/config/combat_feedback.tres"
 const TARGET_HP := 20
 const TARGET_POSITION := Vector3(3.0, 0.0, -4.0)
@@ -205,3 +208,17 @@ func test_r_009_04_release_all_returns_sparks() -> void:
 	await wait_process_frames(2)
 	assert_eq(_pool.get_free_count(), 2, "and released once")
 	assert_push_error_count(0)
+
+
+func test_r_016_11_hit_on_hostile_robot_sparks() -> void:
+	var hostile: Enemy = HOSTILE_ROBOT_SCENE.instantiate() as Enemy
+	add_child_autofree(hostile)
+	hostile.activate(load(HOSTILE_ROBOT_PATH) as EnemyData, TARGET_POSITION, 1, 1)
+	_robot.melee.hit_dealt.emit(hostile.get_hurtbox())
+	assert_true(_rig.is_shaking(), "a hit on the hostile robot shakes the camera")
+	var playing: Array[ImpactSparks] = _playing_sparks()
+	assert_eq(playing.size(), 1, "and plays one burst of sparks")
+	if playing.size() == 1:
+		assert_almost_eq(
+			playing[0].global_position, TARGET_POSITION, Vector3.ONE * 0.001, "at the robot"
+		)

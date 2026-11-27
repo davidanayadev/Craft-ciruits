@@ -24,6 +24,11 @@ enum Kind { BASE, FARM }
 @export var enemy_count_min: int = 0
 @export var enemy_count_max: int = 0
 @export var enemy_spawns: Array[EnemySpawnEntryData] = []
+## Hostile robots placed on each visit, apart from enemy_count_* and on their
+## own markers (BALANCE §7.1, spec 016). Same rules as the fields above.
+@export var hostile_robot_count_min: int = 0
+@export var hostile_robot_count_max: int = 0
+@export var hostile_robot_spawns: Array[EnemySpawnEntryData] = []
 
 
 ## Only farm zones count visits (spec 009, question 12): leaving or dying in

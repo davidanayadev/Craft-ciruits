@@ -1,22 +1,42 @@
 class_name EnemySpawner
 extends Node3D
-## Puts the zombies of a visit in a zone and takes them back (spec 006).
-## How many, of which kind and on which marker comes from the enemy_spawn
-## stream; the brain seed of each enemy from the enemy_brain stream, in the
-## order they are placed. Both use the visit as index, so a new visit spawns
-## them again elsewhere, and changing the AI never moves where they appear.
-## The drop seed of each enemy comes from the enemy_drop stream, the visit
-## and its place in the spawn order (spec 008).
-## Zombies come from a pool that outlives the zone and go back to it when they
+## Puts one population of enemies of a visit in a zone and takes them back
+## (spec 006): the zombies or the hostile robots (spec 016), one spawner each.
+## Its population says which ZoneData fields and SeededRng streams it uses
+## (rules_for), so the two never share numbers and one never moves the other.
+## How many, of which kind and on which marker comes from the spawn stream;
+## the brain seed of each enemy from the brain stream, in the order they are
+## placed. Both use the visit as index, so a new visit spawns them again
+## elsewhere, and changing the AI never moves where they appear.
+## The drop seed of each enemy comes from the drop stream, the visit and its
+## place in the spawn order (spec 008).
+## Enemies come from a pool that outlives the zone and go back to it when they
 ## die or when the zone is unloaded.
 ## It remembers which spawn indices of the visit are dead, so a saved visit
 ## comes back without them (spec 010, R-010-32).
 
-## A enemy of this spawner left loot where it died (spec 008).
+## An enemy of this spawner left loot where it died (spec 008).
 signal enemy_loot_dropped(stacks: Array[ItemStack], world_position: Vector3)
 
-## Parent of the zombies while they are active.
+## Which part of a zone's population this spawner places. Saved as an int in
+## scenes: only append.
+enum Population { ZOMBIES, HOSTILE_ROBOTS }
+
+
+## ZoneData fields and SeededRng streams of one population (plan 016 D4).
+class Rules:
+	extends RefCounted
+	var count_min: int
+	var count_max: int
+	var entries: Array[EnemySpawnEntryData]
+	var spawn_stream: StringName
+	var brain_stream: StringName
+	var drop_stream: StringName
+
+
+## Parent of the enemies while they are active.
 @export var enemies_root: Node3D
+@export var population: Population = Population.ZOMBIES
 
 var _active: Array[Enemy] = []
 var _pool: ObjectPool
@@ -26,9 +46,35 @@ var _spawn_indices: Dictionary[Enemy, int] = {}
 var _dead: Array[int] = []
 
 
-## Places the zombies of this visit on the markers but dead_indices, which
+## What population reads from zone and which streams it uses. The zombies keep
+## the fields and streams they had before the hostile robot (R-016-22).
+## null zone → push_error, null.
+static func rules_for(for_population: Population, zone: ZoneData) -> Rules:
+	if zone == null:
+		push_error("EnemySpawner: rules_for() needs zone data.")
+		return null
+	var rules: Rules = Rules.new()
+	match for_population:
+		Population.HOSTILE_ROBOTS:
+			rules.count_min = zone.hostile_robot_count_min
+			rules.count_max = zone.hostile_robot_count_max
+			rules.entries = zone.hostile_robot_spawns
+			rules.spawn_stream = SeededRng.STREAM_HOSTILE_ROBOT_SPAWN
+			rules.brain_stream = SeededRng.STREAM_HOSTILE_ROBOT_BRAIN
+			rules.drop_stream = SeededRng.STREAM_HOSTILE_ROBOT_DROP
+		_:
+			rules.count_min = zone.enemy_count_min
+			rules.count_max = zone.enemy_count_max
+			rules.entries = zone.enemy_spawns
+			rules.spawn_stream = SeededRng.STREAM_ENEMY_SPAWN
+			rules.brain_stream = SeededRng.STREAM_ENEMY_BRAIN
+			rules.drop_stream = SeededRng.STREAM_ENEMY_DROP
+	return rules
+
+
+## Places the enemies of this visit on the markers but dead_indices, which
 ## roll no drop; their brain seed is still drawn, so the others keep theirs.
-## Missing zone data, pool or enemies_root, or zombies still active →
+## Missing zone data, pool or enemies_root, or enemies still active →
 ## push_error, no change.
 func spawn(
 	zone: ZoneData,
@@ -42,17 +88,18 @@ func spawn(
 		push_error("EnemySpawner '%s': spawn() needs zone data, a pool and enemies_root." % name)
 		return
 	if not _active.is_empty():
-		push_error("EnemySpawner '%s': zombies were already spawned; despawn them first." % name)
+		push_error("EnemySpawner '%s': enemies were already spawned; despawn them first." % name)
 		return
 	_pool = pool
+	var rules: Rules = rules_for(population, zone)
 	var spawn_rng: RandomNumberGenerator = SeededRng.create(
-		world_seed, zone.zone_id, SeededRng.STREAM_ENEMY_SPAWN, visit
+		world_seed, zone.zone_id, rules.spawn_stream, visit
 	)
 	var brain_rng: RandomNumberGenerator = SeededRng.create(
-		world_seed, zone.zone_id, SeededRng.STREAM_ENEMY_BRAIN, visit
+		world_seed, zone.zone_id, rules.brain_stream, visit
 	)
 	var spawns: Array[ZonePopulation.EnemySpawn] = ZonePopulation.pick_enemy_spawns(
-		markers.size(), zone.enemy_count_min, zone.enemy_count_max, zone.enemy_spawns, spawn_rng
+		markers.size(), rules.count_min, rules.count_max, rules.entries, spawn_rng
 	)
 	_dead.clear()
 	for i: int in spawns.size():
@@ -61,7 +108,7 @@ func spawn(
 			_mark_dead(i)
 			continue
 		var drop_seed: int = SeededRng.derive_seed_for_visit(
-			world_seed, zone.zone_id, SeededRng.STREAM_ENEMY_DROP, visit, i
+			world_seed, zone.zone_id, rules.drop_stream, visit, i
 		)
 		var marker: Marker3D = markers[spawns[i].marker_index] as Marker3D
 		_place(spawns[i], marker, brain_seed, drop_seed, i)
@@ -102,7 +149,7 @@ func _place(
 	var instance: Node = _pool.acquire()
 	var enemy: Enemy = instance as Enemy
 	if enemy == null:
-		push_error("EnemySpawner '%s': the pool '%s' does not hold zombies." % [name, _pool.name])
+		push_error("EnemySpawner '%s': the pool '%s' does not hold enemies." % [name, _pool.name])
 		if instance != null:
 			_pool.release(instance)
 		return

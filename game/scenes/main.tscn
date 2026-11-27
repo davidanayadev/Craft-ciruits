@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/entities/robot.tscn" id="3_robot"]
@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://resources/ui/screens.tres" id="10_screens"]
 [ext_resource type="Script" path="res://scripts/components/object_pool.gd" id="11_pool"]
 [ext_resource type="PackedScene" path="res://scenes/entities/zombie.tscn" id="12_zombie"]
+[ext_resource type="PackedScene" path="res://scenes/entities/hostile_robot.tscn" id="12_hostile_robot"]
 [ext_resource type="PackedScene" path="res://scenes/effects/impact_sparks.tscn" id="13_sparks"]
 [ext_resource type="Script" path="res://scenes/feedback/combat_feedback.gd" id="14_feedback"]
 [ext_resource type="Resource" path="res://resources/config/combat_feedback.tres" id="15_feedback_config"]
@@ -41,6 +42,11 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 script = ExtResource("11_pool")
 scene = ExtResource("12_zombie")
+
+[node name="HostileRobotPool" type="Node" parent="World"]
+unique_name_in_owner = true
+script = ExtResource("11_pool")
+scene = ExtResource("12_hostile_robot")
 
 [node name="ImpactPool" type="Node" parent="World"]
 unique_name_in_owner = true
@@ -85,12 +91,13 @@ unique_name_in_owner = true
 script = ExtResource("19_death")
 dropped_items = NodePath("../World/DroppedItems")
 
-[node name="ZoneLoader" type="Node" parent="." node_paths=PackedStringArray("zone_slot", "players_root", "zombie_pool", "impact_pool", "dropped_item_pool", "dropped_items", "base_structures", "zone_memory")]
+[node name="ZoneLoader" type="Node" parent="." node_paths=PackedStringArray("zone_slot", "players_root", "zombie_pool", "hostile_robot_pool", "impact_pool", "dropped_item_pool", "dropped_items", "base_structures", "zone_memory")]
 unique_name_in_owner = true
 script = ExtResource("20_loader")
 zone_slot = NodePath("../World/ZoneSlot")
 players_root = NodePath("../World/Players")
 zombie_pool = NodePath("../World/ZombiePool")
+hostile_robot_pool = NodePath("../World/HostileRobotPool")
 impact_pool = NodePath("../World/ImpactPool")
 dropped_item_pool = NodePath("../World/DroppedItemPool")
 dropped_items = NodePath("../World/DroppedItems")

@@ -31,7 +31,8 @@ const EXPECTED_ITEMS: Dictionary[StringName, Array] = {
 	&"iron": [&"ITEM_IRON", 10],
 	&"portable_battery": [&"ITEM_PORTABLE_BATTERY", 5],
 }
-const EXPECTED_ENEMY_IDS: Array[StringName] = [&"zombie_slow", &"zombie_fast"]
+const EXPECTED_ENEMY_IDS: Array[StringName] = [&"zombie_slow", &"zombie_fast", &"hostile_robot_basic"]
+const PIECE_DROPS_DIR := "res://resources/piece_drops"
 
 
 func _new_item(id: StringName) -> ItemData:
@@ -672,3 +673,27 @@ func test_r_014_22_every_cost_fits_one_stack() -> void:
 			fail_test("repair tier %d is empty" % i)
 			continue
 		_assert_fits_one_stack("repair tier %d" % i, tier.ingredients)
+
+
+# --- Hostile robot (spec 016) -------------------------------------------------
+
+
+func test_r_016_01_hostile_robot_in_catalog() -> void:
+	var robot: EnemyData = DataRegistry.get_enemy(&"hostile_robot_basic")
+	assert_not_null(robot, "DataRegistry returns the hostile robot")
+	if robot != null:
+		assert_eq(robot.faction, EnemyData.Faction.MACHINE, "listed as a machine")
+
+
+func test_r_016_04_piece_drops_valid() -> void:
+	var files: PackedStringArray = DirAccess.get_files_at(PIECE_DROPS_DIR)
+	assert_gt(files.size(), 0, "there is at least one piece drop")
+	for file: String in files:
+		var drop: PieceDropData = load(PIECE_DROPS_DIR.path_join(file)) as PieceDropData
+		assert_not_null(drop, "%s is a PieceDropData" % file)
+		if drop == null:
+			continue
+		var problems: PackedStringArray = LootSystem.validate_piece_drop(drop)
+		assert_eq(problems.size(), 0, "%s: %s" % [file, problems])
+		for piece: PieceData in drop.pieces:
+			assert_true(DataRegistry.get_catalog().has_item(piece.id), "%s: %s in the catalog" % [file, piece.id])

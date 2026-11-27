@@ -33,6 +33,7 @@ ERR_NO_ROOM,No room on the other side,No hay sitio en el otro lado
 HUD_STORAGE,Inventory,Inventario
 ENEMY_ZOMBIE_SLOW,Slow zombie,Zombie lento
 ENEMY_ZOMBIE_FAST,Fast zombie,Zombie rápido
+ENEMY_HOSTILE_ROBOT_BASIC,Hostile robot,Robot hostil
 HUD_ATTACK,Attack,Atacar
 TRANSFER_TITLE,Consciousness Transfer,Transferencia de Consciencia
 INVENTORY_THROW,Drop,Tirar

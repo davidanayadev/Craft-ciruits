@@ -16,8 +16,10 @@ const BASIC_ARMS_PATH := "res://resources/pieces/basic_arms.tres"
 const COMBAT_CONFIG_PATH := "res://resources/config/combat.tres"
 const FEEDBACK_PATH := "res://resources/config/combat_feedback.tres"
 const ZOMBIE_AI_PATH := "res://resources/ai/zombie_ai.tres"
-## enemy id → hits of one arm to kill it: HP of BALANCE §3.1 / damage of §4.2.
-const EXPECTED_ONE_ARM_HITS: Dictionary[StringName, int] = {&"zombie_slow": 4, &"zombie_fast": 3}
+## enemy id → hits of one arm to kill it: HP of BALANCE §3.1 and §3.2 / damage of §4.2.
+const EXPECTED_ONE_ARM_HITS: Dictionary[StringName, int] = {
+	&"zombie_slow": 4, &"zombie_fast": 3, &"hostile_robot_basic": 10
+}
 const GAME_CODE_DIRS: Array[String] = ["res://scripts", "res://scenes"]
 ## Data scripts declare the fields with their neutral default.
 const DATA_DIR := "res://scripts/data"

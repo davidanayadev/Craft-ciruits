@@ -23,6 +23,9 @@ extends GutTest
 ## travel at no cost (R-009-11), and a death ends in the base (R-009-51..53).
 ## Spec 015: the inventory panel, with the equipment, leaves the HUD storage
 ## button free on a 1920×1080 landscape screen (R-015-35).
+## Spec 016 (T-016-10): the kill of a hostile robot leaves one dropped item with
+## its materials and its piece (R-016-18) and the piece is taken, equipped and
+## repaired at the bench (R-016-19).
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 ## Any fixed time: the tests move the fake clock from here.
@@ -32,6 +35,8 @@ const CAMERA_PATH := "res://resources/config/camera.tres"
 const OTHER_ZONE_ID := Vector2i(7, 7)
 const GREEN_ZONE_ID := Vector2i(0, 0)
 const TRAVEL_TIMEOUT_S := 10.0
+const DROP_SEARCH := preload("res://tests/support/hostile_drop_search.gd")
+const DROPPED_ITEMS_PATH := "res://resources/config/dropped_items.tres"
 ## The robot respawns when the travel ends and the world runs again before the
 ## test reads its battery: a few frames of passive drain at most.
 const RESPAWN_BATTERY_TOLERANCE := 0.05
@@ -652,7 +657,11 @@ func test_r_007_28_main_wires_combat() -> void:
 	if feedback == null or impact_pool == null or debug_hud == null:
 		return
 	var zone: FarmZone = _zone()
-	assert_eq(impact_pool.get_free_count(), zone.data.enemy_count_max, "prewarmed for every enemy")
+	assert_eq(
+		impact_pool.get_free_count(),
+		zone.data.enemy_count_max + zone.data.hostile_robot_count_max,
+		"prewarmed for every enemy of both populations (spec 016)"
+	)
 	assert_same(feedback.impact_pool, impact_pool, "the feedback uses that pool")
 	assert_same(feedback.effects_root, _main.get_node("World"), "and plays its sparks under World")
 	# The HUD attack button reaches the robot's input.
@@ -1380,3 +1389,136 @@ func test_r_012_47_outside_touch_does_not_reach_joystick() -> void:
 	touch.pressed = false
 	_push(touch)
 	assert_signal_not_emitted(joystick, "released", "nor let it go")
+
+
+# --- Spec 016: the piece of a hostile robot, from the kill to the bench ------
+
+
+func _hostile_robot_pool() -> ObjectPool:
+	return _main.get_node("World/HostileRobotPool") as ObjectPool
+
+
+## "item id → quantity" of the stacks of a roll.
+func _held_by(stacks: Array[ItemStack]) -> Dictionary[StringName, int]:
+	var held: Dictionary[StringName, int] = {}
+	for stack: ItemStack in stacks:
+		held[stack.item.id] = held.get(stack.item.id, 0) + stack.quantity
+	return held
+
+
+## Kills the first robot of the zone whose drop has a piece, as the player.
+## Returns what it was found with, and null when it could not be placed. The
+## dropped item is at found.robot's position before the kill (stored in at).
+func _kill_robot_with_piece(at: Array[Vector3]) -> DROP_SEARCH.Found:
+	var found: DROP_SEARCH.Found = DROP_SEARCH.place_robot_with_piece(
+		_zone(), _hostile_robot_pool(), GameManager.get_world_seed()
+	)
+	assert_not_null(found, "test setup: a visit with a hostile robot that drops a piece")
+	if found == null:
+		return null
+	at.append(found.robot.global_position)
+	var data: EnemyData = found.robot.get_data()
+	found.robot.get_hurtbox().receive_attack(data.hp_max, _robot().player_uid)
+	return found
+
+
+func test_r_016_18_kill_leaves_one_dropped_item() -> void:
+	var fake: FakeTimeService = _use_fake_clock()
+	var at: Array[Vector3] = []
+	var found: DROP_SEARCH.Found = _kill_robot_with_piece(at)
+	if found == null:
+		return
+	var items: Array[DroppedItem] = _spawner().get_items()
+	assert_eq(items.size(), 1, "the kill left one dropped item")
+	if items.size() != 1:
+		return
+	assert_lt(items[0].global_position.distance_to(at[0]), 0.01, "where the robot died")
+	assert_eq(_held(items[0].get_contents()), _held_by(found.stacks), "holding the roll of its drop seed")
+	var held: Dictionary[StringName, int] = _held(items[0].get_contents())
+	for material: StringName in [&"scrap", &"cables", &"iron"]:
+		var amount: int = held.get(material, 0)
+		assert_gt(amount, 0, "it holds %s" % material)
+	var piece: ItemStack = found.piece()
+	var on_ground: ItemStack = null
+	for stack: ItemStack in items[0].get_contents().get_slots():
+		if stack != null and stack.item is PieceData:
+			on_ground = stack
+	assert_not_null(on_ground, "and the piece")
+	if on_ground == null:
+		return
+	var piece_data: PieceData = on_ground.item as PieceData
+	assert_eq(on_ground.quantity, 1, "one unit of it")
+	assert_eq(on_ground.item.id, piece.item.id, "the piece of the roll")
+	assert_eq(
+		on_ground.durability, _dropped_piece_durability(piece_data), "at the durability of its piece drop"
+	)
+	assert_false(on_ground.uid.is_empty(), "with its own uid")
+	# It opens in the container screen.
+	var robot: Robot = _robot()
+	robot.global_position = at[0]
+	await wait_physics_frames(4)
+	robot.request_interact()
+	var screens: Array[UIScreen] = _open_screens()
+	assert_eq(screens.size(), 1, "one screen opened")
+	if screens.size() == 1:
+		assert_true(screens[0] is ContainerScreen, "the container screen")
+	_ui_manager().close_all()
+	# And it expires like any enemy loot.
+	var config: DroppedItemConfigData = load(DROPPED_ITEMS_PATH) as DroppedItemConfigData
+	var lifetime: int = config.lifetime_s
+	_spawner().discard_expired(fake.now + lifetime - 1)
+	assert_eq(_spawner().get_items().size(), 1, "before its lifetime it stays")
+	_spawner().discard_expired(fake.now + lifetime)
+	assert_eq(_spawner().get_items().size(), 0, "at its lifetime it is gone")
+
+
+func test_r_016_19_dropped_piece_taken_equipped_and_repaired() -> void:
+	var at: Array[Vector3] = []
+	var found: DROP_SEARCH.Found = _kill_robot_with_piece(at)
+	if found == null:
+		return
+	var robot: Robot = _robot()
+	robot.global_position = at[0]
+	await wait_physics_frames(4)
+	robot.request_interact()
+	var screens: Array[UIScreen] = _open_screens()
+	assert_eq(screens.size(), 1, "the container screen opened")
+	if screens.size() != 1:
+		return
+	(screens[0].get_node("%TakeAllButton") as Button).pressed.emit()
+	_ui_manager().close_all()
+	var piece_id: StringName = found.piece().item.id
+	var slot: int = _slot_of(robot.inventory, piece_id)
+	assert_ne(slot, -1, "the piece is in the inventory")
+	if slot == -1:
+		return
+	var taken: ItemStack = robot.inventory.get_slots()[slot]
+	var piece_uid: String = taken.uid
+	var piece_data: PieceData = taken.item as PieceData
+	assert_eq(taken.durability, _dropped_piece_durability(piece_data), "taken at the dropped durability")
+	assert_true(robot.equip(slot).ok, "the piece is equipped")
+	assert_true(robot.equipment.has_piece(piece_uid), "it is in the equipment, same uid")
+	await _travel_to_base()
+	var bench: RepairBench = _base().get_bench()
+	var costs: RepairCostData = DataRegistry.get_catalog().repair_costs
+	var equipped: ItemStack = robot.equipment.get_piece(piece_data.slot_type)
+	var cost: Dictionary[StringName, int] = CraftingSystem.repair_cost(equipped, costs)
+	assert_false(cost.is_empty(), "50 % falls in a repair tier")
+	for item_id: StringName in cost:
+		robot.inventory.add(item_id, cost[item_id])
+	var before: Dictionary[StringName, int] = _held(robot.inventory)
+	assert_true(bench.repair(robot, piece_uid).ok, "the bench repairs it")
+	var after: Dictionary[StringName, int] = _held(robot.inventory)
+	for item_id: StringName in cost:
+		var left: int = after.get(item_id, 0)
+		assert_eq(left, before[item_id] - cost[item_id], "it charged %s of its tier" % item_id)
+	var repaired: ItemStack = robot.equipment.get_piece(piece_data.slot_type)
+	assert_eq(repaired.durability, piece_data.durability_max, "the durability is the maximum")
+	assert_eq(repaired.uid, piece_uid, "the uid did not change")
+
+
+## Durability a piece keeps when the hostile robot drops it, from its data.
+func _dropped_piece_durability(piece: PieceData) -> int:
+	var robot: EnemyData = DataRegistry.get_enemy(&"hostile_robot_basic")
+	@warning_ignore("integer_division")
+	return piece.durability_max * robot.piece_drop.durability_percent / CraftingSystem.PERCENT

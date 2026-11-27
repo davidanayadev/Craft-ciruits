@@ -10,6 +10,7 @@ extends GutTest
 
 const ZONE_SCENE := preload("res://scenes/farm_zone/farm_zone_green.tscn")
 const ZOMBIE_SCENE := preload("res://scenes/entities/zombie.tscn")
+const HOSTILE_ROBOT_SCENE := preload("res://scenes/entities/hostile_robot.tscn")
 const KILLER_UID := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const WORLD_SEED := 4242
 const VISIT := 1
@@ -17,6 +18,7 @@ const UNKNOWN_ZONE := Vector2i(77, 77)
 
 var _memory: ZoneMemory
 var _pool: ObjectPool
+var _robot_pool: ObjectPool
 var _opener: Node3D
 
 
@@ -27,6 +29,9 @@ func before_each() -> void:
 	_pool = ObjectPool.new()
 	_pool.scene = ZOMBIE_SCENE
 	add_child_autofree(_pool)
+	_robot_pool = ObjectPool.new()
+	_robot_pool.scene = HOSTILE_ROBOT_SCENE
+	add_child_autofree(_robot_pool)
 	_opener = Node3D.new()
 	add_child_autofree(_opener)
 
@@ -41,7 +46,7 @@ func _farm(visit: int, state: Dictionary) -> FarmZone:
 	var zone: FarmZone = ZONE_SCENE.instantiate() as FarmZone
 	zone.get_node("%Navigation").free()
 	add_child_autofree(zone)
-	zone.populate(WORLD_SEED, visit, _pool, state)
+	zone.populate(WORLD_SEED, visit, _pool, _robot_pool, state)
 	return zone
 
 
@@ -260,3 +265,29 @@ func test_r_012_38_deposited_item_stays_after_reload() -> void:
 	assert_true(reopened.is_opened(), "the box is still open")
 	var index: int = InventoryRules.index_of_uid(reopened.get_contents().get_slots(), piece.uid)
 	assert_gte(index, 0, "the item left in it is still there")
+
+
+func test_r_016_25_dead_robots_stay_dead() -> void:
+	# Spec 016: a killed hostile robot stays dead through ZoneMemory.
+	var visit: int = -1
+	for candidate: int in 30:
+		var probe: FarmZone = _farm(candidate, {})
+		var found: bool = not probe.get_hostile_robots().is_empty()
+		probe.despawn_enemies()
+		if found:
+			visit = candidate
+			break
+	assert_ne(visit, -1, "some visit has a hostile robot")
+	if visit == -1:
+		return
+	var farm: FarmZone = _farm(visit, {})
+	_kill(farm.get_hostile_robots()[0])
+	await wait_physics_frames(2)
+	_memory.bind_farm(farm)
+	_memory.unbind_farm()
+	farm.despawn_enemies()
+	var kept: Dictionary = _memory.take_state(_zone_id(farm), visit)
+	var dead: Array = kept.get("dead_hostile_robots", [])
+	assert_eq(dead, [0], "ZoneMemory keeps the dead robot")
+	var again: FarmZone = _farm(visit, kept)
+	assert_eq(again.get_hostile_robots().size(), 0, "it does not come back")
