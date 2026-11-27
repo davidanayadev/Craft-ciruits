@@ -13,7 +13,8 @@ levels, Profile and World, and `IStore`, ACTION_PLAN Tarea 2.3) is done. Spec 01
 bench, ACTION_PLAN Tarea 2.4) is done. Spec 012 (wind generator, portable batteries and chests, ACTION_PLAN
 Tareas 2.5, 2.6) is done. Spec 013 (loot boxes on sites that change per visit and the reworked container screen, a
 revision of ACTION_PLAN Tareas 1.1 and 2.6) is done. Spec 014 (chassis level, ACTION_PLAN Tarea 2.7) is done. Spec 015
-(pieces, slots and degradation, ACTION_PLAN Tareas 3.1, 3.2) is done.
+(pieces, slots and degradation, ACTION_PLAN Tareas 3.1, 3.2) is done. Spec 016 (hostile robot and its drops, ACTION_PLAN
+Tarea 3.3) is done.
 `game/` has its
 settings, i18n, InputMap, GUT 9.7.1 (ADR
 `specs/decisions/0002-test-framework-gut.md`), export presets, CI, and a playable prototype
@@ -27,10 +28,14 @@ an `InventoryComponent` (its slots grow with the chassis level, stacking rules i
 in its own `InventoryComponent` and opens the `ContainerScreen`, where stacks move between the box and the
 inventory (a box is never disabled, also when empty); the storage button (Tab)
 opens the inventory screen. Both screens go through `UIManager` (a node under `UI`, not an autoload), which blocks
-the robot's input while one is open without pausing the game. Slow and fast zombies (`EnemyData`, a
+the robot's input while one is open without pausing the game. Slow and fast zombies and a hostile robot (`EnemyData`, a
 `HealthComponent`, the pure `EnemyBrain` state machine and a `NavigationAgent3D` on the zone's baked navmesh)
-patrol, chase and hit the robot, which loses battery through `Robot.receive_hit`. `ZombieSpawner` places them
-from the world seed and the visit number, taking them from an `ObjectPool` under `World`. The zombie model is a
+patrol, chase and hit the robot, which loses battery through `Robot.receive_hit`. One `Enemy` script serves
+`zombie.tscn` and `hostile_robot.tscn` (spec 016), and one `EnemySpawner` per population (`%ZombieSpawner`,
+`%HostileRobotSpawner`, each with its markers, `ZoneData` fields and `SeededRng` streams, `rules_for`) places them
+from the world seed and the visit number, taking them from an `ObjectPool` under `World` (`ZombiePool`,
+`HostileRobotPool`). A killed hostile robot drops materials and, with a chance, a basic piece at half durability
+(`PieceDropData`, `LootSystem.roll_enemy_drop`, same RNG after the table), in one dropped item. Both models are a
 placeholder made of primitives. The robot fights with the stats of its equipped arms, or with one bare arm
 (`AttackStatsData` from `StatsComponent.get_attack`, rules in the pure `CombatSystem`): its `MeleeAttackComponent` swings on the HUD attack button, Space or left click (read through
 `PlayerInput.poll_attack`, never from the action state, so HUD clicks are not attacks), each swing costs battery
@@ -89,8 +94,8 @@ computes the final stats from `robot_base_stats.tres` and the pieces' `StatModif
 battery, movement and attack. Each hit takes the wear of the pure `DegradationSystem` from the first intact piece in
 the order Arms, Legs, Core, and a piece at 0 breaks and leaves its slot. On death the Normal ruleset keeps the Core;
 arms and legs fall with the inventory. The bench repairs equipped pieces too, and the HUD battery bar turns orange
-below the low-battery threshold. A new world starts with the basic Core and Legs. The next spec is 016 (hostile
-robot, ACTION_PLAN Tarea 3.3).
+below the low-battery threshold. A new world starts with the basic Core and Legs. The next spec is 017
+(memories, Core slots and new XP sources, ACTION_PLAN Tarea 3.4).
 
 ## Commands
 

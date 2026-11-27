@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Estado** | Planificado (2026-11-26) |
+| **Estado** | Hecho (2026-11-27) |
 | **Tarea(s) ACTION_PLAN** | 3.3 |
 | **Fuentes** | ACTION_PLAN.md Tarea 3.3 (y 1.3, 1.5, 4.1, 4.3, 4.4 para los límites) · PMV.md §2.1, §2.3, §4.3, §10 ("Muerte y objetos caídos": forma del objeto caído) · BALANCE.md §2, §2.1, §3.1, §3.2, §4.1, §4.3.2, §6.2, §7.1, §7.2 · SPECS.md §15.4, §17.2, §28 · ONLINE.md (créditos) · architecture.md §6, §7, §8, §10.2, §11 · README §6 (condición de entrada de la 016) · specs 004, 006 (R-006-14, R-006-18, R-006-27), 007 (R-007-17), 008 (R-008-35), 010 (R-010-32), 011 (plan §7), 015 (objeto caído como contenedor, R-015-21) · Constitución P2, P3, P5, P9, P11, P12, P13, P14 |
 | **Depende de** | 006 (`EnemyData`, `EnemyBrain`, `HealthComponent`, pool, spawner por visita), 007 (`HurtboxComponent`, `enemy_killed`, XP al matar, `CombatFeedback`), 008 (drops de enemigos como objeto caído, semilla por visita), 010 (enemigos muertos de la visita en el guardado), 011 (`PieceData`, piezas únicas con `uid` y durabilidad, `CraftingSystem.create_result`), 013 (pantalla de contenedor), 015 (objeto caído como contenedor, equipo, desgaste por golpe) |

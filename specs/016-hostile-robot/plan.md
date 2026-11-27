@@ -78,6 +78,7 @@ mecánico y se hace en un commit propio sin cambio de comportamiento. Si la revi
 | `tests/integration/test_hostile_robot.gd` | Nuevo | Escena, comportamiento, combate, XP y drop del robot hostil |
 | `tests/unit/test_loot_system.gd`, `test_enemy_resources.gd`, `test_data_catalog.gd`, `test_zone_resources.gd`, `test_seeded_rng.gd`, `test_no_global_rng.gd` | Cambian | §5 |
 | `tests/integration/test_green_zone.gd`, `test_zone_loader.gd`, `test_zone_memory.gd`, `test_save_fixtures.gd`, `test_main_scene.gd`, `test_save_load.gd`, `test_robot_combat.gd`, `test_base_zone.gd` | Cambian | Nombres de D1 y el pool del robot en `populate`/`repopulate`; casos nuevos de §5 |
+| `tests/support/hostile_drop_search.gd` | Nuevo | Ayuda de tests (sin `class_name`): busca una visita cuyo robot suelte pieza y calcula su drop con la semilla, sin copiar números. Para ir rápido coloca en la zona cargada de `Main` los robots de esa visita en lugar de los de la suya; solo lo usan los tests de `Main` y de guardado de T-016-10, cuyas aserciones no dependen de la visita |
 
 ## 3. Contratos
 
@@ -170,7 +171,7 @@ func despawn_all() -> void
 func get_dead_indices() -> Array[int]
 func get_active() -> Array[Enemy]
 ## Pure: what population reads from zone and which streams it uses. null zone → push_error, null.
-static func rules_for(population: Population, zone: ZoneData) -> Rules
+static func rules_for(for_population: Population, zone: ZoneData) -> Rules  # no shadowing of the member `population`
 
 
 # scenes/farm_zone/farm_zone.gd (cambia)
@@ -269,6 +270,20 @@ Los tests nuevos van en los archivos de §2; `test_enemy.gd` y `test_enemy_spawn
 - **M4** (R-016-25): con el robot muerto, cerrar y abrir el juego dentro de la visita: no vuelve ni deja otro drop.
 - **M5** (P12, spec §5): ≥ 30 FPS en el Android de gama media con el robot y todos los zombies persiguiendo.
 
+Semilla de desarrollo para M1 a M4 (comprobada en T-016-09 con el código de esta rama): **20261115**, la de
+`SaveTestSupport.KNOWN_SEED`. Visitas de la zona verde con robot hostil: 2 (oeste), 4, 5 y 9 (este), 7 (norte) y 8
+(oeste); las visitas 0, 1, 3, 6, 10 y 11 no tienen. El drop del robot trae pieza en las visitas **7** y **9**.
+
+Estado de T-016-11 (2026-11-26): semilla y visitas buscadas y anotadas arriba. Arranque del juego en PC (600 frames,
+headless) sin errores ni avisos y APK debug exportado sin errores (`builds/android/cyberscrap-debug.apk`).
+
+Resultado (2026-11-27, usuario): **M1 a M5 correctos** en PC y en el APK de Android. Observación: el robot sale en
+pocas visitas (0 o 1 por visita, BALANCE §7.1), así que al principio costó encontrarlo; no es un fallo de la spec, y
+cambiar cuántos aparecen sería un cambio de balance (BALANCE.md primero). El juego no deja elegir la semilla de un mundo nuevo
+(`SaveManager._new_world_seed()`), así que en PC y Android la prueba manual usa la semilla aleatoria del mundo: salir
+y volver a entrar por la salida hasta que haya robot (uno de cada dos visitas, de media) y matar robots hasta que uno
+suelte pieza (15 %). La semilla 20261115 sirve para los tests y para reproducir un caso con un mundo creado a mano.
+
 ### 5.3 Tests existentes que cambian
 
 - **D1 (renombrado)**: referencias a `Zombie`, `ZombieSpawner`, `spawn_enemies`, `get_enemies` y a las rutas
@@ -285,6 +300,9 @@ Los tests nuevos van en los archivos de §2; `test_enemy.gd` y `test_enemy_spawn
 - `test_enemy_resources.gd::test_r_006_02_only_the_two_zombies`: cuenta un archivo por enemigo de BALANCE §3.1 **y
   §3.2** (2 + 1). En los dos casos es el dato esperado que cambia con BALANCE, no un test que se afloja; el resto de casos de zombies
   (valores, IA compartida entre los dos zombies) siguen igual.
+- `test_combat_resources.gd::EXPECTED_ONE_ARM_HITS` (no previsto al planificar; lo exige `test_r_007_28_one_arm_kills_both_zombies`,
+  que recorre todos los archivos de `resources/enemies/`) gana `hostile_robot_basic`: 10 golpes de un brazo (50 HP de
+  BALANCE §3.2 / 5 de daño de §4.2). Es el dato esperado que crece con BALANCE.
 
 ## 6. Check de constitución
 
@@ -296,7 +314,7 @@ Los tests nuevos van en los archivos de §2; `test_enemy.gd` y `test_enemy_spawn
 | P4 Estado por jugador | ✅ | Ningún estado nuevo de jugador; los muertos de la visita son estado del mundo en `FarmZone`/`ZoneMemory` |
 | P5 Datos como recursos | ✅ | `PieceDropData` nuevo con `class_name` y `.tres` en `resources/piece_drops/` (no en `resources/loot/`, donde `test_r_004_26_all_loot_tables_valid` exige que todo sea `LootTableData`) |
 | P6 Señales | ✅ | Sin señales nuevas: el loot y la muerte viajan por las de hoy (`loot_dropped`, `defeated`, `enemy_killed`); `%UniqueName` y `@export` para los nodos nuevos |
-| P7 Tipado | ✅ | Todo tipado, incluidos `Array[PieceData]` y la clase interna `_Rules` |
+| P7 Tipado | ✅ | Todo tipado, incluidos `Array[PieceData]` y la clase interna `EnemySpawner.Rules` (pública: un test fija el mapa de `rules_for`, D4) |
 | P8 Plataforma | ✅ | Sin input ni código por plataforma |
 | P9 Determinismo | ✅ | Aparición, comportamiento y drop del robot con flujos propios de `SeededRng` por visita e índice (D6); ningún `randf()`/`randi()` global (`test_no_global_rng.gd`). El `uid` es identidad (`Uid.generate`), no juego (D11) |
 | P10 Servicios | — | No toca servicios |
@@ -316,10 +334,20 @@ Los tests nuevos van en los archivos de §2; `test_enemy.gd` y `test_enemy_spawn
 - **Un robot aparece en tests de `Main` que ya existen** (semilla fija de `SaveTestSupport`, visita 0, o la de
   `world_v1.json`) y se mete en un test que mueve al jugador por la zona (por ejemplo
   `test_r_007_28_robot_kills_a_zone_zombie`) → T-016-09 comprueba si esas semillas y visitas dan robot y dónde; si
-  estorba, el test afectado lo saca de en medio sin cambiar sus aserciones (y se anota aquí).
+  estorba, el test afectado lo saca de en medio sin cambiar sus aserciones (y se anota aquí). **Comprobado
+  (2026-11-26):** la visita 0 de la semilla 20261115 no tiene robot, así que los tests de `Main` no cambian; la visita
+  2 de `world_v1.json` lo tiene en el marcador oeste (-23, 0, -3), a 26 m de la posición guardada del jugador.
+- **El precalentado de chispas cambia** (D9): `test_main_scene.gd` comprobaba `impact_pool` = `enemy_count_max`; ahora
+  es `enemy_count_max + hostile_robot_count_max`. Es el dato esperado que cambia con D9, no un test que se afloja.
 - **Hallazgos de `architecture-guardian` no adoptados**: un `@export var markers_root` en el spawner (cohesión
   opcional; los marcadores los sigue pasando `FarmZone`, como hoy) y un escáner de literales del drop en scripts (lo
   cubre `balance-auditor` en la Definición de hecho).
+- **Hallazgos de la revisión del diff (2026-11-26) no adoptados**: constantes de test a mitad de archivo (los tests ya
+  agrupan así las de cada spec, junto a sus casos); dos `push_error` con `hostile_robot_pool` sin asignar (el del
+  `ZoneLoader` y el del spawner, ambos dicen algo distinto y el test los espera); `validate_piece_drop(null)` sin
+  comprobar (todos sus llamadores comprueban antes). Adoptados: el caso del robot en `test_combat_feedback.gd`, los
+  rangos de `test_r_016_14` leídos de su tabla, `test_r_006_02` contra una lista de nombres, `PINNED_ZOMBIES` tipado
+  y CLAUDE.md sin dar la spec por cerrada mientras falte T-016-11.
 - **Marcadores del robot mal colocados** (dentro de un obstáculo, fuera de la navmesh, a la vista del spawn) → los
   mismos tests que para zombies y cajas (R-016-21).
 - **Probabilidad del 15 % difícil de ver en el juego** → los tests usan semillas fijas; para la prueba manual, T-016-11
