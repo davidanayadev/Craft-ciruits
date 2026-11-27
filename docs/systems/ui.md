@@ -50,7 +50,7 @@ el centro), que sirve para cerrarla; `test_main_scene.gd` lo mide con el inventa
 4. **Bloqueo de entrada.** `modal_state_changed(is_open)` se emite solo al pasar de ninguna pantalla a alguna y
    al revés. `main.gd` lo conecta a `PlayerInput.set_input_blocked(bloqueado, REASON_SCREEN)` (sin dirección, carrera
    ni interactuar; ver [movement.md](movement.md)). `Robot.request_interact()` también se ignora. El árbol **no se
-   pausa**: la batería sigue gastando y los zombies actúan ([enemies.md](enemies.md)).
+   pausa**: la batería sigue gastando y los enemigos actúan ([enemies.md](enemies.md)).
 5. **HUD.** `Hud.bind(robot)` conecta `battery_changed`, `target_changed` del interactor, `overflowed` del
    inventario y `blocked_changed` de `PlayerInput` (el botón Interact se oculta con cualquier motivo de bloqueo:
    pantalla, muerte o viaje; `set_modal_open` ya no existe), y pinta el estado inicial con los mismos manejadores.
